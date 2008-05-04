@@ -1,0 +1,274 @@
+<HTML><HEAD><TITLE>Unicode Terminals</TITLE>
+<BASE HREF="http://czyborra.com/unicode/terminals.html">
+<LINK REV="made" HREF="mailto:roman@czyborra.com" >
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html;charset=US-ASCII">
+</HEAD><BODY LANG="en">
+
+<H1>Unicode Terminals</H1>
+
+<P>For Unicode to gain wide acceptance in the Unix world it will be
+crucial to provide a Unicode terminal that takes care of the proper
+display and comfortable input possibilities for all needed <A
+HREF="characters.html" >Unicode characters</A> in the standard <A
+HREF="/utf/#UTF-8" >UTF-8</A> format.
+
+<H2>Why terminals?</H2>
+
+<P>Many of the fastest Unix application do not use a graphical user
+interface (GUI) but a character user interface (CUI) and run on a
+terminal or a terminal emulator like the <A
+HREF="http://www.clark.net/pub/dickey/xterm/xterm.faq.html" >xterm</A>
+within the X Window System.  These include the the editors <A
+HREF="http://www.cs.vu.nl/~tmgil/vi.html" >vi</A>, joe, <A
+HREF="http://www.gnu.org/software/emacs/emacs.html" >emacs</A> -nw,
+pico, the interactive shells <A
+HREF="http://www.gnu.org/software/bash/bash.html" >bash</A> and tcsh,
+the browser lynx, the pager <A
+HREF="http://www.gnu.org/software/less/less.html" >less</A>, the mail
+readers elm, <A HREF="http://www.cs.hmc.edu/~me/mutt/" >mutt</A>, <A
+HREF="http://www.washington.edu/pine/" >pine</A>, the news readers nn,
+trn, tin, communication programs talk, <A HREF="http://irc.pages.de/"
+>irc</A>, and minicom, top, the GNU interactive tools git, the
+Midnight commander mc, the multiple session manager screen, games like
+gnuchess, the shell script menuing tool dialog, as well as various
+system and database administration forms.
+
+<P>Why is the CUI still popular?  CUI applications start up fast and
+can be steered quickly through key presses or <A
+HREF="/unix/man.cgi/man1/expect.1" >expect</A> scripts, or a bit
+slower remotely via modem, telnet, rlogin or ssh.  They can run on a
+console without a graphical window system as well as in a highly
+customizable terminal emulator in a windowing environment.
+
+<H2>How do Unix terminals work?</H2>
+
+<P>The <A HREF="http://simson.vineyard.net/unix-haters.html" >Unix</A>
+terminal is an ancient beast as you can sometimes tell by error
+messages like "Not a typewriter" which refers to the teletypewriter
+device of the 1970s (more interactive than punch cards), connected to
+the host server through a serial line.  Nevertheless, the Unix
+terminal has grown a complex set of functions to deal with various
+situations.
+
+<P>A terminal is a serial device that processes the bytes <A
+HREF="/unix/man.cgi/man2/write.2" >written</A> to it and turns
+keyboard input into bytes to be <A HREF="/unix/man.cgi/man2/read.2"
+>read</A> by an application.  Between the terminal and the
+application, there is the flow control and line discipline at kernel
+level that can be controlled through the POSIX <A NAME="termios"
+HREF="/unix/man.cgi/man3/termios.3" >termios</A> ioctl functions.
+
+<P>To become a character-imaging device, a terminal is free to
+interpret certain bytes or as graphic characters and certain byte
+sequences as formatting controls to move the cursor, switch colors,
+clear the screen, etc.  The capabilities of each terminal type and the
+control sequences to access them are stored in the file <A
+NAME="termcap" HREF="file://localhost/etc/termcap" >/etc/termcap</A>
+or the equivalent terminfo database and indexed by the value of the
+environment variable TERM.
+
+<P>A terminal has many stateful variables (screen contents, cursor
+position, highlighting modes, ...).  As the application has no way of
+looking at the screen, it has to keep a copy of these variables and
+log all changes to it and assume that all its instructions have had
+the desired effects.  There is a standardized library for that sort of
+screen manipulation called <B>curses</B> with a free GNU
+implementation called <A NAME="curses"
+HREF="http://www.gnu.org/software/ncurses/ncurses.html" >ncurses</A>.
+The <A HREF="http://www.unix-systems.org/unix98.html" >Unix98</A>
+specification (successor of the X/Open Portability Guide) specifies
+curses together with a set of <A
+HREF="http://www.cityu.edu.hk/Unix-man/curs_inwch.3X.html" >wide
+character extensions</A> to handle the East Asian character sets and
+these extensions might perhaps be usable for Unicode.  I have not
+studied them that closely yet.
+
+<H2>Why Unicode terminals?</H2>
+
+<P>The CUI applications listed above rely on their terminals to render
+text legible and send the keyboard input as proper character codes.
+
+<P>CUI applications can - while running in the X Window System -
+delegate the task of rendering and inputting Unicode text to the <A
+HREF="/yudit/" >yudit</A> editor.  But launching such an external GUI
+application for every little piece of text can become quite
+time-consuming and inconvenient and thus void the advantages of the
+CUI.
+
+<P>It would also not be smart to try to add a whole set of Unicode
+rendering and input procedures to each of the CUI applications.  They
+have not been bothering about the character rendering internals
+before.  They do not have the direct access to the display hardware
+the terminal has.  They could only hope that their terminal offers
+high-resolution bitmap functions such as the Tektronix 4014.
+Otherwise they would have to resort to transliterated approximations
+or ASCII graphics.  On a console of 80x24 ASCII cells they could only
+display one word of 10 characters at a time when printing the <A
+HREF="/unifont/#hexdraw" >hexdraw</A> image of 8×16 glyph bitmaps.
+
+<P>If we get our terminal to render and input Unicode, all the CUI
+applications can simply rely on that function provided by their
+operating environment (terminal) and will only need minor changes.
+We'd also get a consistent look (font) and feel (input method) imposed
+on all CUI applications.
+
+<H2>Why a unicoded xterm?</H2>
+
+<P>Programming a unicoded xterm would not require hardware adaptations
+for N platforms.  A unicoded xterm can simply resort to the portable
+font loading and text drawing functions provided by the X window
+system.  As an X11 application it will be able to run on all the
+existing X servers and require no radical redesign of the entire
+window system nor superuser privileges to install.  A unicoded xterm
+will run in the current environment of choice of most Unix users,
+regardless of their favorite desktop or window manager.  A unicoded
+xterm can bring Unicode capabilities to a wide range of programs on a
+wide range of Unix hosts.  A unicoded xterm brings us a Unicode
+editors, Unicode mailers, and a Unicode browser with one strike.
+
+<H2>What else is needed?</H2>
+
+<P>I believe that for a unicoded xterm to become successful, it would
+need to provide configurable input methods, font and encoding options,
+and comfortable cut-and-paste functions similar to yudit.  Yudit
+already allows you to cut and paste UTF-8 text in and out of Emacs and
+into xterm but not back because xterm strips C1 controls like =8F.
+
+<H2>Is it possible?</H2>
+
+<P>Unfortunately and as much as I would like to have that application
+for my Unicode font, I haven't found the time to prove my concept of a
+unicoded terminal emulator while writing my thesis.  I still want to
+patch the <A HREF="http://babayaga.math.fu-berlin.de/~rxvt/" >rxvt</A>
+terminal emulator because - unlike the original xterm - rxvt is slim
+with a clear structure, and already C1 control code clean and prepared
+for Japanese multibyte characters and kterm emulation, and even has
+Unicode support on its <A
+HREF="http://babayaga.math.fu-berlin.de/~rxvt/todo.html" >TODO</A>
+list.  Most of the work would go into the rxvt-2.4.7/src/screen.c.
+
+<P>Without this project started and tested, I can only speculate about
+the issue that will have to be dealt with.
+
+<P>Unicode does introduce a few problems we haven't had with
+ISO-8859-1 on terminals: first of all the character size has to be
+expanded to UTF-8 variable length.  Now you get the problem that the
+byte count does no longer necessarily equal the character count or the
+display width.  Are the line width and the cursor position now to be
+counted in bytes, characters, number of spacing characters, halfwidth
+character cells or what?
+
+<P>Applications unaware of UTF-8 will assume that their lines are
+longer than they really are.  They will think that they have filled
+the screen with 69 printable bytes for example not realizing that
+these 69 bytes make up only 23 multibyte characters and break the line
+prematurely.  This leaves the screen looking emptier than necessary
+but would not be a big problem for Latin text with mainly ASCII and
+only an occasional UTF-8 character.
+
+<P>Second of all, is it the terminal's or the application's task to
+handle bidirectionality, combining characters, contextual joining?  I
+would first leave them out of the terminal in the beginning and then
+start experimenting with some algorithms.
+
+<H2>A look at the existing Unicode terminals</H2>
+
+<H3><A NAME="9term" >9term</A></H3>
+
+<P><A HREF="http://www.gh.cs.su.oz.au/~matty/9term/" >9term</A>, the
+Plan9 terminal emulator for X, can display and enter UTF-8 text in a
+simple bitmapped window with mouse editing functions but without
+cursor control.  Its TERMCAP says:
+
+<P><PRE>
+9term: :am:bl=^G:do=^J:nl=^J:
+</PRE>
+
+<P>That means that the only control function it has is the linebreak.
+You can run all your line-oriented tools in 9term such as cat, ed,
+sed, perl but none of the CUI tools.  You can enter any Unicode
+character by hexadecimal number with Alt + Xabcd and some with <A
+HREF="/yudit/Troff.kmap" >mnemonic abbreviations</A>.
+
+<H3><A NAME="uxterm" >uxterm</A></H3>
+
+<P>There has been a <A HREF="http://pub.cs.tu-berlin.de/doc/uxterm/"
+>unicoded xterm</A> called <A
+HREF="ftp://ftp.iss.nus.sg/pub/iss/projects/uxterm/" >uxterm</A> from
+the Multilingual Application Support Service (<A
+HREF="http://www.iss.nus.sg/RND/MLP/Projects/MASS/MASS.html"
+>MASS</A>) group at the Institute of Systems Science of the National
+University of Singapore who have now formed their own company <A
+HREF="http://www.starglobe.com.sg/" >Star + Globe Technologies</A>.
+But uxterm is only available in binary form for AIX, HP-UX, IRIX, OSF,
+and SunOS and not in <A HREF="http://www.opensource.org/"
+>OpenSource</A> so you cannot port it to Linux nor enhance it.
+
+<P>uxterm greets me with
+
+<PRE>
+This is a scaled down demo copy of UXTERM 2.4.1.
+(c) COPYRIGHT Institute of Systems Science (ISS), Singapore, 1994, 1995.
+For information about the full package, please refer to the WWW page:
+    http://www.iss.nus.sg/RND/MLP/Projects/MASS/MASS.html
+</PRE>
+
+<P>uxterm appears to be based on the original X11 xterm.  With its
+TERM=xterm, its TERMCAP is good enough to run curses applications.  I
+set LESSCHARSET=koi8-r to get less to pass UTF-8 binary transparent.
+
+<P>
+
+<P>Instead of xterm's [Control]+[MouseButtopn3] font menu, uxterm
+comes with a menu:
+
+<P><PRE>
+Code Options
+> UTF-8
+  UTF-7
+  GB
+  HZ
+  HZX
+  Big5
+------
+> Byte Mode
+  Character Mode
+</PRE>
+
+<P>Here is the horizontal cell counting problem thus addressed by
+manual switching betweeen a UTF-8-unaware byte mode in which you and a
+UTF-8-aware character mode.
+
+<P>uxterm can also be run with newer <A HREF="/unifont/" >Unicode
+fonts</A> than the buggy uni24.bdf it came with:
+
+<P><PRE>	uxterm -fn '*-iso10646-1' &amp;
+</PRE>
+
+<P><IMG SRC="http://pub.cs.tu-berlin.de/doc/uxterm/uxterm.gif" >
+
+<P>The stripped down uxterm comes without any input methods but you
+can configure your own input mappings:
+
+<P><PRE>UTerm.VT100.Translations:#override:&lt;Key&gt;aring:string("Ã¥")
+</PRE>
+
+<H3>Linux console</H3>
+
+<P><A HREF="http://www.cl.cam.ac.uk/~mgk25/" >Markus Kuhn</A> hacked
+UTF-8 support into the Linux console which can be used with <A
+HREF="http://www.mygale.org/~ydirson/" >Yann Dirson</A>'s <A
+HREF="http://www.multimania.com/ydirson/en/lct/" >consoletools</A>.
+The standard escape sequence ESC % G (=1B=25=47) switches the console
+into UTF-8 mode.  All Unicode characters listed as displayable by one
+of the two loaded VGA fonts (limited to 512 characters) in the
+corresponding <A
+HREF="http://www.multimania.com/ydirson/en/lct/lct/lct-6.html" >screen
+font map</A> are displayed as such and all others are rendered as the
+default U+FFFD REPLACEMENT CHARACTER (black box or question mark).
+
+<P><HR>
+
+<P><A HREF="http://czyborra.com/" >Roman Czyborra</A>
+<BR>November 29, 1998
+</BODY></HTML>

@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2002-2-1 (1.70)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Unicode and UTF-8 on the text console</TITLE>
+<META NAME="description" CONTENT="Unicode and UTF-8 on the text console">
+<META NAME="keywords" CONTENT="suse-cjk">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<META NAME="Generator" CONTENT="LaTeX2HTML v2002-2-1">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="suse-cjk.css">
+
+<LINK REL="next" HREF="fbiterm.html">
+<LINK REL="previous" HREF="text-console.html">
+<LINK REL="up" HREF="text-console.html">
+<LINK REL="next" HREF="fbiterm.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><!--Navigation Panel-->
+<A NAME="tex2html1830"
+  HREF="fbiterm.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A> 
+<A NAME="tex2html1826"
+  HREF="text-console.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A> 
+<A NAME="tex2html1820"
+  HREF="text-console.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A> 
+<A NAME="tex2html1828"
+  HREF="node1.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>  
+<BR>
+<B> Next:</B> <A NAME="tex2html1831"
+  HREF="fbiterm.html">fbiterm</A>
+<B> Up:</B> <A NAME="tex2html1827"
+  HREF="text-console.html">CJK and UTF-8 on</A>
+<B> Previous:</B> <A NAME="tex2html1821"
+  HREF="text-console.html">CJK and UTF-8 on</A>
+ &nbsp; <B>  <A NAME="tex2html1829"
+  HREF="node1.html">Contents</A></B> 
+<BR>
+<BR></DIV>
+<!--End of Navigation Panel-->
+
+<H2><A NAME="SECTION000121000000000000000"></A><A NAME="text-console-unicode"></A>
+<BR>
+Unicode and UTF-8 on the text console
+</H2>
+
+<P>
+Currently the Linux text console does support UTF-8 but only only
+supports fonts with up to 512 glyphs. I.e. you can use the native
+UTF-8 support of the Linux console for European languages but not for
+CJK.
+
+<P>
+To be able to use CJK on the Linux console you need additional
+programs which support bigger fonts and double width characters.  For
+example the frame buffer console terminal emulator <code>fbiterm</code> (see
+section <A HREF="fbiterm.html#fbiterm">9.2</A>).
+
+<P>
+To switch the Linux console to Unicode mode you can use the script
+<code>/usr/bin/unicode_start</code>, to get back to 8-bit mode there is the
+script <code>/usr/bin/unicode_stop</code>.
+
+<P>
+In order to have the Linux consoles automatically initialized into
+UTF-8 mode or 8-bit mode by default install the update for the ``kbd''
+package for SuSE Linux <SPAN CLASS="MATH">8.2</SPAN> available here:
+
+<P>
+<TT><A NAME="tex2html114"
+  HREF="ftp://ftp.suse.com/pub/people/mfabian/8.2-i586/kbd-1.06-236.i586.rpm">ftp://ftp.suse.com/pub/people/mfabian/8.2-i586/kbd-1.06-236.i586.rpm</A></TT>
+<BR><TT><A NAME="tex2html115"
+  HREF="ftp://ftp.suse.com/pub/people/mfabian/8.2-src/kbd-1.06-236.src.rpm">ftp://ftp.suse.com/pub/people/mfabian/8.2-src/kbd-1.06-236.src.rpm</A></TT>
+<P>
+The new <code>/etc/init.d/kbd</code> script from that package will
+check whether the system wide default settings according to
+<code>/etc/sysconfig/language</code> result in a effective default
+value of <code>LC_CTYPE</code> using UTF-8 or not and set up
+the console appropriately.
+
+<P>
+You also should update to the ``sysvinit'' packages available
+here:
+
+<P>
+<TT><A NAME="tex2html116"
+  HREF="ftp://ftp.suse.com/pub/people/mfabian/8.2-i586/sysvinit-2.82-287.i586.rpm">ftp://ftp.suse.com/pub/people/mfabian/8.2-i586/sysvinit-2.82-287.i586.rpm</A></TT>
+<BR><TT><A NAME="tex2html117"
+  HREF="ftp://ftp.suse.com/pub/people/mfabian/8.2-src/sysvinit-2.82-287.src.rpm">ftp://ftp.suse.com/pub/people/mfabian/8.2-src/sysvinit-2.82-287.src.rpm</A></TT>
+<P>
+There was a bug in the mingetty program in that package which caused a
+switch to 8-bit mode each time one did log in to the first Linux
+console.
+
+<P>
+
+<DIV CLASS="navigation"><HR>
+<!--Navigation Panel-->
+<A NAME="tex2html1830"
+  HREF="fbiterm.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next" SRC="next.png"></A> 
+<A NAME="tex2html1826"
+  HREF="text-console.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up" SRC="up.png"></A> 
+<A NAME="tex2html1820"
+  HREF="text-console.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous" SRC="prev.png"></A> 
+<A NAME="tex2html1828"
+  HREF="node1.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents" SRC="contents.png"></A>  
+<BR>
+<B> Next:</B> <A NAME="tex2html1831"
+  HREF="fbiterm.html">fbiterm</A>
+<B> Up:</B> <A NAME="tex2html1827"
+  HREF="text-console.html">CJK and UTF-8 on</A>
+<B> Previous:</B> <A NAME="tex2html1821"
+  HREF="text-console.html">CJK and UTF-8 on</A>
+ &nbsp; <B>  <A NAME="tex2html1829"
+  HREF="node1.html">Contents</A></B> </DIV>
+<!--End of Navigation Panel-->
+<ADDRESS>
+
+2005-03-09
+</ADDRESS>
+</BODY>
+</HTML>

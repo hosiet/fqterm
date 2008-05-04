@@ -1,0 +1,58 @@
+set(OPENSSL_INCLUDE_DIR
+"C:\\Application\\OpenSSL\\include"
+)
+
+set(OPENSSL_LIBRARIES
+"C:\\Application\\OpenSSL\\lib\\libeay32.lib"
+"C:\\Application\\OpenSSL\\lib\\ssleay32.lib"
+)
+
+SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/Zi /Od /MD")
+
+ADD_DEFINITIONS(/D _CRT_SECURE_NO_DEPRECATE)
+ADD_DEFINITIONS(/D FQTERM_VERSION_STRING="\\"${FQTERM_VERSION}\\"")
+ADD_DEFINITIONS(/D FQTERM_USE_STATIC_QT)
+
+add_subdirectory(src)
+
+set(fqterm_RCS
+  fqterm.rc    
+)
+
+include_directories(
+  ${QT_INCLUDE_DIR}
+  ${QT_QTCORE_INCLUDE_DIR}
+  ${QT_QTGUI_INCLUDE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/common
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/terminal
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/utilities
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
+)
+
+link_directories(
+  ${QT_PLUGINS_DIR}/codecs
+  ${QT_PLUGINS_DIR}/imageformats
+)
+
+ADD_EXECUTABLE(fqterm
+  src/fqterm/main.cpp
+)
+
+target_link_libraries(fqterm 
+  ${QT_LIBRARIES}
+  ${QT_QTNETWORK_LIBRARIES}
+  ${QT_QTSCRIPT_LIBRARIES}  
+  ${OPENSSL_LIBRARIES}
+  qcncodecs qjpcodecs qkrcodecs qtwcodecs
+  qjpeg qgif qmng
+)
+
+add_dependencies(fqterm
+  fqterm_main
+  fqterm_common
+  fqterm_terminal
+  fqterm_protocol
+  fqterm_ui
+  fqterm_utilities
+)
