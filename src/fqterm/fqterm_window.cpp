@@ -1616,9 +1616,55 @@ void FQTermWindow::sendKey(const int keyCode, const Qt::KeyboardModifiers modifi
   bool ctrl_on = (modifier & Qt::ControlModifier);
 #endif
   bool shift_on = (modifier & Qt::ShiftModifier);
-
+  
 #ifdef __APPLE__
-  if (shift_on && alt_on) {
+  // Bullshit! Qt4.4.0 on Mac generates weird key evnets.
+  // fix them here.
+
+  if (ctrl_on) {
+    static const char char_map[][2] = {
+      {'@', '\x00'}, {'A', '\x01'}, {'B', '\x02'}, {'C', '\x03'}, {'D', '\x04'},
+      {'E', '\x05'}, {'F', '\x06'}, {'G', '\x07'}, {'H', '\x08'}, {'J', '\x0a'},
+      {'K', '\x0b'}, {'L', '\x0c'}, {'N', '\x0e'}, {'O', '\x0f'}, {'P', '\x10'},
+      {'Q', '\x11'}, {'R', '\x12'}, {'S', '\x13'}, {'T', '\x14'}, {'U', '\x15'},
+      {'V', '\x16'}, {'W', '\x17'}, {'X', '\x18'}, {'Y', '\x19'}, {'Z', '\x1a'},
+      {'\\', '\x1c'}, {']', '\x1d'}, {'^', '\x1e'}, {'_', '\x1f'}
+    };
+
+    const int num = sizeof(char_map)/2;
+
+    int expected_key = key;
+        
+    for (int i = 0; i < num; ++i) {
+      const char *c = char_map[i];
+      if (c[0] == key) {
+        expected_key = c[1];
+        break;
+      }
+    }
+   
+    if (expected_key != key) {
+      FQ_TRACE("sendkey", 5) << "translate the key code from "
+                             << (int)key << "(" << (char)key << ")"
+                             << " to "
+                             << (int)expected_key
+                             << "(" << (char)expected_key << ")"
+                             << ", and change the text appropriately." ;
+      key = expected_key;
+      text.clear();
+      text.append((char) expected_key);
+    }
+  }
+
+  if (!ctrl_on && alt_on && !shift_on) {
+    if (text.size() == 0 && 0 <= key && key <= 128) {
+      FQ_TRACE("sendkey", 5)
+          << "add appropriate text according to the key code.";
+      text.append((char)key);
+    }
+  }
+  
+  if (!ctrl_on && alt_on && shift_on) {
     // fix the key code when both shift key and meta/alt key are pressed.
     static const char char_map[][2] = {
       {'`', '~'}, {'1', '!'}, {'2', '@'}, {'3', '#'}, {'4', '$'},

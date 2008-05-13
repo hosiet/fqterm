@@ -16,9 +16,11 @@
 ***************************************************************************/
 #include "imageviewer.h"
 #include "fqterm_canvas.h"
+#include "fqterm_exif_extractor.h"
 
 #include <QTreeView>
 #include <QComboBox>
+#include <QTextEdit>
 #include <QFile>
 #include <QMessageBox>
 #include <QImage>
@@ -45,11 +47,32 @@ namespace FQTerm {
 
 void FQTermImage::onChange(const QModelIndex & index) {
   if (!model_->isDir(index)) {
+    if (!isHidden())
+      canvas_->hide();
+
+    QString exifInfo = QString::fromStdString(exifExtractor_->extractExifInfo(model_->filePath(tree_->currentIndex()).toLocal8Bit().data()));
+    bool resized = false;
+    if (exifInfo != "") {
+      if (!isExifTableShown_) {
+        adjustLayout(true);
+        isExifTableShown_ = true;
+        resized = true;
+      }
+      updateExifInfo();
+    } else {
+      if (isExifTableShown_) {
+        adjustLayout(false);
+        isExifTableShown_ = false;
+        resized = true;
+      }
+    }
     QString path  = QDir::toNativeSeparators(model_->filePath(index));
     if (path.endsWith(QDir::separator()))
       path.chop(1);
-    canvas_->loadImage(path);
-    canvas_->autoAdjust();
+    canvas_->loadImage(path, !resized);
+//    canvas_->autoAdjust();
+    if (!isHidden())
+      canvas_->show();
   }
 }
 
@@ -63,11 +86,16 @@ FQTermImage::~FQTermImage() {
 FQTermImage::FQTermImage(FQTermConfig * config, QWidget *parent,
                          Qt::WindowFlags wflag) :
     QWidget(parent, wflag),
-    config_(config) {
+    config_(config),
+    isExifTableShown_(false) {
   setWindowTitle(tr("FQTerm Image Viewer"));
   ItemDelegate* itemDelegate = new ItemDelegate;
+  exifExtractor_ = new ExifExtractor;
+  exifTable_ = new ExifTable(this);
+  exifTable_->setTextFormat(Qt::RichText);
+  exifTable_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
   canvas_ = new FQTermCanvas(config, this, 0);
-  canvas_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+  canvas_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
   model_ = new ImageViewerDirModel;
   tree_ = new QTreeView;
   tree_->setModel(model_);
@@ -90,12 +118,10 @@ FQTermImage::FQTermImage(FQTermConfig * config, QWidget *parent,
 
   comboBox_->setCurrentIndex(1);
 
-  QGridLayout *layout = new QGridLayout;
+  layout_ = new QGridLayout;
   menuBar_ = new QMenuBar(this);
   menuBar_->addMenu(canvas_->menu());
   menuBar_->resize(1,1);
-
-  
 
   canvas_->ToolBar()->addAction(
       QIcon(getPath(RESOURCE) + "/pic/ViewerButtons/prev.png"), tr("Previous"),
@@ -104,14 +130,17 @@ FQTermImage::FQTermImage(FQTermConfig * config, QWidget *parent,
       QIcon(getPath(RESOURCE) + "/pic/ViewerButtons/next.png"), tr("Next"),
       this, SLOT(next()));
 
-  layout->addWidget(tree_, 0, 0, 1, 1);
-  layout->addWidget(comboBox_, 1, 0, 1, 1);
-  layout->addWidget(canvas_, 0, 1, 1, 10);
-  layout->addWidget(canvas_->ToolBar(), 1, 1, 1, 10, Qt::AlignHCenter);
-  layout->setColumnMinimumWidth(0, tree_->columnWidth(0) + 150);
-  setLayout(layout);
+  layout_->addWidget(tree_, 0, 0, 12, 1);
+  layout_->addWidget(comboBox_, 12, 0, 1, 1);
+  layout_->addWidget(canvas_, 0, 1, 12, 10);
+//  layout_->addWidget(exifTable_, 10, 1, 2, 10);
+  layout_->addWidget(canvas_->ToolBar(), 12, 1, 1, 10, Qt::AlignHCenter);
+  layout_->setColumnMinimumWidth(0, tree_->columnWidth(0) + 150);
+  setLayout(layout_);
+  /*
   FQ_VERIFY(connect(tree_, SIGNAL(clicked(const QModelIndex &)),
                     this, SLOT(onChange(const QModelIndex &))));
+                    */
   FQ_VERIFY(connect(tree_, SIGNAL(activated(const QModelIndex &)),
                     this, SLOT(onChange(const QModelIndex &))));
   FQ_VERIFY(connect(tree_->selectionModel(),
@@ -119,6 +148,8 @@ FQTermImage::FQTermImage(FQTermConfig * config, QWidget *parent,
                                             const QItemSelection&)),
                     this, SLOT(selectionChanged(const QItemSelection&,
                                                 const QItemSelection&))));
+  FQ_VERIFY(connect(exifTable_, SIGNAL(showExifDetails()),
+    this, SLOT(showFullExifInfo())));
 }
 
 void FQTermImage::scrollTo(const QString& filename) {
@@ -126,6 +157,9 @@ void FQTermImage::scrollTo(const QString& filename) {
   model_->refresh();
   tree_->setRootIndex(model_->index(path));
   canvas_->loadImage(filename);
+  if (canvas_->isHidden() && !isHidden()) {
+    canvas_->show();
+  }
   const QModelIndex& index = model_->index(filename);
   tree_->scrollTo(index);
   tree_->setCurrentIndex(index);
@@ -176,6 +210,58 @@ void FQTermImage::sortFileList(int index) {
   tree_->setRootIndex(model_->index(poolPath));
 }
 
+void FQTermImage::showFullExifInfo()
+{
+  QString exifInfo = QString::fromStdString(exifExtractor_->extractExifInfo(model_->filePath(tree_->currentIndex()).toLocal8Bit().data()));
+  QTextEdit* info = new QTextEdit;
+  info->setText(exifInfo);
+  info->setWindowFlags(Qt::Dialog);
+  info->setAttribute(Qt::WA_DeleteOnClose);
+  info->setAttribute(Qt::WA_ShowModal);
+//  info->setLineWrapMode(QTextEdit::NoWrap);
+  info->setReadOnly(true);
+  QFontMetrics fm(font());
+  info->resize(fm.width("Orientation : 1st row - 1st col : top - left side"), fm.height() * 20);
+  info->show();
+}
+
+void FQTermImage::adjustLayout(bool withExifTable) {
+  if (withExifTable) {
+    layout_->addWidget(canvas_, 0, 1, 11, 10);
+    layout_->addWidget(exifTable_, 11, 1, 1, 10, Qt::AlignHCenter);
+    if (!isHidden() && exifTable_->isHidden()) {
+      exifTable_->show();
+    }
+    layout_->addWidget(canvas_->ToolBar(), 12, 1, 1, 10, Qt::AlignHCenter);
+  } else {
+    layout_->addWidget(canvas_, 0, 1, 12, 10);
+    layout_->removeWidget(exifTable_);
+    exifTable_->hide();
+    layout_->addWidget(canvas_->ToolBar(), 12, 1, 1, 10, Qt::AlignHCenter);
+  }
+}
+
+void FQTermImage::updateExifInfo() {
+  exifTable_->clear();
+
+  QString exifInfoToShow = "<table border=\"1\"><tr><td>"
+    + tr("Model") + " : " + QString::fromStdString((*exifExtractor_)["Model"]) + "</td><td>"
+    + QString::fromStdString((*exifExtractor_)["DateTime"]) + "</td><td>"
+    + QString::fromStdString((*exifExtractor_)["Flash"]) + "</td>"
+    + "</tr><tr><td>"
+    + tr("ExposureTime") + " : " + QString::fromStdString((*exifExtractor_)["ExposureTime"]) + "</td><td>"
+    + tr("FNumber") + " : " + QString::fromStdString((*exifExtractor_)["FNumber"]) + "</td><td>"
+    + tr("ISO") + " : " + QString::fromStdString((*exifExtractor_)["ISOSpeedRatings"]) + "</td>"
+    + "</tr><tr><td>"
+    + tr("FocalLength") + " : " + QString::fromStdString((*exifExtractor_)["FocalLength"]) + "</td><td>"
+    + tr("MeteringMode") + " : " + QString::fromStdString((*exifExtractor_)["MeteringMode"]) + "</td><td>" 
+    + tr("ExposureBias") + " : " + QString::fromStdString((*exifExtractor_)["ExposureBiasValue"]) + "</td></tr></tabel>";
+
+  exifTable_->setText(exifInfoToShow);
+  if (!isHidden() && exifTable_->isHidden()) {
+    exifTable_->show();
+  }
+}
 ImageViewerDirModel::ImageViewerDirModel(QObject *parent /*= 0*/)
   : QDirModel(parent) {
   insertColumn(1);
@@ -267,6 +353,18 @@ void ItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem & option,
   // done
   painter->restore();
 }
+
+void ExifTable::mouseReleaseEvent(QMouseEvent *pEvent)
+{
+  if (pEvent->button() == Qt::LeftButton) {
+    emit(showExifDetails());
+  }
+}
+
+ExifTable::ExifTable(QWidget *parent) : QLabel(parent) {
+
+}
+
 }  // namespace FQTerm
 
 #include "imageviewer.moc"

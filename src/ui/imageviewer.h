@@ -22,6 +22,8 @@
 #include <QApplication>
 #include <QItemDelegate>
 #include <QPainter>
+#include <QLabel>
+
 
 class QString;
 class QPushButton;
@@ -34,11 +36,13 @@ class QMenuBar;
 class QStyleOptionViewItem;
 class QItemSelection;
 class QComboBox;
+class QGridLayout;
 
 namespace FQTerm {
 
 class FQTermCanvas;
 class FQTermConfig;
+class ExifExtractor;
 
 class ItemDelegate : public QItemDelegate{
 public:
@@ -51,6 +55,19 @@ public:
   }
   void paint(QPainter * painter, const QStyleOptionViewItem & option, const QModelIndex & index) const;
   static QSize size_;
+};
+
+class ExifTable : public QLabel
+{
+  Q_OBJECT
+public:
+  ExifTable(QWidget *parent);
+signals:
+  void showExifDetails();
+protected:
+  void mouseReleaseEvent(QMouseEvent *pEvent);
+
+
 };
 
 class ImageViewerDirModel : public QDirModel
@@ -79,7 +96,9 @@ public:
   void adjustItemSize();
   void selectionChanged(const QItemSelection & selected, const QItemSelection & deselected);
   void sortFileList(int index);
-
+  void showFullExifInfo();
+  void adjustLayout(bool withExifTable);
+  void updateExifInfo();
  private:
    FQTermCanvas* canvas_;
    QTreeView* tree_;
@@ -87,6 +106,10 @@ public:
    QMenuBar* menuBar_;
    QComboBox* comboBox_;
    FQTermConfig* config_;
+   ExifExtractor* exifExtractor_;
+   ExifTable* exifTable_;
+   QGridLayout* layout_;
+   bool isExifTableShown_;
 };
 
 }  // namespace FQTerm

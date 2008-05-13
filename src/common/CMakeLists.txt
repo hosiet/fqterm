@@ -14,6 +14,8 @@ set(fqterm_common_SRCS
   fqterm_path.cpp
   fqterm_font.h
   fqterm_font.cpp
+  fqterm_exif_extractor.h
+  fqterm_exif_extractor.cpp
 )
 
 include_directories(

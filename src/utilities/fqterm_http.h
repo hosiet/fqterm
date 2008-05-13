@@ -20,6 +20,8 @@
 
 #include <QObject>
 #include <QHttp>
+#include <QMutex>
+#include <QMap>
 
 namespace FQTerm {
 class FQTermHttp: public QObject {
@@ -54,6 +56,10 @@ class FQTermHttp: public QObject {
   int lastPercent_;
 
   QString poolDir_;
+
+  static QMap<QString, int> downloadMap_;
+  static QMutex mutex_;
+
 
   QWidget *parent_;
 };

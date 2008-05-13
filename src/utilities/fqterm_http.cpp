@@ -31,6 +31,9 @@
 
 namespace FQTerm {
 
+QMap<QString, int> FQTermHttp::downloadMap_;
+QMutex FQTermHttp::mutex_;
+
 FQTermHttp::FQTermHttp(QWidget *p, const QString &poolDir)
   : poolDir_(poolDir) {
   // 	m_pDialog = NULL;
@@ -161,19 +164,43 @@ void FQTermHttp::httpResponse(const QHttpResponseHeader &hrh) {
 
     int i = 1;
     QFileInfo fi2 = fi;
+
+    mutex_.lock();
+    if (downloadMap_.find(cacheFileName_) == downloadMap_.end() && !fi2.exists()) { 
+      downloadMap_[cacheFileName_] = FileLength;
+    }
     while (fi2.exists()) {
-      // all the same
+
+      QMap<QString, int>::iterator ii;
+      if ((ii = downloadMap_.find(cacheFileName_)) != downloadMap_.end()) { 
+        if (ii.value() == FileLength) {
+          http_.abort();
+          isExisting_ = true;
+          emit done(this);
+          mutex_.unlock();
+          return;
+        }
+      }
+
       if (fi2.size() == FileLength) {
         isExisting_ = true;
         http_.abort();
         break;
       } else {
+        
         cacheFileName_ = QString("%1/%2(%3).%4").arg(fi.path()).arg
                          (fi.completeBaseName()).arg(i).arg(fi.suffix());
         fi2.setFile(cacheFileName_);
+        if (!fi2.exists()) {
+          downloadMap_[cacheFileName_] = FileLength;
+          break;
+        }
+        
         i++;
       }
     }
+    mutex_.unlock();
+
     fi.setFile(cacheFileName_);
 
     QString strExt = fi.suffix().toLower();
@@ -238,6 +265,10 @@ void FQTermHttp::httpDone(bool err) {
         deleteLater();
         return ;
     }
+  } else {
+    mutex_.lock();
+    downloadMap_.remove(cacheFileName_);
+    mutex_.unlock();
   }
 
   if (isPreview_) {
