@@ -284,14 +284,14 @@ std::string ExifExtractor::readInfo() {
       if (!read(&shortValue, 2, 1)) {
         break;
       }
-      _snprintf(buffer, 255, "%hu\0", shortValue);
+      sprintf(buffer, "%hu\0", shortValue);
       ret = buffer;
       break;
     case UNSIGNEDINT32:
       if (!read(&longValue, 4, 1)) {
         break;
       }
-      _snprintf(buffer, 255, "%lu\0", longValue);
+      sprintf(buffer, "%lu\0", longValue);
       ret = buffer;
       break;
     case UNSIGNEDRATIONAL:
@@ -307,7 +307,7 @@ std::string ExifExtractor::readInfo() {
       }
       urationalgcd = gcd(urationalp, urationalc);
       if (urationalgcd == 0) urationalgcd = 1;
-      _snprintf(buffer, 255, "%lu/%lu", urationalc / urationalgcd, urationalp / urationalgcd);
+      sprintf(buffer, "%lu/%lu", urationalc / urationalgcd, urationalp / urationalgcd);
       ret = buffer;
       break;
     case RATIONAL:
@@ -332,7 +332,7 @@ std::string ExifExtractor::readInfo() {
       }
       rationalgcd = gcd(rationalp, rationalc);
       if (rationalgcd == 0) rationalgcd = 1;
-      _snprintf(buffer, 255, "%ld/%ld", sign * rationalc / rationalgcd, rationalp / rationalgcd);
+      sprintf(buffer, "%ld/%ld", sign * rationalc / rationalgcd, rationalp / rationalgcd);
       ret = buffer;
       break;
   }
