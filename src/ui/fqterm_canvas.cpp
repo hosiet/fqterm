@@ -32,6 +32,7 @@
 #include <QDir>
 #include <QUrl>
 
+
 #include "fqterm_canvas.h"
 #include "fqterm.h"
 #include "fqterm_config.h"
@@ -51,6 +52,7 @@ FQTermCanvas::FQTermCanvas(FQTermConfig * config, QWidget *parent, Qt::WFlags f)
   } else {
     isEmbedded = false;
   }
+  
 
   menu_ = new QMenu(parent);
   menu_->addAction(tr("zoom 1:1"), this, SLOT(oriSize()), tr("Ctrl+Z"));
@@ -135,6 +137,9 @@ FQTermCanvas::FQTermCanvas(FQTermConfig * config, QWidget *parent, Qt::WFlags f)
   showSettingFitAction->setChecked(true);
 
   toolBar_->addWidget(showSettingButton);
+
+
+
 #if QT_VERSION >= 0x040200
   setAlignment(Qt::AlignCenter);
 #endif
@@ -188,7 +193,7 @@ void FQTermCanvas::fullScreen() {
   }
 }
 
-void FQTermCanvas::loadImage(QString name) {
+void FQTermCanvas::loadImage(QString name, bool performAdjust) {
   image_.load(name);
   if (!image_.isNull()) {
 
@@ -222,7 +227,7 @@ void FQTermCanvas::loadImage(QString name) {
     if (isEmbedded) {
       label->hide();
       label->setPixmap(fileName_);
-      autoAdjust();
+      if (performAdjust) autoAdjust();
       label->show();
     }
 
@@ -488,6 +493,8 @@ void FQTermCanvas::updateImage(const QString& filename)
   }
   
 }
+
+
 }  // namespace FQTerm
 
 #include "fqterm_canvas.moc"

@@ -626,6 +626,7 @@ void FQTermScreen::blinkEvent() {
 }
 
 void FQTermScreen::paintEvent(QPaintEvent *pe) {
+  QPainter painter(this);
   switch (paintState_) {
     case NewData:
       if (termBuffer_->isLightBackgroundMode() != is_light_background_mode_) {
@@ -637,30 +638,28 @@ void FQTermScreen::paintEvent(QPaintEvent *pe) {
           colors_[0] = param_->backgroundColor_;
           colors_[7] = param_->foregroundColor_;
         }
-        repaintScreen(pe);
+        repaintScreen(pe, painter);
       } else {      
-        refreshScreen();
+        refreshScreen(painter);
       }
       break;
     case Blink:
-      blinkScreen();
+      blinkScreen(painter);
       break;
     case Cursor:
-      updateCursor();
+      updateCursor(painter);
       break;
     case Repaint:
-      repaintScreen(pe);
+      repaintScreen(pe, painter);
       break;
     case None:
-      repaintScreen(pe);
+      repaintScreen(pe, painter);
       break;
   }
   clearPaintState();
 }
 
-void FQTermScreen::blinkScreen() {
-  QPainter painter(this);
-
+void FQTermScreen::blinkScreen(QPainter &painter) {
   painter.setBackground(QBrush(colors_[0]));
 
   for (int index = bufferStart_; index <= bufferEnd_; index++) {
@@ -681,14 +680,13 @@ void FQTermScreen::blinkScreen() {
   }
 }
 
-void FQTermScreen::updateCursor() {
+void FQTermScreen::updateCursor(QPainter &painter) {
   if (termBuffer_->getCaretColumn() >= termBuffer_->getNumColumns()) {
     // we only allow the cursor located beyond the terminal screen temporarily.
     // just ignore this.
     return;
   }
 
-  QPainter painter(this);
   bool isCursorShown = isCursorShown_;
   if (termWindow_->frame_->isBossColor_) {
     isCursorShown = false;
@@ -766,7 +764,7 @@ void FQTermScreen::updateCursor() {
 // refresh the screen when
 //	1. received new contents form server
 //	2. scrolled by user
-void FQTermScreen::refreshScreen() {
+void FQTermScreen::refreshScreen(QPainter &painter) {
   FQ_FUNC_TIMER("screen_paint", 5);
 
   if (cursorTimer_->isActive()) {
@@ -780,7 +778,6 @@ void FQTermScreen::refreshScreen() {
   hasBlinkText_ = false;
   isCursorShown_ = true;
 
-  QPainter painter(this);
   for (int index = bufferStart_; index <= bufferEnd_; index++) {
 
     FQ_VERIFY(index < termBuffer_->getNumLines());
@@ -821,7 +818,7 @@ void FQTermScreen::refreshScreen() {
 
   updateMicroFocus();
   if (termWindow_->isConnected()) {
-    updateCursor();
+    updateCursor(painter);
   }
 
   if (termWindow_->isConnected()) {
@@ -833,9 +830,9 @@ void FQTermScreen::refreshScreen() {
   }
 }
 
-void FQTermScreen::repaintScreen(QPaintEvent *pe) {
+void FQTermScreen::repaintScreen(QPaintEvent *pe, QPainter &painter) {
   FQ_FUNC_TIMER("screen_paint", 5);
-  QPainter painter(this);
+
   painter.setBackground(QBrush(colors_[0]));
 
   FQ_TRACE("screen", 5) << "Client area: " << pe->rect().width()

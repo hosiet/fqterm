@@ -85,10 +85,10 @@ class FQTermScreen: public QWidget {
 
  private:
   PaintState paintState_;
-  void refreshScreen();
-  void blinkScreen();
-  void updateCursor();
-  void repaintScreen(QPaintEvent *pe);
+  void refreshScreen(QPainter &painter);
+  void blinkScreen(QPainter &painter);
+  void updateCursor(QPainter &painter);
+  void repaintScreen(QPaintEvent *pe, QPainter &painter);
   void syncBufferAndScreen();
 
  signals:

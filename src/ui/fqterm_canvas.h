@@ -36,6 +36,7 @@ class QImage;
 namespace FQTerm {
 
 class FQTermConfig;
+class ExifExtractor;
 
 class FQTermCanvas: public QScrollArea {
   Q_OBJECT;
@@ -46,7 +47,7 @@ class FQTermCanvas: public QScrollArea {
   enum AdjustMode{Origin, Fit, Stretch, MaxFit};
 
   void updateImage(const QString& filename);
-  void loadImage(QString);
+  void loadImage(QString, bool = true);
   QMenu* menu();
   QToolBar* ToolBar();
  public slots:
@@ -86,6 +87,7 @@ class FQTermCanvas: public QScrollArea {
   QMenu *menu_;
   QToolBar *toolBar_;
   FQTermConfig * config_;
+  
 
   AdjustMode adjustMode_;
   Qt::AspectRatioMode aspectRatioMode_;

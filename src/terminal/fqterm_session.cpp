@@ -243,7 +243,7 @@ void FQTermSession::detectPageState() {
   }
 
   if (colorInfo[0].backgroundColorIndex.at(0) != 4
-      || !(colorInfo[3].hasBackgroundColor && colorInfo[3].uniBackgroundColor)) {
+      || !(colorInfo[3].hasBackgroundColor && colorInfo[3].backgroundColorIndex.at(0) == 4)) {
     return;
   }
 
@@ -262,7 +262,8 @@ void FQTermSession::detectPageState() {
   }
 
   if (!colorInfo[0].uniBackgroundColor &&
-      colorInfo[0].backgroundColorIndex.at(0) == 4) {
+      colorInfo[0].backgroundColorIndex.at(0) == 4 &&
+      !colorInfo[3].uniBackgroundColor) {
     //announce, elite root
     pageState_ = EliteArticleList;
     return;
@@ -270,7 +271,8 @@ void FQTermSession::detectPageState() {
 
   if (colorInfo[2].hasBackgroundColor &&
       !colorInfo[2].uniBackgroundColor &&
-      colorInfo[2].backgroundColorIndex.at(0) == 4) {
+      colorInfo[2].backgroundColorIndex.at(0) == 4 &&
+      !colorInfo[3].uniBackgroundColor) {
     pageState_ = EliteArticleList;
     return;
   }
