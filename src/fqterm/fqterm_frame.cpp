@@ -95,7 +95,8 @@ FQTermFrame::FQTermFrame()
   addMainTool();
 
   // add the custom defined key
-  updateKeyToolBar();
+  // and load toolbar position
+  updateToolBar();
 
   // diaable some menu & toolbar
   enableMenuToolBar(false);
@@ -403,6 +404,7 @@ void FQTermFrame::quickLogin() {
 }
 
 void FQTermFrame::exitQTerm() {
+  
   while (windowManager_->count() > 0) {
     bool closed = windowManager_->activeWindow()->close();
     if (!closed) {
@@ -424,8 +426,10 @@ void FQTermFrame::exitQTerm() {
 
 void FQTermFrame::newWindow(const FQTermParam &param, int index) {
   FQTermWindow *window = new FQTermWindow(this, param, index, mdiArea_, 0);
+
+  
   QMdiSubWindow* subWindow = mdiArea_->addSubWindow(window);
-  window->setAttribute(Qt::WA_PaintOnScreen);
+  subWindow->setAttribute(Qt::WA_NoSystemBackground);
 
   QIcon *icon = new QIcon(QPixmap(getPath(RESOURCE) + "pic/tabpad.png"));
   //QTab *qtab=new QTab(*icon,window->caption());
@@ -893,7 +897,7 @@ void FQTermFrame::preference() {
 void FQTermFrame::keySetup() {
   keyDialog keyDlg(config_, this);
   if (keyDlg.exec() == 1) {
-    updateKeyToolBar();
+    updateToolBar();
   }
 }
 
@@ -1100,17 +1104,7 @@ void FQTermFrame::addMainTool() {
       tr("Reconnect When Disconnected By Host"), 
       this, SLOT(reconnect()));
   actionReconnect_->setCheckable(true);
-  
-  //load toolbar setting
-  QString strTmp = config_->getItemValue("global", "toolbarstate");
-  if (!strTmp.isEmpty())
-  {
-    restoreState(QByteArray::fromHex(strTmp.toAscii()));
-  } else {
-    addToolBar(Qt::TopToolBarArea, toolBarMdiConnectTools_);
-    insertToolBar(toolBarMdiConnectTools_,toolBarSetupKeys_);
-    insertToolBar(toolBarSetupKeys_, toolBarMdiTools_);
-  }
+ 
 
   //call popupConnectMenu() to enable the shortcuts
   popupConnectMenu(); 
@@ -1376,7 +1370,7 @@ void FQTermFrame::enableMenuToolBar(bool enable) {
   actionStopScript_->setEnabled(enable);
 }
 
-void FQTermFrame::updateKeyToolBar() {
+void FQTermFrame::updateToolBar() {
   toolBarSetupKeys_->clear();
   toolBarSetupKeys_->addAction(QPixmap(getPath(RESOURCE) + "pic/setup_shortcuts.png"),
                                tr("Key Setup"), this, SLOT(keySetup()));
@@ -1412,6 +1406,18 @@ void FQTermFrame::updateKeyToolBar() {
                       this, SLOT(keyClicked(int))));
     toolBarSetupKeys_->addWidget(button);
   }
+
+  //load toolbar setting
+  strTmp = config_->getItemValue("global", "toolbarstate");
+  if (!strTmp.isEmpty())
+  {
+    restoreState(QByteArray::fromHex(strTmp.toAscii()));
+  } else {
+    addToolBar(Qt::TopToolBarArea, toolBarMdiConnectTools_);
+    insertToolBar(toolBarMdiConnectTools_,toolBarSetupKeys_);
+    insertToolBar(toolBarSetupKeys_, toolBarMdiTools_);
+  }
+
 }
 
 QString FQTermFrame::valueToString(bool shown, int dock, int index,
@@ -1616,7 +1622,7 @@ FQTermFrame::recreateMenu() {
   delete toolBarMdiConnectTools_;
   delete menuConnect_;
   addMainTool();
-  updateKeyToolBar();
+  updateToolBar();
   if (!mdiArea_->activeSubWindow()) {
     enableMenuToolBar(false);
   }
