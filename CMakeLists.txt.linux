@@ -34,11 +34,11 @@ target_link_libraries(fqterm.bin
   ${QT_QTSCRIPT_LIBRARIES}  
   ${OPENSSL_LIBRARIES}
   fqterm_main
-  fqterm_common 
   fqterm_terminal 
   fqterm_protocol 
   fqterm_utilities 
   fqterm_ui
+  fqterm_common 
 )
 
 add_dependencies(fqterm.bin

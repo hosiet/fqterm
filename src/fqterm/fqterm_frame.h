@@ -305,7 +305,7 @@ class FQTermFrame: public QMainWindow {
   void addMainMenu();
   void addMainTool();
 
-  void updateKeyToolBar();
+  void updateToolBar();
 
   bool eventFilter(QObject *, QEvent*);
 
