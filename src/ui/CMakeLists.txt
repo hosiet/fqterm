@@ -25,6 +25,8 @@ set(fqterm_ui_SRCS
   osdmessage.cpp
   overlayWidget.h
   overlayWidget.cpp
+  pictureflow.h
+  pictureflow.cpp
   popupMessage.h
   popupMessage.cpp
   popwidget.h

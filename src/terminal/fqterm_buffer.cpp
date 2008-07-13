@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #include <algorithm>
@@ -69,11 +72,12 @@ static const UTF16 VT_SPECIAL_GRAPHICS_TABLE[256]={
     0x00f8, 0x00f9, 0x00fa, 0x00fb, 0x00fc, 0x00fd, 0x00fe, 0x00ff
 };
 
-FQTermBuffer::FQTermBuffer(int column, int row, int max_hist_line) {
+FQTermBuffer::FQTermBuffer(int column, int row, int max_hist_line, bool is_bbs) {
   tab_stops_ = new TabStops;
   num_rows_ = row;
   num_columns_ = column;
   max_num_hist_lines_ = max_hist_line;
+  is_bbs_ = is_bbs;
 
   num_hist_lines_ = 0;
 
@@ -200,6 +204,8 @@ void FQTermBuffer::writeText(const QString &str) {
   }
 #endif  
 
+  // Insert the str into the buffer. Different pieces of text might be
+  // written into different lines.
   while (!cstr.isEmpty()) {
     FQTermTextLine *line = text_lines_.value(num_hist_lines_ + caret_.row_, NULL);
 
@@ -209,6 +215,7 @@ void FQTermBuffer::writeText(const QString &str) {
     }
 
     if (caret_.column_ >= (int)line->getMaxCellCount()) {
+      // move the caret to the next line.
       moveCaretTo(0, caret_.row_ + 1, true);
       continue;
     }
@@ -223,8 +230,9 @@ void FQTermBuffer::writeText(const QString &str) {
     int width = get_str_width((const UTF16 *)cstr.data(), cstr.size(),
                               max_width, element_consumed);
 
-    // TODO_UTF16: how about width < 0?
-    FQ_VERIFY(width >= 0);
+    if (width < 0) {
+      break;
+    }
 
     if (is_insert_mode_) {
       // FIXEME: How to move cursor if the entire line is wider than
@@ -240,11 +248,7 @@ void FQTermBuffer::writeText(const QString &str) {
                         caret_.color_, caret_.attr_);
     }
 
-    if (!is_autowrap_mode_ && width >= max_width) {
-      moveCaretOffset(max_width - 1, 0);
-    } else {
-      moveCaretOffset(width, 0);
-    }
+    moveCaretOffset(width, 0);
 
     if (element_consumed == cstr.size()) {
       break;
@@ -383,11 +387,16 @@ void FQTermBuffer::moveCaretTo(int column, int row, bool scroll_if_necessary) {
 
 void FQTermBuffer::moveCaretOffset(int column_offset, int row_offset, bool scroll_if_necessary) {
   if (caret_.column_ >= num_columns_) {
-    // we only allow the caret_.column_ >= num_columns_ temporarily
-    // when a sequence of normal text is received. if we found
-    // caret_.column_ is out of bounds in other case, we should correct
-    // it first.
-    caret_.column_ = num_columns_ - 1;
+    // it's only allowed that the caret_.column_ >= num_columns_
+    // temporarily when a sequence of normal text is received. if we
+    // found caret_.column_ is out of bounds in other case, we should
+    // correct it first.
+    if (is_bbs_) {
+      // but the BBS (newsmth.net) assumes that the caret could be
+      // located out of the screen :(
+    } else {
+      caret_.column_ = num_columns_ - 1;
+    }
   }
 
   if (caret_.column_ + column_offset < 0) {
@@ -866,6 +875,22 @@ bool FQTermBuffer::isSelected(const QPoint &cell, bool is_rect_sel) const {
   return cell_begin <= cell.x() && cell.x() < cell_end;  
 }
 
+static void removeTrailSpace(QString &line) {
+  for (int last_non_space = line.size() - 1;
+       last_non_space >= 0; --last_non_space) {
+    QChar a = line.at(last_non_space);
+    if (!a.isSpace()) {
+      line.resize(last_non_space + 1);
+      break;
+    }
+
+    if (last_non_space == 0) {
+      line.resize(0);
+    }
+  }
+}
+
+
 QString FQTermBuffer::getTextSelected(bool is_rect_sel, bool is_color_copy, 
                                      const QByteArray &escape) const {
   QString cstrSelect;
@@ -896,6 +921,8 @@ QString FQTermBuffer::getTextSelected(bool is_rect_sel, bool is_color_copy,
         line->getPlainText(cell_begin, cell_end, strTemp);
       }
     }
+
+    removeTrailSpace(strTemp);
 
     cstrSelect += strTemp;
 

@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #if !defined(WIN32)
@@ -26,6 +29,8 @@
 #include <QDir>
 #include <QFontDialog>
 #include <QInputDialog>
+#include <QKeySequence>
+#include <QList>
 #include <QMdiArea>
 #include <QMdiSubWindow>
 #include <QMenuBar>
@@ -36,9 +41,11 @@
 #include <QTime>
 #include <QToolBar>
 #include <QTranslator>
+#include <QWindowStateChangeEvent>
 
 #include "aboutdialog.h"
 #include "addrdialog.h"
+#include "common.h"
 #include "keydialog.h"
 #include "prefdialog.h"
 #include "fqterm.h"
@@ -74,7 +81,11 @@ FQTermFrame::FQTermFrame()
 
   config_ = new FQTermConfig(getPath(USER_CONFIG) + "fqterm.cfg");
 
-  image_ = new FQTermImage(config_, NULL, Qt::Window);
+#ifdef IMAGE_USE_PICFLOW
+  image_ = new FQTermImageFlow(config_, NULL, Qt::Window);
+#else
+  image_ = new FQTermImageOrigin(config_, NULL, Qt::Window);
+#endif
 
   mdiArea_ = new QMdiArea(this);
 
@@ -96,7 +107,8 @@ FQTermFrame::FQTermFrame()
 
   // add the custom defined key
   // and load toolbar position
-  updateToolBar();
+  updateKeyToolBar();
+  loadToolBarPosition();
 
   // diaable some menu & toolbar
   enableMenuToolBar(false);
@@ -143,13 +155,21 @@ FQTermFrame::FQTermFrame()
   }
 
   actionNextWindow_ = new QAction(this);
-  actionNextWindow_->setShortcut(opt + tr("+Right"));
+  QList<QKeySequence> keySequences;
+  keySequences.append(opt + tr("+Right"));
+  keySequences.append(QKeySequence::NextChild);
+  actionNextWindow_->setShortcuts(keySequences);
+
   FQ_VERIFY(connect(actionNextWindow_, SIGNAL(triggered()),
                     mdiArea_, SLOT(activateNextSubWindow())));
   addAction(actionNextWindow_);
+  keySequences.clear();
+
 
   actionPrevWindow_ = new QAction(this);
-  actionPrevWindow_->setShortcut(opt + tr("+Left"));
+  keySequences.append(opt + tr("+Left"));
+  keySequences.append(QKeySequence::PreviousChild);
+  actionPrevWindow_->setShortcuts(keySequences);
   FQ_VERIFY(connect(actionPrevWindow_, SIGNAL(triggered()),
                     mdiArea_, SLOT(activatePreviousSubWindow())));
   addAction(actionPrevWindow_);
@@ -291,13 +311,14 @@ void FQTermFrame::loadPref(FQTermConfig *conf) {
   strTmp = conf->getItemValue("preference", "beep");
   preference_.openBeep_ = strTmp.toInt();
   preference_.beepSoundFileName_ = conf->getItemValue("preference", "wavefile");
-  //  strTmp = conf->getItemValue("preference", "http");
+  strTmp = conf->getItemValue("preference", "http");
+  preference_.httpBrowser_ = strTmp;
   //  m_pref.strHttp = strTmp;
   strTmp = conf->getItemValue("preference", "antialias");
   preference_.openAntiAlias_ = (strTmp != "0");
   strTmp = conf->getItemValue("preference", "tray");
   if (strTmp.isEmpty()) {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__linux__)
     preference_.openMinimizeToTray_ = false;
 #else
     preference_.openMinimizeToTray_ = true;    
@@ -425,11 +446,11 @@ void FQTermFrame::exitQTerm() {
 }
 
 void FQTermFrame::newWindow(const FQTermParam &param, int index) {
-  FQTermWindow *window = new FQTermWindow(this, param, index, mdiArea_, 0);
+  FQTermWindow *window = new FQTermWindow(config_, this, param, index, mdiArea_, 0);
 
   
   QMdiSubWindow* subWindow = mdiArea_->addSubWindow(window);
-  subWindow->setAttribute(Qt::WA_NoSystemBackground);
+  subWindow->setAttribute(Qt::WA_OpaquePaintEvent);
 
   QIcon *icon = new QIcon(QPixmap(getPath(RESOURCE) + "pic/tabpad.png"));
   //QTab *qtab=new QTab(*icon,window->caption());
@@ -460,6 +481,8 @@ void FQTermFrame::newWindow(const FQTermParam &param, int index) {
 
   FQ_VERIFY(connect(window, SIGNAL(resizeSignal(FQTermWindow*)),
                     this, SLOT(subWindowResized(FQTermWindow*))));
+  FQ_VERIFY(connect(this, SIGNAL(bossColor()),
+    window->screen_, SLOT(bossColor())));
 }
 
 //the tabbar selection changed
@@ -475,7 +498,16 @@ void FQTermFrame::aboutQTerm() {
 
 //slot Help->Homepage
 void FQTermFrame::homepage() {
-  QDesktopServices::openUrl(QString("http://code.google.com/p/fqterm"));
+
+  const QString &httpBrowser = preference_.httpBrowser_;
+  const QString homeUrl = "http://code.google.com/p/fqterm";
+
+  if (httpBrowser.isNull() || httpBrowser.isEmpty()) {
+	QDesktopServices::openUrl(homeUrl);
+  } else {
+	QString strCmd = "'" + httpBrowser + + "' '" + homeUrl + "'";
+	runProgram(strCmd);
+  }
 }
 
 //slot Windows menu aboutToShow
@@ -609,7 +641,8 @@ void FQTermFrame::paintEvent(QPaintEvent*){
 }
 
 void FQTermFrame::closeEvent(QCloseEvent *clse) {
-  if (preference_.openMinimizeToTray_) {
+  if (preference_.openMinimizeToTray_ &&
+	windowManager_->count() > 0) {
     trayHide();
     clse->ignore();
     return ;
@@ -801,6 +834,7 @@ void FQTermFrame::bosscolor() {
   emit bossColor();
 
   actionBossColor_->setChecked(isBossColor_);
+
 }
 
 void FQTermFrame::themesMenuAboutToShow() {
@@ -897,7 +931,7 @@ void FQTermFrame::preference() {
 void FQTermFrame::keySetup() {
   keyDialog keyDlg(config_, this);
   if (keyDlg.exec() == 1) {
-    updateToolBar();
+    updateKeyToolBar();
   }
 }
 
@@ -926,6 +960,7 @@ void FQTermFrame::enableMouse() {
 }
 
 void FQTermFrame::viewImages(QString filename, bool raiseViewer) {
+
   if (filename.isEmpty()) {
     filename = preference_.zmodemPoolDir_;
   }
@@ -973,6 +1008,19 @@ void FQTermFrame::stopScript() {
 }
 
 bool FQTermFrame::event(QEvent *e) {
+
+  static bool shown = false;
+  if (e->type() == QEvent::WindowStateChange 
+    && (dynamic_cast<QWindowStateChangeEvent*>(e)->oldState() & Qt::WindowMinimized)
+    && !(windowState() & Qt::WindowMinimized)) {
+    shown = true;
+  }
+  if (e->type() == QEvent::Paint && shown) {
+    shown = false;
+    qApp->setActiveWindow(NULL);
+    qApp->setActiveWindow(this);
+  }
+
   bool res = this->QMainWindow::event(e);
 
   if (e->type() == QEvent::HoverMove
@@ -1007,9 +1055,9 @@ void FQTermFrame::keyClicked(int id) {
   QString strTmp = config_->getItemValue("key", strItem);
 
   if (strTmp[0] == '0') { // key
-    windowManager_->activeWindow()->externInput(strTmp.mid(1).toLatin1());
+    windowManager_->activeWindow()->externInput(strTmp.mid(1));
   } else if (strTmp[0] == '1') { // script
-    windowManager_->activeWindow()->runScript(strTmp.mid(1).toLatin1());
+    windowManager_->activeWindow()->runScript(strTmp.mid(1).toAscii());
   } else if (strTmp[0] == '2') { // program
     system((strTmp.mid(1) + " &").toLocal8Bit());
   }
@@ -1033,6 +1081,7 @@ void FQTermFrame::addMainTool() {
   connectButton_->setPopupMode(QToolButton::InstantPopup);
 
   toolBarMdiTools_->addAction(actionQuickConnect_);
+
   actionQuickConnect_->setIcon(QPixmap(getPath(RESOURCE) + "pic/quick_login.png"));
   // custom define
   toolBarSetupKeys_ = addToolBar("Custom Key");
@@ -1062,7 +1111,8 @@ void FQTermFrame::addMainTool() {
 
   //View (3)
   fontButton_ = new QToolButton(toolBarMdiConnectTools_);
-  QAction* dummyAction = new QAction(QPixmap(getPath(RESOURCE) + "pic/change_fonts.png"), tr("Set Terminal Fonts"), fontButton_);
+  QAction* dummyAction = new QAction(QPixmap(getPath(RESOURCE) + "pic/change_fonts.png"),
+    tr("Set Terminal Fonts"), fontButton_);
   fontButton_->setDefaultAction(dummyAction);
   toolBarMdiConnectTools_->addWidget(fontButton_);
   fontButton_->setMenu(menuFont_);
@@ -1070,6 +1120,9 @@ void FQTermFrame::addMainTool() {
 
   toolBarMdiConnectTools_->addAction(actionColor_);
   actionColor_->setIcon(QPixmap(getPath(RESOURCE) + "pic/ansi_color.png"));
+  toolBarMdiConnectTools_->addAction(actionToggleAnsiColor_);
+  actionToggleAnsiColor_->setIcon(QPixmap(getPath(RESOURCE) + "pic/toggle_ansi_color.png"));
+  actionToggleAnsiColor_->setCheckable(true);
   toolBarMdiConnectTools_->addAction(actionRefresh_);
   actionRefresh_->setIcon(QPixmap(getPath(RESOURCE) + "pic/refresh.png"));
   toolBarMdiConnectTools_->addSeparator();
@@ -1120,6 +1173,7 @@ void FQTermFrame::addMainMenu() {
   menuFile_->addAction(QPixmap(getPath(RESOURCE) + "pic/connect.png"),
                        tr("&Connect"), this,
                   SLOT(connectIt()));
+
   menuFile_->addAction(QPixmap(getPath(RESOURCE) + "pic/disconnect.png"),
                        tr("&Disconnect"),
                   this, SLOT(disconnect())); //, 0, ID_FILE_DISCONNECT );
@@ -1209,7 +1263,9 @@ void FQTermFrame::addMainMenu() {
   }
 
   actionColor_ = view->addAction(QPixmap(getPath(RESOURCE) + "pic/ansi_color.png"),
-                                 tr("&Color"), this, SLOT(setColor()));
+                                 tr("&Color Setting"), this, SLOT(setColor()));
+  actionToggleAnsiColor_ = view->addAction(QPixmap(getPath(RESOURCE) + "pic/toggle_ansi_color.png"),
+    tr("&Use ANSI Color"), this, SLOT(toggleAnsiColor()));
   actionRefresh_ = view->addAction(
       QPixmap(getPath(RESOURCE) + "pic/refresh.png"),
       tr("&Refresh"), this, SLOT(refreshScreen()), tr("F5"));
@@ -1336,6 +1392,8 @@ void FQTermFrame::updateMenuToolBar() {
 
   actionFullScreen_->setChecked(isFullScreen_);
 
+  actionToggleAnsiColor_->setChecked(window->session_->param_.isAnsiColor_);
+
   actionAntiIdle_->setChecked(window->session_->isAntiIdle_);
   actionAutoReply_->setChecked(window->session_->isAutoReply_);
   actionBeep_->setChecked(window->session_->isBeep_);
@@ -1351,6 +1409,8 @@ void FQTermFrame::enableMenuToolBar(bool enable) {
   actionRectangleSelect_->setEnabled(enable);
   actionAutoCopy_->setEnabled(enable);
   actionWordWrap_->setEnabled(enable);
+
+  actionToggleAnsiColor_->setEnabled(enable);
 
   fontButton_->setEnabled(enable);
   menuFont_->setEnabled(enable);
@@ -1370,7 +1430,7 @@ void FQTermFrame::enableMenuToolBar(bool enable) {
   actionStopScript_->setEnabled(enable);
 }
 
-void FQTermFrame::updateToolBar() {
+void FQTermFrame::updateKeyToolBar() {
   toolBarSetupKeys_->clear();
   toolBarSetupKeys_->addAction(QPixmap(getPath(RESOURCE) + "pic/setup_shortcuts.png"),
                                tr("Key Setup"), this, SLOT(keySetup()));
@@ -1407,16 +1467,7 @@ void FQTermFrame::updateToolBar() {
     toolBarSetupKeys_->addWidget(button);
   }
 
-  //load toolbar setting
-  strTmp = config_->getItemValue("global", "toolbarstate");
-  if (!strTmp.isEmpty())
-  {
-    restoreState(QByteArray::fromHex(strTmp.toAscii()));
-  } else {
-    addToolBar(Qt::TopToolBarArea, toolBarMdiConnectTools_);
-    insertToolBar(toolBarMdiConnectTools_,toolBarSetupKeys_);
-    insertToolBar(toolBarSetupKeys_, toolBarMdiTools_);
-  }
+
 
 }
 
@@ -1622,9 +1673,12 @@ FQTermFrame::recreateMenu() {
   delete toolBarMdiConnectTools_;
   delete menuConnect_;
   addMainTool();
-  updateToolBar();
+  updateKeyToolBar();
+  loadToolBarPosition();
   if (!mdiArea_->activeSubWindow()) {
     enableMenuToolBar(false);
+  } else {
+    updateMenuToolBar();
   }
   if (preference_.useStyleSheet_) {
     refreshStyleSheet();
@@ -1786,6 +1840,29 @@ void FQTermFrame::loadStyleSheetFromFile( const QString qssFile )
 void FQTermFrame::clearStyleSheet() {
   qApp->setStyleSheet("");
 }
+
+void FQTermFrame::loadToolBarPosition()
+{
+  //load toolbar setting
+  QString strTmp = config_->getItemValue("global", "toolbarstate");
+  if (!strTmp.isEmpty())
+  {
+    restoreState(QByteArray::fromHex(strTmp.toAscii()));
+  } else {
+    addToolBar(Qt::TopToolBarArea, toolBarMdiConnectTools_);
+    insertToolBar(toolBarMdiConnectTools_,toolBarSetupKeys_);
+    insertToolBar(toolBarSetupKeys_, toolBarMdiTools_);
+  }
+}
+
+void FQTermFrame::toggleAnsiColor() {
+  windowManager_->activeWindow()->session_->param_.isAnsiColor_
+    = !windowManager_->activeWindow()->session_->param_.isAnsiColor_;
+  actionToggleAnsiColor_->setChecked(
+    windowManager_->activeWindow()->session_->param_.isAnsiColor_);
+  refreshScreen();
+}
+
 
 TranslatorInstaller::TranslatorInstaller(const QString& language,
                                          FQTermFrame* frame)

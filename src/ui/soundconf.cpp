@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #include <QMessageBox>
@@ -41,10 +44,19 @@ soundConf::soundConf(FQTermConfig * config, QWidget *parent, Qt::WFlags fl)
   ui_.setupUi(this);
   buttonGroup_.addButton(ui_.radioButton1, 0);
   buttonGroup_.addButton(ui_.radioButton2, 1);
-  buttonGroup_.addButton(ui_.radioButton3, 2);
-  buttonGroup_.addButton(ui_.radioButton4, 3);
   sound_ = NULL;
+  fileDialog_ = new FQTermFileDialog(config_);
   loadSetting();
+  FQ_VERIFY(connect(ui_.bfSelect, SIGNAL(clicked()),
+    this, SLOT(onSelectFile())));
+  FQ_VERIFY(connect(ui_.bpSelect, SIGNAL(clicked()),
+    this, SLOT(onSelectProg())));
+  FQ_VERIFY(connect(ui_.bpTest, SIGNAL(clicked()),
+    this, SLOT(onTestPlay())));
+  FQ_VERIFY(connect(ui_.bOK, SIGNAL(clicked()),
+    this, SLOT(accept())));
+  FQ_VERIFY(connect(ui_.bCancel, SIGNAL(clicked()),
+    this, SLOT(reject())));
 }
 
 /*
@@ -52,16 +64,15 @@ soundConf::soundConf(FQTermConfig * config, QWidget *parent, Qt::WFlags fl)
  */
 soundConf::~soundConf() {
   // no need to delete child widgets, Qt does it all for us
-  delete sound_;
+  delete fileDialog_;
 }
 
 /*
  * public slot
  */
 void soundConf::onSelectFile() {
-  QString soundfile = QFileDialog::getOpenFileName(
-      this, "Choose a file", QDir::currentPath(), "*");
-  if (!soundfile.isNull()) {
+  QString soundfile = fileDialog_->getOpenName("Choose a WAVE file", "WAVE Audio Files (*.wav *.WAV)", this);
+  if (!soundfile.isEmpty()) {
     ui_.leFile->setText(soundfile);
   }
 }
@@ -70,10 +81,9 @@ void soundConf::onSelectFile() {
  * public slot
  */
 void soundConf::onSelectProg() {
-  QString progfile = QFileDialog::getOpenFileName(
-      this, "Choose a program", QDir::currentPath(), "*");
+  QString progfile = fileDialog_->getOpenName("Choose a program", "", this);
   if (!progfile.isEmpty()) {
-    ui_.leFile->setText(progfile);
+    ui_.leProg->setText(progfile);
   }
 }
 
@@ -81,78 +91,39 @@ void soundConf::onSelectProg() {
  * public slot
  */
 void soundConf::onPlayMethod(int id) {
-#ifdef _NO_ARTS_COMPILED
-  if (id == 1) {
-    QMessageBox::critical(
-        this, tr("No such output driver"),
-        tr("ARTS is not supported by this instance of FQTerm,\n"
-           "Check whether your ARTS support is enabled in compile time."),
-        tr("&OK"));
-    buttonGroup_.button(3)->setChecked(true);
-    // 	QRadioButton * tmp = static_cast<QRadioButton *>(bgMethod->find(3));
-    // 	tmp->setChecked(true);
-  }
-#endif
-#ifdef _NO_ESD_COMPILED
-  if (id == 2) {
-    QMessageBox::critical(
-        this, tr("No such output driver"),
-        tr("ESD is not supported by this instance of FQTerm,\n"
-           "Check whether your ESD support is enabled in compile time"),
-        tr("&OK"));
-    // 	QRadioButton * tmp = static_cast<QRadioButton *>(bgMethod->find(3));
-    // 	tmp->setChecked(true);
-    buttonGroup_.button(3)->setChecked(true);
-  }
-#endif
-  if (id == 3 || buttonGroup_.checkedId() == 3) {
-    ui_.leProg->setEnabled(true);
-    ui_.bpSelect->setEnabled(true);
-  } else if (id == 0 || id == 1 || id == 2) {
-    ui_.leProg->setEnabled(false);
-    ui_.bpSelect->setEnabled(false);
-  }
+FQ_TRACE("sconf", 0) << id << ": " << buttonGroup_.checkedId();
+  ui_.bpSelect->setEnabled(id == 1 || buttonGroup_.checkedId() == 1);
 }
 
 void soundConf::onTestPlay() {
   if (ui_.leFile->text().isEmpty()) {
-    QMessageBox::critical(
-        this, tr("No sound file"),
-        tr("You have to select a file to test the sound"), tr("&Ok"));
+    QMessageBox::critical(this, tr("No sound file"),
+      tr("You have to select a file to test the sound"), tr("&Ok"));
+
+    return;
   }
+
+  sound_ = NULL;
 
   switch (buttonGroup_.checkedId()) {
     case 0:
-      sound_ = new FQTermInternalSound(ui_.leFile->text());
+      sound_ = new FQTermSystemSound(ui_.leFile->text());
       break;
     case 1:
-      /*
-        #ifndef _NO_ARTS_COMPILED
-        m_pSound = new FQTermArtsSound(leFile->text());
-        #endif
-        break;
-        case 2:
-        #ifndef _NO_ESD_COMPILED
-        m_pSound = new FQTermEsdSound(leFile->text());
-        #endif*/
-      break;
-    case 3:
       if (ui_.leProg->text().isEmpty()) {
-        QMessageBox::critical(
-            this, tr("No player"),
-            tr("You have to specify an external player"), tr("&Ok"));
-      } else {
-        sound_ = new FQTermExternalSound(ui_.leProg->text(), ui_.leFile->text());
+        QMessageBox::critical(this, tr("No player"),
+          tr("You have to specify an external player"), tr("&Ok"));
+
+        break;
       }
+
+      sound_ = new FQTermExternalSound(ui_.leProg->text(), ui_.leFile->text());
       break;
-    default:
-      sound_ = NULL;
   }
+
   if (sound_) {
-    sound_->play();
+    sound_->start();
   }
-  delete sound_;
-  sound_ = NULL;
 }
 
 void soundConf::loadSetting() {
@@ -165,20 +136,17 @@ void soundConf::loadSetting() {
   }
 
   strTmp = config_->getItemValue("preference", "playmethod");
-  if (!strTmp.isEmpty()) {
-    buttonGroup_.button(strTmp.toInt())->setChecked(true);
-    if (strTmp.toInt() != 3) {
-      ui_.leProg->setEnabled(false);
-      ui_.bpSelect->setEnabled(false);
-    } else {
+
+  int valTmp = !strTmp.isEmpty()? strTmp.toInt(): -1;
+
+  if (valTmp >= 0 && valTmp <= 1) {
+    buttonGroup_.button(valTmp)->setChecked(true);
+    if (valTmp == 1) {
       strTmp = config_->getItemValue("preference", "externalplayer");
       if (!strTmp.isEmpty()) {
         ui_.leProg->setText(strTmp);
       }
     }
-  } else {
-    ui_.leProg->setEnabled(false);
-    ui_.bpSelect->setEnabled(false);
   }
 }
 
@@ -193,7 +161,7 @@ void soundConf::saveSetting() {
   strTmp.setNum(buttonGroup_.checkedId());
   config_->setItemValue("preference", "playmethod", strTmp);
 
-  if (strTmp == "3") {
+  if (strTmp == "1") {
     config_->setItemValue("preference", "externalplayer", ui_.leProg->text());
   }
 

@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #include <stdlib.h>
@@ -48,6 +51,7 @@
 #include "fqterm_canvas.h"
 #include "fqterm_config.h"
 #include "fqterm_convert.h"
+#include "fqterm_filedialog.h"
 #include "fqterm_frame.h"
 #include "fqterm_http.h"
 #include "fqterm_ip_location.h"
@@ -91,7 +95,7 @@ class FAQ: public QObject {
 
 
 //constructor
-FQTermWindow::FQTermWindow(FQTermFrame *frame, FQTermParam param,
+FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam param,
                            int addressIndex, QWidget *parent,
                            const char *name, Qt::WFlags wflags)
     : QMainWindow(parent, wflags),
@@ -103,13 +107,15 @@ FQTermWindow::FQTermWindow(FQTermFrame *frame, FQTermParam param,
       location_(),
       isMouseClicked_(false),
       blinkStatus_(true),
+      isUrlUnderLined_(false),
       script_engine_(NULL) {
   // isMouseX11_ = false;
-  session_ = new FQTermSession(param, (frame_->preference_.openBeep_ != 0),
+  session_ = new FQTermSession(config, param, (frame_->preference_.openBeep_ != 0),
                                frame_->preference_.serverEncodingID_,
                                frame_->preference_.zmodemDir_);
   screen_ = new FQTermScreen(this, &session_->param_, session_);
 
+  config_ = config;
   zmodemDialog_ = new zmodemDialog(this);
 
 
@@ -219,7 +225,6 @@ FQTermWindow::~FQTermWindow() {
   delete screen_;
   delete ipDatabase_;
   delete pageViewMessage_;
-  delete sound_;
   delete script_engine_;
 }
 
@@ -227,6 +232,7 @@ void FQTermWindow::addMenu() {
   urlMenu_ = new QMenu(screen_);
   urlMenu_->addAction(tr("Preview image"), this, SLOT(previewLink()));
   urlMenu_->addAction(tr("Open link"), this, SLOT(openLink()));
+  urlMenu_->addAction(tr("Save As..."), this, SLOT(saveLink()));
   urlMenu_->addAction(tr("Copy link address"), this, SLOT(copyLink()));
 
   const QString &resource_dir = getPath(RESOURCE);
@@ -363,7 +369,7 @@ bool FQTermWindow::event(QEvent *qevent) {
       break;
   }
 
-  res = res || QWidget::event(qevent);
+  res = res || QMainWindow::event(qevent);
 
   if (qevent->type() == QEvent::HoverMove
       || qevent->type() == QEvent::MouseMove
@@ -465,6 +471,24 @@ void FQTermWindow::mouseMoveEvent(QMouseEvent *mouseevent) {
   setCursorPosition(position);
 
   setCursorType(position);
+
+
+
+  if (!isUrlUnderLined_ && session_->urlStartPoint_ != session_->urlEndPoint_) {
+    isUrlUnderLined_ = true;
+    urlStartPoint_ = session_->urlStartPoint_;
+    urlEndPoint_ = session_->urlEndPoint_;
+	  clientRect_ = QRect(QPoint(0, urlStartPoint_.y()), QSize(session_->param_.numColumns_, urlEndPoint_.y() - urlStartPoint_.y() + 1));
+	  repaintScreen();
+	  
+  } else if (isUrlUnderLined_ && (session_->urlStartPoint_ != urlStartPoint_ || session_->urlEndPoint_ != urlEndPoint_)) {
+    clientRect_ = QRect(QPoint(0, urlStartPoint_.y()), QSize(session_->param_.numColumns_, urlEndPoint_.y() - urlStartPoint_.y() + 1));
+    urlStartPoint_ = QPoint();
+    urlEndPoint_ = QPoint();
+	  repaintScreen();
+	  isUrlUnderLined_ = false;
+
+  }
 
   // python mouse event
   //pythonMouseEvent(2, me->button(), me->state(), position,0);
@@ -575,6 +599,12 @@ void FQTermWindow::keyPressEvent(QKeyEvent *keyevent) {
   sendKey(key, modifier, keyevent->text());
 }
 
+void FQTermWindow::focusInEvent (QFocusEvent *event) {
+  QMainWindow::focusInEvent(event);
+  screen_->setFocus(Qt::OtherFocusReason);
+}
+
+
 //connect slot
 void FQTermWindow::connectHost() {
   session_->setProxy(session_->param_.proxyType_,
@@ -606,7 +636,7 @@ void FQTermWindow::sessionUpdated() {
 }
 
 void FQTermWindow::requestUserPwd(QString *user, QString *pwd, bool *isOK) {
-  SSHLoginDialog login(user, pwd);
+  SSHLoginDialog login(user, pwd, this);
   *isOK = (login.exec() == QDialog::Accepted);
 }
 
@@ -946,28 +976,18 @@ void FQTermWindow::showStatusBar(bool bShow) {
   }
 }
 
-static void getOpenFileName(const QString &filter, QWidget *widget,
-                            QString &fileOpen) {
-  QString strOpen = QFileDialog::getOpenFileName(
-      widget, "choose a file", getPath(USER_CONFIG), filter);
-  if (!strOpen.isEmpty()) {
-    // save the path
-    QFileInfo fi(strOpen);
-  }
-
-  fileOpen = strOpen;
-}
-
 void FQTermWindow::runScript() {
   // get the previous dir
-  QString file;
-  getOpenFileName("JavaScript File (*.js)", this, file);
+  QStringList fileList;
+  FQTermFileDialog *fileDialog = new FQTermFileDialog(config_);
 
-  if (file.isEmpty()) {
-    return ;
+  fileList = fileDialog->getOpenNames("Choose a JAVA script file", "JavaScript File (*.js)", this);
+
+  if (!fileList.isEmpty() && fileList.count() == 1) {
+    runScript(fileList.at(0));
   }
 
-  runScript(file);
+  delete fileDialog;
 }
 
 void FQTermWindow::stopScript() {
@@ -977,7 +997,8 @@ void FQTermWindow::viewMessages() {
   msgDialog msg(this);
 
   QByteArray dlgSize =
-      frame_->config()->getItemValue("global", "msgdialog").toLatin1();
+//      frame_->config()->getItemValue("global", "msgdialog").toLatin1();
+    config_->getItemValue("global", "msgdialog").toLatin1();
   const char *dsize = dlgSize.constData();
   if (!dlgSize.isEmpty()) {
     int x, y, cx, cy;
@@ -994,7 +1015,8 @@ void FQTermWindow::viewMessages() {
 
   QString strSize = QString("%1 %2 %3 %4").arg(msg.x()).arg(msg.y()).arg
                     (msg.width()).arg(msg.height());
-  frame_->config()->setItemValue("global", "msgdialog", strSize);
+//  frame_->config()->setItemValue("global", "msgdialog", strSize);
+    config_->setItemValue("global", "msgdialog", strSize);
 }
 
 void FQTermWindow::setting() {
@@ -1032,12 +1054,15 @@ void FQTermWindow::connectionClosed() {
 
 void FQTermWindow::articleCopied(int e, const QString content) {
   if (e == DAE_FINISH) {
-    articleDialog article(this);
+//    articleDialog article(frame_->config(), this);
+    articleDialog article(config_, this);
 
     // Fix focus-losing bug.
     // dsize should be a pointer to a non-temprary object.
     QByteArray dlgSize =
-        frame_->config()->getItemValue("global", "articledialog").toLatin1();
+//        frame_->config()->getItemValue("global", "articledialog").toLatin1();
+      config_->getItemValue("global", "articledialog").toLatin1();
+
     const char *dsize = dlgSize.constData();
 
     if (!dlgSize.isEmpty()) {
@@ -1055,7 +1080,8 @@ void FQTermWindow::articleCopied(int e, const QString content) {
     article.exec();
     QString strSize = QString("%1 %2 %3 %4").arg(article.x()).arg(article.y())
                       .arg(article.width()).arg(article.height());
-    frame_->config()->setItemValue("global", "articledialog", strSize);
+//    frame_->config()->setItemValue("global", "articledialog", strSize);
+    config_->setItemValue("global", "articledialog", strSize);
   } else if (e == DAE_TIMEOUT) {
     QMessageBox::warning(this, "timeout", "download article timeout, aborted");
   } else if (e == PYE_ERROR) {
@@ -1152,6 +1178,13 @@ void FQTermWindow::externInput(const QByteArray &cstrText) {
   session_->write(cstrParsed, cstrParsed.length());
 }
 
+void FQTermWindow::externInput(const QString &cstrText) {
+  if (screen_->encoding()) {
+    externInput(screen_->encoding()->fromUnicode(cstrText));
+  } else {
+    externInput(cstrText.toAscii());
+  }
+}
 QByteArray FQTermWindow::unicode2SessionEncoding(const QString &text) {
   QByteArray strTmp;
 
@@ -1268,8 +1301,21 @@ void FQTermWindow::pythonMouseEvent(
 
 void FQTermWindow::openLink() {
   QString url = session_->getUrl();
+  if (!url.isEmpty()) {
+    const QString &httpBrowser = frame_->preference_.httpBrowser_;
+	if (httpBrowser.isNull() || httpBrowser.isEmpty()) {
+      QDesktopServices::openUrl(url);
+    } else {
+      QString strCmd = "'" + httpBrowser + + "' '" + url + "'";
+	  runProgram(strCmd);
+	}
+  }
+}
+
+void FQTermWindow::saveLink() {
+  QString url = session_->getUrl();
   if (!url.isEmpty())
-    QDesktopServices::openUrl(url);
+    getHttpHelper(url, false);
 }
 
 void FQTermWindow::openUrl()
@@ -1285,8 +1331,8 @@ void FQTermWindow::openUrl()
 
   QPushButton *okButton = new QPushButton(tr("&Open URL"));
   QPushButton *cancelButton = new QPushButton(tr("&Cancel"));
-  okButton->setSizePolicy(QSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed));
-  cancelButton->setSizePolicy(QSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed));
+//  okButton->setSizePolicy(QSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed));
+//  cancelButton->setSizePolicy(QSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed));
   
 
   QGridLayout *layout = new QGridLayout;
@@ -1309,7 +1355,14 @@ void FQTermWindow::openUrl()
   textEdit->clearFocus();
   okButton->setFocus(Qt::TabFocusReason);
   if (dlg.exec()) {
-    QDesktopServices::openUrl(textEdit->toPlainText());
+    const QString &httpBrowser = frame_->preference_.httpBrowser_;
+    if (httpBrowser.isNull() || httpBrowser.isEmpty()) {
+      QDesktopServices::openUrl(textEdit->toPlainText());
+    } else {
+      QString strCmd = "'" + httpBrowser + "' '" + textEdit->toPlainText() + "'";
+	  runProgram(strCmd);
+    }
+    
   }
 }
 
@@ -1335,7 +1388,7 @@ void FQTermWindow::getHttpHelper(const QString &url, bool preview) {
 
   const QString &strPool = frame_->preference_.zmodemPoolDir_;
 
-  FQTermHttp *http = new FQTermHttp(this, strPool);
+  FQTermHttp *http = new FQTermHttp(config_, this, strPool);
   FQTerm::StatusBar::instance()->newProgressOperation(http).setDescription(tr("Waiting header...")).setAbortSlot(http, SLOT(cancel())).setMaximum(100);
   FQTerm::StatusBar::instance()->resetMainText();
   FQTerm::StatusBar::instance()->setProgress(http, 0);
@@ -1375,12 +1428,13 @@ void FQTermWindow::httpDone(QObject *pHttp) {
 }
 
 void FQTermWindow::previewImage(const QString &filename, bool raiseViewer) {
-  QString strViewer = frame_->config()->getItemValue("preference", "image");
+//  QString strViewer = frame_->config()->getItemValue("preference", "image");
+  QString strViewer = config_->getItemValue("preference", "image");
 
   if (strViewer.isEmpty()) {
     frame_->viewImages(filename, raiseViewer);
   } else if(raiseViewer) {
-    QString strCmd = strViewer + " \"" + filename + "\"";
+    QString strCmd = "'" + strViewer + "' '" + filename + "'";
     runProgram(strCmd);
   }
 
@@ -1389,40 +1443,27 @@ void FQTermWindow::previewImage(const QString &filename, bool raiseViewer) {
 void FQTermWindow::beep() {
   if (session_->isBeep_) {
     if (frame_->preference_.beepSoundFileName_.isEmpty() ||
-        frame_->preference_.openBeep_ == 3) {
+      frame_->preference_.openBeep_ == 3) {
       qApp->beep();
-    } else {
-      //QSound::play(termFrame_->m_pref.strWave);
+    }
+    else {
+      sound_ = NULL;
+
       switch (frame_->preference_.beepMethodID_) {
         case 0:
           sound_ =
-              new FQTermInternalSound(frame_->preference_.beepSoundFileName_);
+              new FQTermSystemSound(frame_->preference_.beepSoundFileName_);
           break;
-          /*
-            #ifndef _NO_ARTS_COMPILED
-            case 1:
-            m_pSound = new FQTermArtsSound(termFrame_->m_pref.strWave);
-            break;
-            #endif
-            #ifndef _NO_ESD_COMPILED
-            case 2:
-            m_pSound = new FQTermEsdSound(termFrame_->m_pref.strWave);
-            break;
-            #endif
-          */
-        case 3:
+        case 1:
           sound_ =
               new FQTermExternalSound(frame_->preference_.beepPlayerName_,
-                                      frame_->preference_.beepSoundFileName_);
+                frame_->preference_.beepSoundFileName_);
           break;
-        default:
-          sound_ = NULL;
       }
+
       if (sound_) {
-        sound_->play();
+        sound_->start();
       }
-      delete sound_;
-      sound_ = NULL;
     }
   }
 
@@ -1434,11 +1475,7 @@ void FQTermWindow::beep() {
   session_->isSendingMessage_ = true;
 
   if (!isActiveWindow() || frame_->windowManager_->activeWindow() != this) {
-    // only buzz. a popup dialog may disturb users.
     frame_->buzz();
-
-    // popWindow_->setText(fromBBSCodec(strMsg.toLatin1()));
-    // popWindow_->popup();
   }
 }
 
@@ -1489,7 +1526,7 @@ void FQTermWindow::setCursorPosition(const QPoint& mousePosition) {
       session_->setCursorPos(screen_->mapToChar(localPos), dummyRect);
       screen_->repaint(screen_->mapToRect(rc));
       //restore the state.
-      session_->setCursorPos(screen_->mapToChar(mousePosition), dummyRect);	
+      session_->setCursorPos(screen_->mapToChar(mousePosition), dummyRect); 
     }
   }
 }
@@ -1500,8 +1537,15 @@ void FQTermWindow::refreshScreen() {
 }
 
 void FQTermWindow::repaintScreen() {
+
   screen_->setPaintState(FQTermScreen::Repaint);
-  screen_->update();
+  if (clientRect_ != QRect()) {
+    screen_->repaint(screen_->mapToRect(clientRect_));
+  } else {
+    screen_->repaint();
+  }
+  clientRect_ = QRect();
+//  screen_->update(clientRect_);
 }
 
 void FQTermWindow::enterMenuItem() {
@@ -1856,15 +1900,23 @@ void FQTermWindow::sendKey(const int keyCode, const Qt::KeyboardModifiers modifi
     }
     
     if (key == Qt::Key_Backspace) {
-      //session_->writeStr("\x1b[3~");
       if (shift_on) {
-        session_->writeStr("\x8");
+        session_->writeStr("\x1b[3~");
       } else {
-        session_->writeStr("\x7f");
+        session_->writeStr("\x08");
       }
       return;
     }
     
+    if (key == Qt::Key_Delete) {
+      if (shift_on) {
+        session_->writeStr("\x08");
+      } else {
+        session_->writeStr("\x1b[3~");
+      }
+      return;
+    }
+
     if (key == Qt::Key_Return) {
       if (session_->getBuffer()->isNewLineMode()) {
         session_->write("\r\n", 2);

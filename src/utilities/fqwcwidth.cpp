@@ -384,11 +384,12 @@ int mk_wcswidth_cjk(const UTF16 *utf16_str, size_t n)
   int w, width = 0;
 
   // FIXME: only BMP is supported here.
-  for (;*utf16_str && n-- > 0; utf16_str++)
+  for (;*utf16_str && n-- > 0; utf16_str++) {
     if ((w = mk_wcwidth_cjk(*utf16_str)) < 0)
       return -1;
     else
       width += w;
+  }
 
   return width;
 }
@@ -398,13 +399,26 @@ int mk_wcswidth_cjk(const UTF16 *utf16_str, size_t n, int max_width, int &elemen
   int w, width = 0;
 
   // FIXME: only BMP is supported here.
-  for (;*utf16_str && n-- > 0 && width < max_width; utf16_str++)
-    if ((w = mk_wcwidth_cjk(*utf16_str)) < 0)
-      return -1;
-    else
-      width += w;
+  for (;*utf16_str && n-- > 0 && width < max_width; utf16_str++) {
+    const UTF16 *bak_str = utf16_str;
+    int bak_width = width;
 
-  FQ_VERIFY(width <= max_width);
+    if ((w = mk_wcwidth_cjk(*utf16_str)) < 0) {
+      return -1;
+    } else {
+      width += w;
+    }
+
+    if (width > max_width) {
+      utf16_str = bak_str;
+      width = bak_width;
+      if (utf16_str == org) {
+        return -1;
+      } else {
+        break;
+      }
+    }
+  }
 
   element_consumed = utf16_str - org;
   return width;

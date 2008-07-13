@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #include <QCloseEvent>
@@ -37,12 +40,12 @@
 #include "fqterm.h"
 #include "fqterm_config.h"
 #include "fqterm_path.h"
+#include "fqterm_filedialog.h"
 
 namespace FQTerm {
 
 FQTermCanvas::FQTermCanvas(FQTermConfig * config, QWidget *parent, Qt::WFlags f)
     : QScrollArea(parent),
-      config_(config),
       adjustMode_(Fit),
       aspectRatioMode_(Qt::KeepAspectRatio){
   // TODO: dirty trick
@@ -52,7 +55,8 @@ FQTermCanvas::FQTermCanvas(FQTermConfig * config, QWidget *parent, Qt::WFlags f)
   } else {
     isEmbedded = false;
   }
-  
+
+  config_ = config; 
 
   menu_ = new QMenu(parent);
   menu_->addAction(tr("zoom 1:1"), this, SLOT(oriSize()), tr("Ctrl+Z"));
@@ -271,11 +275,12 @@ void FQTermCanvas::rotateImage(float ang) {
 
 void FQTermCanvas::copyImage() {
   QFileInfo fi(fileName_);
-  QString strSave =
-      QFileDialog::getSaveFileName(
-          this,tr("Choose a filename to save under"),
-          QDir::currentPath() + fi.fileName());
-
+//  QString strSave =
+//      QFileDialog::getSaveFileName(
+//          this,tr("Choose a filename to save under"),
+//          QDir::currentPath() + fi.fileName());
+  FQTermFileDialog *fileDialog = new FQTermFileDialog(config_);
+  QString strSave = fileDialog->getSaveName(fi.fileName(), "", this);
   if (strSave.isEmpty()) {
     return ;
   }
@@ -290,6 +295,8 @@ void FQTermCanvas::copyImage() {
     }
     file.close();
   }
+
+  delete fileDialog;
 }
 
 void FQTermCanvas::silentCopy() {
@@ -333,12 +340,10 @@ void FQTermCanvas::moveImage(float dx, float dy) {
 }
 
 void FQTermCanvas::saveImage() {
-  QFileInfo fi(fileName_);
-  QString strSave =
-      QFileDialog::getSaveFileName(
-          this, tr("Choose a filename to save under"),
-          QDir::currentPath() + fi.fileName());
 
+  QFileInfo fi(fileName_);
+  FQTermFileDialog *fileDialog = new FQTermFileDialog(config_);
+  QString strSave = fileDialog->getSaveName(fi.fileName(), "", this);
   if (strSave.isEmpty()) {
     return ;
   }
@@ -347,6 +352,8 @@ void FQTermCanvas::saveImage() {
     QMessageBox::warning(this, tr("Failed to save file"),
                          tr("Cant save file, maybe format not supported"));
   }
+
+  delete fileDialog;
 }
 
 void FQTermCanvas::deleteImage() {

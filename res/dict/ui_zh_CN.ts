@@ -218,21 +218,9 @@ To continue editing, press Cancel</source>
         <translation>没有驱动</translation>
     </message>
     <message>
-        <location filename="../../src/ui/soundconf.cpp" line="72"/>
-        <source>ARTS is not supported by this instance of FQTerm,
-Check whether your ARTS support is enabled in compile time.</source>
-        <translation>当前的程序实例不支持ARTS,请检查编译时是否选定了ARTS支持.</translation>
-    </message>
-    <message>
         <location filename="../../src/ui/soundconf.cpp" line="85"/>
         <source>&amp;OK</source>
         <translation>确认(&amp;O)</translation>
-    </message>
-    <message>
-        <location filename="../../src/ui/soundconf.cpp" line="84"/>
-        <source>ESD is not supported by this instance of FQTerm,
-Check whether your ESD support is enabled in compile time</source>
-        <translation>当前FQTerm的实例不支持ESD,请确认编译时选定了ESD支持</translation>
     </message>
     <message>
         <location filename="../../src/ui/soundconf.cpp" line="103"/>
@@ -1422,11 +1410,6 @@ p, li { white-space: pre-wrap; }
         <translation>使用播放器:</translation>
     </message>
     <message>
-        <location filename="../../src/ui/soundconf.ui" line="53"/>
-        <source>ARTS</source>
-        <translation>ARTS</translation>
-    </message>
-    <message>
         <location filename="../../src/ui/soundconf.ui" line="67"/>
         <source>Test</source>
         <translation>测试</translation>
@@ -1435,11 +1418,6 @@ p, li { white-space: pre-wrap; }
         <location filename="../../src/ui/soundconf.ui" line="60"/>
         <source>External</source>
         <translation>外部</translation>
-    </message>
-    <message>
-        <location filename="../../src/ui/soundconf.ui" line="46"/>
-        <source>ESD</source>
-        <translation>ESD</translation>
     </message>
     <message>
         <location filename="../../src/ui/soundconf.ui" line="39"/>

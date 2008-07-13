@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #include <QPixmap>
@@ -129,8 +132,6 @@ void addrDialog::setUIFromParam() {
   QString strTmp;
   ui_.nameLineEdit->setText(param_.name_);
   ui_.addrLineEdit->setText(param_.hostAddress_);
-  strTmp.setNum(param_.port_);
-  ui_.portLineEdit->setText(strTmp);
   ui_.hostTypeComboBox->setCurrentIndex(param_.hostType_);
 //  ui_.autoLoginCheckBox->setChecked(param_.isAutoLogin_);
   ui_.preloginLineEdit->setText(param_.preLoginCommand_);
@@ -161,6 +162,9 @@ void addrDialog::setUIFromParam() {
   ui_.proxypasswdLineEdit->setText(param_.proxyPassword_);
   ui_.protocolComboBox->setCurrentIndex(param_.protocolType_);
   onProtocol(param_.protocolType_);
+  strTmp.setNum(param_.port_);
+  ui_.portLineEdit->setText(strTmp);
+  ui_.portCheckBox->setChecked(param_.port_ != ports[param_.protocolType_]);
   ui_.sshuserLineEdit->setText(param_.sshUserName_);
   ui_.sshpasswdLineEdit->setText(param_.sshPassword_);
   strTmp.setNum(param_.maxIdleSeconds_);

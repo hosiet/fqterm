@@ -29,17 +29,17 @@ below to setup the development environment.
 
   If you want to enable the IP location detection feature, please
   download the IP location database file "QQWry.dat" and put a copy of
-  it under "$FQTERM/build". You can get "QQWry.dat" from this
-  project's home page or from other websites.
+  it under "$HOME/.fqterm" or "$PREFIX/share/FQTerm". You can get
+  "QQWry.dat" from this project's home page or from other websites.
 
 
 --------------------------------------------------------
 [ How to build FQTerm under MacOS X using GCC or Xcode ]
 
-First make sure that the latest version of Qt4 are installed and built
-with "./configure -static" configurations. Next please install CMake,
-which is a very powerful cross-platform build system. Then follow the
-instructions below to setup the development environment.
+First make sure that the latest version of Qt4 are installed properly.
+Next please install CMake, which is a very powerful cross-platform
+build system. Then follow the instructions below to setup the
+development environment.
 
 1. Create "build" directory.
 
@@ -70,8 +70,8 @@ instructions below to setup the development environment.
 
   If you want to enable the IP location detection feature, please
   download the IP location database file "QQWry.dat" and put a copy of
-  it under "$FQTERM/build". You can get "QQWry.dat" from this
-  project's home page or from other websites.
+  it under "$HOME/.fqterm" or "$PREFIX/share/FQTerm". You can get
+  "QQWry.dat" from this project's home page or from other websites.
 
 4. Known issues.
 
@@ -104,10 +104,10 @@ instructions below to setup the development environment.
 
 MS Visual Studio Express 2005 is recommended, but other version of
 Visual Studio can also be used. First make sure that the latest
-version of OpenSSL with default configurations and Qt4 are installed
-with "./configure -static" configurations. Next please install CMake,
-which is a very powerful cross-platform build system. Then follow the
-instructions below to setup the development environment.
+version of OpenSSL with default configurations and Qt4 are also
+installed properly. Next please install CMake, which is a very
+powerful cross-platform build system. Then follow the instructions
+below to setup the development environment.
 
 1. Set environment variables. 
 
