@@ -1,4 +1,6 @@
 #!/usr/bin/make -f
+
+DEB_CLEAN_EXCLUDE = res/userconf/address.cfg.orig res/userconf/fqterm.cfg.orig res/userconf/language.cfg.orig
   
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/cmake.mk
