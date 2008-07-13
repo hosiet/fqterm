@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #ifndef FQTERM_SCREEN_H
@@ -59,7 +62,7 @@ class FQTermScreen: public QWidget {
   Q_OBJECT;
  public:
   enum PaintState {
-    NewData, Blink, Cursor, Repaint, None
+     System = 0, Repaint = 1, NewData = 2, Blink = 4, Cursor = 8
   };
   enum MouseState {
     Enter, Press, Move, Release, Leave
@@ -76,15 +79,26 @@ class FQTermScreen: public QWidget {
   void setBackgroundPixmap(const QPixmap &pixmap, int nType = 0);
 
   void setPaintState(PaintState ps) {
-    if (paintState_ != Repaint) paintState_ = ps;
+    paintState_ |= ps;
   }
 
-  void clearPaintState() {
-      paintState_ = None;
+  void clearPaintState(PaintState ps) {
+    paintState_ &= ~ps;
   }
+
+  bool testPaintState(PaintState ps) {
+    return paintState_ & ps;
+  }
+
+
+  /*void clearPaintState() {
+      paintState_ = None;
+  }*/
+
+  QTextCodec * encoding() const{ return encoding_;}
 
  private:
-  PaintState paintState_;
+  int paintState_;
   void refreshScreen(QPainter &painter);
   void blinkScreen(QPainter &painter);
   void updateCursor(QPainter &painter);
@@ -131,6 +145,7 @@ class FQTermScreen: public QWidget {
                 bool complete = true);
   void drawCaret(QPainter &, bool);
   QRect drawMenuSelect(QPainter &, int);
+  void drawUnderLine(QPainter &, const QPoint& startPoint, const QPoint& endPoint);
   
   // auxiluary
   int getPosX(int xChar) {
@@ -158,6 +173,7 @@ class FQTermScreen: public QWidget {
   void inputMethodEvent(QInputMethodEvent *e);
   QVariant inputMethodQuery(Qt::InputMethodQuery property)const;
 
+
  protected slots:
   void blinkEvent();
   void cursorEvent();
@@ -168,6 +184,7 @@ class FQTermScreen: public QWidget {
   void nextLine();
   void scrollLine(int);
  protected:
+   void drawSingleUnderLine(QPainter &, const QPoint& startPoint, const QPoint& endPoint);
 
   QRect clientRectangle_; // the display area
   QRect menuRect_;

@@ -498,12 +498,17 @@ please close all windows and restart.</source>
         <translation>预览图片</translation>
     </message>
     <message>
-        <location filename="fqterm_window.cpp" line="253"/>
+		<location filename="fqterm_window.cpp" line="253"/>
+		<source>Save As...</source>
+		<translation>保存为...</translation>
+	</message>
+    <message>
+        <location filename="fqterm_window.cpp" line="254"/>
         <source>Open link</source>
         <translation>打开链接</translation>
     </message>
     <message>
-        <location filename="fqterm_window.cpp" line="254"/>
+        <location filename="fqterm_window.cpp" line="255"/>
         <source>Copy link address</source>
         <translation>复制链接地址</translation>
     </message>

@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #include <QCloseEvent>
@@ -40,6 +43,7 @@ prefDialog::prefDialog(FQTermConfig * config, QWidget *parent, Qt::WFlags fl)
       soundButtonGroup_(this),
       config_(config){
   ui_.setupUi(this);
+  fileDialog_ = new FQTermFileDialog(config_);
   soundButtonGroup_.addButton(ui_.noneRadioButton, 0);
   soundButtonGroup_.addButton(ui_.beepRadioButton, 1);
   soundButtonGroup_.addButton(ui_.fileRadioButton, 2);
@@ -55,6 +59,7 @@ prefDialog::prefDialog(FQTermConfig * config, QWidget *parent, Qt::WFlags fl)
  */
 prefDialog::~prefDialog() {
   // no need to delete child widgets, Qt does it all for us
+  delete fileDialog_;
 }
 
 void prefDialog::connectSlots() {
@@ -227,10 +232,9 @@ void prefDialog::onSound() {
 }
 
 void prefDialog::onHttp() {
-  QString http = QFileDialog::getOpenFileName(this, "Choose a browser", QDir
-                                              ::currentPath(), "*");
-  if (!http.isNull()) {
-    ui_.httpLineEdit->setText(http + " %L");
+  QString http = fileDialog_->getOpenName("Choose a WWW browser", "*", this);
+  if (!http.isEmpty()) {
+    ui_.httpLineEdit->setText(http);
   }
 
 }
@@ -250,24 +254,21 @@ void prefDialog::onHttp() {
 // }
 
 void prefDialog::onBrowse() {
-  QString dir = QFileDialog::getExistingDirectory(this, "Choose a directory",
-                                                  ui_.zmodemLineEdit->text());
-  if (!dir.isNull()) {
+  QString dir = fileDialog_->getExistingDirectory("Choose a directory", ui_.zmodemLineEdit->text(), this);
+  if (!dir.isEmpty()) {
     ui_.zmodemLineEdit->setText(dir);
   }
 }
 
 void prefDialog::onImage() {
-  QString image = QFileDialog::getOpenFileName(this, "Choose a program", QDir
-                                               ::currentPath(), "*");
-  if (!image.isNull()) {
+  QString image = fileDialog_->getOpenName("Choose an Image Viewer", "*", this);
+  if (!image.isEmpty()) {
     ui_.imageLineEdit->setText(image);
   }
 }
 
 void prefDialog::onPool() {
-  QString pool = QFileDialog::getExistingDirectory(this, "Choose a directory",
-                                                   ui_.poolLineEdit->text());
+  QString pool = fileDialog_->getExistingDirectory("Choose a directory", ui_.poolLineEdit->text(), this);
   if (!pool.isEmpty()) {
     ui_.poolLineEdit->setText(pool);
   }
@@ -275,8 +276,8 @@ void prefDialog::onPool() {
 
 void prefDialog::onStyleSheet()
 {
-  QString qssFile = QFileDialog::getOpenFileName(this, "Choose a qss File", QDir::currentPath(), "*.qss");
-  if (!qssFile.isNull()) {
+  QString qssFile = fileDialog_->getOpenName("Choose a QSS File", "Qt Style Sheets (*.qss *.QSS)", this);
+  if (!qssFile.isEmpty()) {
     ui_.styleSheetLineEdit->setText(qssFile);
   }
 }

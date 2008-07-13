@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #ifndef FQTERM_SOUND_H
@@ -20,72 +23,57 @@
 
 #include <QObject>
 #include <QString>
+#include <QThread>
 
 #include "fqterm.h"
 
 namespace FQTerm {
+// By using QThread, we avoid blocking the main app.
+// FIXME: However, whichever play method we use (ext|int),
+// there are some WAVE files we can't play...
 
-class FQTermSound: public QObject {
- protected:
-  QString _soundfile;
+class FQTermSound: public QThread {
+ Q_OBJECT;
+
  public:
-  FQTermSound(const QString &filename, QObject *parent = 0, const char *name = 0)
-      : QObject(parent), _soundfile(filename){}
+  FQTermSound(const QString &filename, QObject *parent = 0,
+    const char *name = 0);
 
   ~FQTermSound();
 
+ public slots:
+  void deleteInstance();
+
+ protected:
+  QString soundFile_;
   virtual void play() = 0;
+  void run();
 };
 
-// Play sound using qsound.
-class FQTermInternalSound: public FQTermSound {
+class FQTermSystemSound: public FQTermSound {
  public:
-  FQTermInternalSound(const QString &filename, QObject *parent = 0,
-                     const char *name = 0)
-      : FQTermSound(filename, parent, name){
+  FQTermSystemSound(const QString &filename, QObject *parent = 0,
+    const char *name = 0)
+    : FQTermSound(filename, parent, name) {
   }
+
+ protected:
   void play();
 };
-/*
-  #ifndef _NO_ARTS_COMPILED
-  // Play sound using arts.
-  class FQTermArtsSound : public FQTermSound
-  {
-  public:
-  FQTermArtsSound(const QString & filename, QObject * parent = 0, const char * name = 0)
-  :FQTermSound(filename, parent, name)
-  {
-  }
-  void play();
-  };
-  #endif
 
-  #ifndef _NO_ESD_COMPILED
-  // Play sound using esd.
-  class FQTermEsdSound : public FQTermSound
-  {
-  public:
-  FQTermEsdSound(const QString & filename, QObject * parent = 0, const char * name = 0)
-  :FQTermSound(filename, parent, name)
-  {
-  }
-  void play();
-  };
-  #endif
-*/
 class FQTermExternalSound: public FQTermSound {
- private:
-  QString playerName_;
  public:
   FQTermExternalSound(const QString &playername, const QString &filename,
-                     QObject *parent = 0, const char *name = 0)
-      : FQTermSound(filename, parent, name),
-        playerName_(playername){
+    QObject *parent = 0, const char *name = 0)
+    : FQTermSound(filename, parent, name), playerName_(playername) {
   }
+
+ protected:
+  QString playerName_;
   void play();
   void setPlayer(const QString &playername);
 };
 
-}  // namespace FQTerm
+} // namespace FQTerm
 
 #endif  // FQTERM_SOUND_H

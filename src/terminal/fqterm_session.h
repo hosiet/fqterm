@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #ifndef FQTERM_SESSION_H
@@ -33,6 +36,7 @@
 #include <QList>
 
 #include "fqterm_param.h"
+#include "fqterm_config.h"
 #include "fqterm_convert.h"
 #include "fqterm_python.h"
 
@@ -51,6 +55,7 @@ struct LineColorInfo {
   QList<unsigned char> foregroundColorIndex;
 };
 
+class FQTermConfig;
 class FQTermBuffer;
 class FQTermTextLine;
 class FQTermTelnet;
@@ -73,7 +78,7 @@ class FQTermSession: public QObject {
     kNormal = 8
   };
 
-  FQTermSession(FQTermParam, bool isBeep, int serverEncodingID,
+  FQTermSession(FQTermConfig *, FQTermParam, bool isBeep, int serverEncodingID,
                const QString &zmodemDir);
   ~FQTermSession();
 
@@ -194,6 +199,9 @@ class FQTermSession: public QObject {
   bool isMouseX11_;
 
   bool isSendingMessage_;
+
+  QPoint urlStartPoint_;
+  QPoint urlEndPoint_;
 
   // TODO: sync this value with termFrame_->preference_.serverEncodingID
   int serverEncodingID_;

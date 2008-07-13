@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #include "fqterm_ssh_socket.h"
@@ -50,6 +53,7 @@ FQTermSSHSocket::FQTermSSHSocket(const char *sshuser, const char *sshpasswd) {
   authentication_ = NULL;
   ssh_channel_ = NULL;
   ssh_version_ = 1;
+  is_channel_ok_ = false;
 
   FQ_VERIFY(connect(private_socket_, SIGNAL(hostFound()), this, SIGNAL(hostFound())));
   FQ_VERIFY(connect(private_socket_, SIGNAL(connected()), this, SIGNAL(connected())));
@@ -86,6 +90,8 @@ void FQTermSSHSocket::init(int ssh_version) {
   delete key_exchanger_;
   delete authentication_;
   delete ssh_channel_;
+
+  is_channel_ok_ = false;
 
   if (ssh_version == 1) {
     input_buffer_ = new FQTermSSHBuffer(1024);
@@ -164,6 +170,7 @@ void FQTermSSHSocket::authOK() {
 
 void FQTermSSHSocket::channelOK() {
   FQ_TRACE("sshsocket", 3) << "Channel established!";
+  is_channel_ok_ = true;
 }
 
 void FQTermSSHSocket::channelReadyRead(const char *data, int len) {
@@ -288,12 +295,16 @@ QByteArray FQTermSSHSocket::readBlock(unsigned long size) {
 }
 
 long FQTermSSHSocket::writeBlock(const QByteArray &data) {
+  if (!is_channel_ok_) return 0;
+  
   unsigned long size = data.size();
   output_buffer_->putRawData(data.data(), size);
   return size;
 }
 
 void FQTermSSHSocket::flush() {
+  if (!is_channel_ok_) return;
+  
   int size = output_buffer_->len();
 
   ssh_channel_->sendData((const char *)output_buffer_->data(), size);

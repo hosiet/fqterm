@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #ifndef FQTERM_BUFFER_H
@@ -96,7 +99,7 @@ class FQTermBuffer: public QObject {
     ALTERNATE_CHARACTER_ROM_SPECIAL_GRAPHICS
   };
   
-  FQTermBuffer(int column, int row, int max_hist_line);
+  FQTermBuffer(int column, int row, int max_hist_line, bool is_bbs);
   ~FQTermBuffer();
 
   // Get text lines.
@@ -279,6 +282,9 @@ class FQTermBuffer: public QObject {
   // is empty.
   QPoint selection_start_;
   QPoint selection_end_;
+
+  // whether this buffer is used for a bbs session.
+  bool is_bbs_;
 };
 
 }  // namespace FQTerm

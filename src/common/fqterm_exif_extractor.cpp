@@ -1,3 +1,22 @@
+/***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ *   This program is distributed in the hope that it will be useful,       *
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   GNU General Public License for more details.                          *
+ *                                                                         *
+ *   You should have received a copy of the GNU General Public License     *
+ *   along with this program; if not, write to the                         *
+ *   Free Software Foundation, Inc.,                                       *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
+ ***************************************************************************/
 
 #include "fqterm_exif_extractor.h"
 
@@ -56,6 +75,9 @@ std::string ExifExtractor::extractExifInfo(FILE* file) {
   for (ii = exifKeyValuePairs_.begin();
     ii != exifKeyValuePairs_.end();
     ++ii) {
+      if ((*ii).first == "UserComment") {
+        continue;
+      }
       exifInformation_ += (*ii).first + " : " + (*ii).second + "\n";
   }
   fclose(exifFile_);
@@ -243,6 +265,83 @@ void ExifExtractor::postRead() {
       }
     }
   }
+  if ((ii = exifKeyValuePairs_.find("ExifVersion")) != exifKeyValuePairs_.end()) {
+    if ((*ii).second.length() != 4) {
+      exifKeyValuePairs_.erase(ii);
+    } else {
+      (*ii).second = 'V' + (*ii).second.substr(0, 2) + '.' + (*ii).second.substr(2);
+    }
+  }
+  if ((ii = exifKeyValuePairs_.find("ComponentsConfiguration")) != exifKeyValuePairs_.end()) {
+    if ((*ii).second.length() != 4) {
+      exifKeyValuePairs_.erase(ii);
+    } else {
+      static const char CCName[7][10] = {"", "[Y]", "[Cb]", "[Cr]", "[Red]", "[Green]", "[Blue]"};
+      std::string cc;
+      for(int i = 0; i < 4; ++i) {
+        int index = (*ii).second[i];
+        if (index < 0 || index >= 7) {
+          index = 0;
+        }
+        cc += CCName[index];
+      }
+    }
+  }
+  if ((ii = exifKeyValuePairs_.find("ExifVersion")) != exifKeyValuePairs_.end()) {
+    if ((*ii).second.length() != 4) {
+      exifKeyValuePairs_.erase(ii);
+    } else {
+      (*ii).second = 'V' + (*ii).second.substr(0, 2) + '.' + (*ii).second.substr(2);
+    }
+  }
+  if ((ii = exifKeyValuePairs_.find("MakerNote")) != exifKeyValuePairs_.end()) {
+    exifKeyValuePairs_.erase(ii);
+  }
+  if ((ii = exifKeyValuePairs_.find("CFAPattern")) != exifKeyValuePairs_.end()) {
+    exifKeyValuePairs_.erase(ii);
+  }
+  if ((ii = exifKeyValuePairs_.find("UserComment")) != exifKeyValuePairs_.end()) {
+    if ((*ii).second.length() < 8) {
+      exifKeyValuePairs_.erase(ii);
+    } else {
+      //Leave it to higher level which can deal with encoding.
+      //"\0x41\0x53\0x43\0x49\0x49\0x00\0x00\0x00"//ASCII
+      //"\0x4a\0x49\0x53\0x00\0x00\0x00\0x00\0x00"//JIS
+      //"\0x55\0x4e\0x49\0x43\0x4f\0x44\0x45\0x00"//Unicode
+      //"\0x00\0x00\0x00\0x00\0x00\0x00\0x00\0x00"//Undefined
+    }
+  }
+  if ((ii = exifKeyValuePairs_.find("FlashPixVersion")) != exifKeyValuePairs_.end()) {
+    if ((*ii).second.length() != 4) {
+      exifKeyValuePairs_.erase(ii);
+    } else {
+      (*ii).second = 'V' + (*ii).second.substr(0, 2) + '.' + (*ii).second.substr(2);
+    }
+  }  
+  //FileSource
+  if ((ii = exifKeyValuePairs_.find("FileSource")) != exifKeyValuePairs_.end()) {
+    if ((*ii).second.length() != 1) {
+      exifKeyValuePairs_.erase(ii);
+    } else {
+      if ((*ii).second[0] == '\0x03') {
+        (*ii).second = "Digital still camera";
+      } else {
+        exifKeyValuePairs_.erase(ii);
+      }
+    }
+  }  
+  if ((ii = exifKeyValuePairs_.find("SceneType")) != exifKeyValuePairs_.end()) {
+    if ((*ii).second.length() != 1) {
+      exifKeyValuePairs_.erase(ii);
+    } else {
+      if ((*ii).second[0] == '\0x01') {
+        (*ii).second = "Directly photographed";
+      } else {
+        exifKeyValuePairs_.erase(ii);
+      }
+    } 
+  }
+
 }
 
 std::string ExifExtractor::readInfo() {
@@ -258,7 +357,7 @@ std::string ExifExtractor::readInfo() {
   int32 rationalgcd;
   int32 sign;
   DATATYPE dataType;
-  char buffer[256];
+  char* buffer;
   std::string ret = "";
 
   if (!read(&shortValue, 2,1) || shortValue == 0 || shortValue > MAXGUARD) {
@@ -271,28 +370,53 @@ std::string ExifExtractor::readInfo() {
   }
 
   switch(dataType) {
+    case UNDEFINED:
+      buffer = new char[count + 1];
+      
+      if (count < 4) {
+        if (!read(buffer, 1, count)) {
+          return ret;
+        }
+      } else {
+        if (!read(&offset, 4, 1)) {
+          return ret;
+        }
+        seek(12 + offset, SEEK_SET);
+        memset(buffer, 0, count + 1);
+        read(buffer, 1, count);
+      }
+      ret = std::string(buffer, count);
+      delete []buffer;
+      break;
     case ASCIISTRING:
       if (!read(&offset, 4, 1)) {
         break;
       }
       seek(12 + offset, SEEK_SET);
-      memset(buffer, 0, 256);
-      read(buffer, 1, 255);
+      buffer = new char[count + 1];
+      memset(buffer, 0, count + 1);
+      read(buffer, 1, count);
       ret = buffer;
+      delete []buffer;
       break;
     case UNSIGNEDINT16:
       if (!read(&shortValue, 2, 1)) {
         break;
       }
+      buffer = new char[256];
       sprintf(buffer, "%hu\0", shortValue);
       ret = buffer;
+      delete []buffer;
       break;
     case UNSIGNEDINT32:
       if (!read(&longValue, 4, 1)) {
         break;
       }
+      buffer = new char[256];
       sprintf(buffer, "%lu\0", longValue);
       ret = buffer;
+      delete []buffer;
+      
       break;
     case UNSIGNEDRATIONAL:
       if (!read(&offset, 4, 1)) {
@@ -307,8 +431,10 @@ std::string ExifExtractor::readInfo() {
       }
       urationalgcd = gcd(urationalp, urationalc);
       if (urationalgcd == 0) urationalgcd = 1;
+      buffer = new char[256];
       sprintf(buffer, "%lu/%lu", urationalc / urationalgcd, urationalp / urationalgcd);
       ret = buffer;
+      delete []buffer;
       break;
     case RATIONAL:
       if (!read(&offset, 4, 1)) {
@@ -332,8 +458,10 @@ std::string ExifExtractor::readInfo() {
       }
       rationalgcd = gcd(rationalp, rationalc);
       if (rationalgcd == 0) rationalgcd = 1;
+      buffer = new char[256];
       sprintf(buffer, "%ld/%ld", sign * rationalc / rationalgcd, rationalp / rationalgcd);
       ret = buffer;
+      delete []buffer;
       break;
   }
   return ret;

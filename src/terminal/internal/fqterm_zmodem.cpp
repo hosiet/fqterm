@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #include <QApplication>
@@ -22,9 +25,11 @@
 
 #include "fqterm.h"
 #include "fqterm_config.h"
+#include "fqterm_param.h"
 #include "fqterm_path.h"
 #include "fqterm_telnet.h"
 #include "fqterm_zmodem.h"
+#include "fqterm_filedialog.h"
 
 #ifdef FQTERM_ZMODEM_DEBUG
 #include <sys/time.h>
@@ -552,20 +557,25 @@ const char *FQTermZmodem::hdrnames[] =  {
 
 #endif
 
-FQTermZmodem::FQTermZmodem(FQTermTelnet *netinterface, int type, const QString &zmodemDir) {
+FQTermZmodem::FQTermZmodem(FQTermConfig *config, FQTermTelnet *netinterface, int type, const QString &zmodemDir) {
 
   //now set network interface Telnet
 
   connectionType = type;
 
-  // Get network interface
-  if (connectionType == 0) {
-    // telnet
-    telnet_ = netinterface;
-  } else if (connectionType == 1) {
-    //ssh
-    telnet_ = netinterface;
+  switch (connectionType) {
+	case 0:
+	case 1:
+ 	case 2:
+	  telnet_ = netinterface;
+	  break;
+	default:
+	  FQ_TRACE("zmodem", 0) << "connection type unknown! Expect segmentation fault!";
+	  telnet_ =  netinterface;
+	  break;
   }
+
+  config_ = config;
 
   sending = false;
 
@@ -639,8 +649,18 @@ int FQTermZmodem::ZmodemTInit(ZModem *info) {
 
   ZIFlush(info);
 
-  strFileList = QFileDialog::getOpenFileNames(0, "Choose the files", getPath(USER_CONFIG),
-                                              "All files(*)");
+//  FQTermConfig *config = new FQTermConfig(getPath(USER_CONFIG) + "fqterm.cfg");
+//  QString strPrevSave = config->getItemValue("global", "previous");
+
+//  if (strPrevSave.isEmpty()) {
+//	strFileList = QFileDialog::getOpenFileNames(0, "Choose the files",
+//											getPath(USER_CONFIG), "All files(*)");
+//  } else {
+//	strFileList = QFileDialog::getOpenFileNames(0, "Choose the files",
+//											strPrevSave, "All files(*)");
+//  }
+  FQTermFileDialog *fileDialog = new FQTermFileDialog(config_);
+  strFileList = fileDialog->getOpenNames("Choose a file to upload", "", 0);
   if (strFileList.count() != 0) {
     QStringList::Iterator itFile = strFileList.begin();
     QFileInfo fi(*itFile);
@@ -664,6 +684,7 @@ int FQTermZmodem::ZmodemTInit(ZModem *info) {
 
   zmodemlog("ZmodemTInit[%s]: sent ZRQINIT\n", sname(info));
 
+  delete fileDialog;
   return 0;
 }
 
@@ -2811,13 +2832,14 @@ int FQTermZmodem::GotRinit(ZModem *info) {
 
 
 int FQTermZmodem::SendZSInit(ZModem *info) {
+  char tmp = '\0';
   int err;
   //char	*at = (info->attn != NULL) ? info->attn : "" ;
   char *at;
   if (info->attn != NULL) {
     at = info->attn;
   } else {
-    at = "";
+    at = &tmp;
   }
   uchar fbuf[4];
 

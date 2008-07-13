@@ -1,17 +1,20 @@
 set(OPENSSL_INCLUDE_DIR
-"C:\\Application\\OpenSSL\\include"
+"C:/openssl/include"
 )
 
 set(OPENSSL_LIBRARIES
-"C:\\Application\\OpenSSL\\lib\\libeay32.lib"
-"C:\\Application\\OpenSSL\\lib\\ssleay32.lib"
+"C:/openssl/lib/libeay32.lib"
+"C:/openssl/lib/ssleay32.lib"
 )
 
 SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/Zi /Od /MD")
 
 ADD_DEFINITIONS(/D _CRT_SECURE_NO_DEPRECATE)
 ADD_DEFINITIONS(/D FQTERM_VERSION_STRING="\\"${FQTERM_VERSION}\\"")
-ADD_DEFINITIONS(/D FQTERM_USE_STATIC_QT)
+
+if(FQTERM_USE_STATIC_QT)
+  ADD_DEFINITIONS(/D FQTERM_USE_STATIC_QT)
+endif(FQTERM_USE_STATIC_QT)
 
 add_subdirectory(src)
 
@@ -39,13 +42,19 @@ ADD_EXECUTABLE(fqterm
   src/fqterm/main.cpp
 )
 
+if(FQTERM_USE_STATIC_QT)
+  set(FQ_QT_STATIC_PLUGINS
+  qcncodecs qjpcodecs qkrcodecs qtwcodecs
+  qjpeg qgif qmng
+  )
+endif(FQTERM_USE_STATIC_QT)
+
 target_link_libraries(fqterm 
   ${QT_LIBRARIES}
   ${QT_QTNETWORK_LIBRARIES}
   ${QT_QTSCRIPT_LIBRARIES}  
   ${OPENSSL_LIBRARIES}
-  qcncodecs qjpcodecs qkrcodecs qtwcodecs
-  qjpeg qgif qmng
+  ${FQ_QT_STATIC_PLUGINS}
 )
 
 add_dependencies(fqterm

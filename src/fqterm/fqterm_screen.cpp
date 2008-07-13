@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #include <stdio.h>
@@ -52,7 +55,7 @@ FQTermScreen::FQTermScreen(QWidget *parent, FQTermParam *param, FQTermSession *s
   termWindow_ = (FQTermWindow*)parent;
   session_ = session;
   param_ = param;
-  paintState_ = None;
+  paintState_ = System;
   isCursorShown_ = true;
   is_light_background_mode_ = false;
 
@@ -498,6 +501,7 @@ void FQTermScreen::updateScrollBar() {
                                rect().height() - numUpPixels);
       break;
   }
+  setPaintState(Repaint);
   update();
 }
 
@@ -548,12 +552,6 @@ void FQTermScreen::setBackgroundPixmap(const QPixmap &pixmap, int nType) {
   backgroundPixmap_ = pixmap;
   backgroundPixmapType_ = nType;
   QPalette palette;
-
-  if (termWindow_->frame_->isBossColor_) {
-    palette.setColor(backgroundRole(), Qt::white);
-    setPalette(palette);
-    return ;
-  }
 
   switch (nType) {
     case 0:
@@ -627,8 +625,18 @@ void FQTermScreen::blinkEvent() {
 
 void FQTermScreen::paintEvent(QPaintEvent *pe) {
   QPainter painter(this);
-  switch (paintState_) {
-    case NewData:
+
+  if (paintState_ == System) {
+    repaintScreen(pe, painter);
+    return;
+  }
+
+  if (testPaintState(Repaint)) {
+      repaintScreen(pe, painter);
+      clearPaintState(Repaint);
+  }
+
+  if (testPaintState(NewData)) {
       if (termBuffer_->isLightBackgroundMode() != is_light_background_mode_) {
         is_light_background_mode_ = termBuffer_->isLightBackgroundMode();
         if (is_light_background_mode_) {
@@ -642,21 +650,20 @@ void FQTermScreen::paintEvent(QPaintEvent *pe) {
       } else {      
         refreshScreen(painter);
       }
-      break;
-    case Blink:
-      blinkScreen(painter);
-      break;
-    case Cursor:
-      updateCursor(painter);
-      break;
-    case Repaint:
-      repaintScreen(pe, painter);
-      break;
-    case None:
-      repaintScreen(pe, painter);
-      break;
+
+      clearPaintState(NewData);
   }
-  clearPaintState();
+
+  if (testPaintState(Blink)) {
+      blinkScreen(painter);
+      clearPaintState(Blink);
+  }
+
+  if (testPaintState(Cursor)) {
+      updateCursor(painter);
+      clearPaintState(Cursor);
+  }
+
 }
 
 void FQTermScreen::blinkScreen(QPainter &painter) {
@@ -689,7 +696,7 @@ void FQTermScreen::updateCursor(QPainter &painter) {
 
   bool isCursorShown = isCursorShown_;
   if (termWindow_->frame_->isBossColor_) {
-    isCursorShown = false;
+    isCursorShown = true;
   }
 
   if (termBuffer_->getCaretLine() <= bufferEnd_
@@ -820,6 +827,7 @@ void FQTermScreen::refreshScreen(QPainter &painter) {
   if (termWindow_->isConnected()) {
     updateCursor(painter);
   }
+ 
 
   if (termWindow_->isConnected()) {
     cursorTimer_->start(1000);
@@ -848,6 +856,11 @@ void FQTermScreen::repaintScreen(QPaintEvent *pe, QPainter &painter) {
   for (int y = tlPoint.y(); y <= brPoint.y(); y++) {
     drawLine(painter, y);
   }
+  if (termWindow_->urlStartPoint_ != termWindow_->urlEndPoint_) {
+    drawUnderLine(painter, termWindow_->urlStartPoint_, termWindow_->urlEndPoint_);
+  }
+
+
 }
 
 /////////////////////////////////////////////////
@@ -1034,38 +1047,6 @@ void FQTermScreen::drawStr(QPainter &painter, const QString &str,
   QPoint pt = mapToPixel(QPoint(x, y));
   QRect rcErase = mapToRect(x, y, length, 1);
 
-  // black on white without attr
-  if (termWindow_->frame_->isBossColor_) {
-    /*
-    painter.setPen(GETFG(cp) == 0 ? Qt::white: Qt::black);
-    if (GETBG(cp) != 0 && !transparent) {
-      painter.setBackgroundMode(Qt::OpaqueMode);
-    } else {
-      painter.setBackgroundMode(Qt::TransparentMode);
-    }
-    painter.setBackground(GETBG(cp) == 7 ? Qt::black: Qt::white);
-    */
-    return;
-    /*
-    painter.setBackgroundMode(Qt::OpaqueMode);
-
-    if (GETFG(cp) == 0) {
-      painter.setPen(Qt::white);
-      painter.setBackground(Qt::black);
-    } else {
-      painter.setPen(Qt::black);
-      painter.setBackground(Qt::white);
-    }
-    
-    QFontMetrics qm(painter.font());
-    int expected_font_height = rcErase.height();
-    int ascent = expected_font_height - qm.descent() - 1;
-    painter.drawText(pt.x(), pt.y() + ascent, str);
-
-    return ;
-    */
-  }
-
   int pen_color_index = GETFG(cp);
   if (!param_->isAnsiColor_) {
     if (GETBG(cp) != 0) {
@@ -1094,6 +1075,20 @@ void FQTermScreen::drawStr(QPainter &painter, const QString &str,
   }
 
   QBrush brush(colors_[brush_color_index]);
+
+  // black on white without attr
+  if (termWindow_->frame_->isBossColor_) {
+    painter.setPen(Qt::black);
+    if (GETBG(cp) != 0 && !transparent) {
+      painter.setBackgroundMode(Qt::OpaqueMode);
+    } else {
+      painter.setBackgroundMode(Qt::TransparentMode);
+    }
+    painter.setBackground(Qt::white);
+    brush = QBrush(Qt::white);
+
+    
+  }
 
   rcErase.setBottom(rcErase.bottom() + 1);
   rcErase.setRight(rcErase.right() + 1);    
@@ -1136,14 +1131,27 @@ void FQTermScreen::drawStr(QPainter &painter, const QString &str,
   }
 }
 
+
 void FQTermScreen::eraseRect(QPainter &, int, int, int, int, short){
   FQ_VERIFY(false);
 }
 
 void FQTermScreen::bossColor() {
   setBackgroundPixmap(backgroundPixmap_, backgroundPixmapType_);
+  if (termWindow_->frame_->isBossColor_) {
+    colors_[0] = Qt::white;
+    colors_[7] = Qt::black;
+    QPalette palette;
+    palette.setColor(backgroundRole(), Qt::white);
+    setPalette(palette);
 
-  //repaint(true);
+  } else {
+    colors_[0] = param_->backgroundColor_;
+    colors_[7] = param_->foregroundColor_;
+  }
+
+
+  setPaintState(Repaint);
   update();
 }
 
@@ -1154,7 +1162,7 @@ QRect FQTermScreen::drawMenuSelect(QPainter &painter, int index) {
     bool is_rect_sel = termWindow_->session_->param_.isRectSelect_;
     rcSelect = mapToRect(termBuffer_->getSelectRect(index, is_rect_sel));
     if (termWindow_->frame_->isBossColor_) {
-      painter.fillRect(rcSelect, Qt::black);
+      painter.fillRect(rcSelect, QBrush(colors_[0]));
     } else {
       painter.fillRect(rcSelect, QBrush(colors_[7]));
     }
@@ -1171,7 +1179,7 @@ QRect FQTermScreen::drawMenuSelect(QPainter &painter, int index) {
                          rcMenu.width(), charHeight_ / 11, colors_[7]);
         break;
       case 2:
-        painter.fillRect(rcMenu, QBrush(param_->menuColor_));
+        painter.fillRect(rcMenu, QBrush(termWindow_->frame_->isBossColor_?colors_[0]:param_->menuColor_));
         break;
     }
   }
@@ -1386,6 +1394,25 @@ QFont FQTermScreen::termFont(bool isEnglish) {
   return isEnglish?(*englishFont_):(*nonEnglishFont_);
 }
 
+void FQTermScreen::drawUnderLine(QPainter &painter, const QPoint& startPoint, const QPoint& endPoint) {
+  if (startPoint.y() == endPoint.y()) {
+    drawSingleUnderLine(painter, startPoint, endPoint);
+  } else {
+    drawSingleUnderLine(painter, startPoint, QPoint(termBuffer_->getNumColumns(), startPoint.y()));
+    drawSingleUnderLine(painter, QPoint(0, endPoint.y()), endPoint);
+    for (int i = startPoint.y() + 1; i < endPoint.y(); ++i) {
+      drawSingleUnderLine(painter, QPoint(0, i), QPoint(termBuffer_->getNumColumns(), i));
+    }
+  }
+}
+
+void FQTermScreen::drawSingleUnderLine(QPainter &painter, const QPoint& startPoint, const QPoint& endPoint) {
+  FQ_VERIFY(startPoint.y() == endPoint.y());
+  QPoint realStart = mapToPixel(startPoint);
+  QPoint realEnd = mapToPixel(endPoint);
+  painter.fillRect(realStart.x(), realStart.y() + 10 * charHeight_ / 11,
+    realEnd.x() - realStart.x(), charHeight_ / 11, termWindow_->frame_->isBossColor_?colors_[0]:param_->menuColor_);
+}
 PreeditLine::PreeditLine(QWidget *parent,const QColor *colors)
     : QWidget(parent),
       pixmap_(new QPixmap()),

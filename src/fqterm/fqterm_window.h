@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #ifndef FQTERM_WINDOW_H
@@ -27,6 +30,7 @@
 #endif
 
 #include "fqterm_param.h"
+#include "fqterm_config.h"
 #include "fqterm_convert.h"
 
 class QCloseEvent;
@@ -42,6 +46,7 @@ namespace FQTerm {
 
 class QProgressDialog;
 class PageViewMessage;
+class FQTermConfig;
 class FQTermImage;
 class FQTermFrame;
 class FQTermHttp;
@@ -59,7 +64,7 @@ class FQTermWindow: public QMainWindow {
 
   Q_OBJECT;
  public:
-  FQTermWindow(FQTermFrame *frame, FQTermParam param, int addr = -1, QWidget
+  FQTermWindow(FQTermConfig *, FQTermFrame *frame, FQTermParam param, int addr = -1, QWidget
               *parent = 0, const char *name = 0, Qt::WFlags wflags = Qt::Window);
   ~FQTermWindow();
 
@@ -69,7 +74,7 @@ class FQTermWindow: public QMainWindow {
   void disconnect();
   //redraw the dirty lines
   void refreshScreen();
-  //repaint the rect needs refresh
+  //repaint a dirty rectangle.
   void repaintScreen();
   //force a repaint by sending a resize event
   void forcedRepaintScreen();
@@ -80,6 +85,7 @@ class FQTermWindow: public QMainWindow {
 
   void runScript(const QString & filename);
   void externInput(const QByteArray &);
+  void externInput(const QString &);
   void getHttpHelper(const QString &, bool);
 
 public:
@@ -89,6 +95,12 @@ public:
 
   QString allMessages_;
   QString pythonErrorMessage_;
+  // before calling repaintScreen(), pls
+ // fill this rectangle.
+  QRect clientRect_;
+  QPoint urlStartPoint_;
+  QPoint urlEndPoint_;
+
 
 signals:
   void resizeSignal(FQTermWindow*);
@@ -145,6 +157,7 @@ signals:
 
   //http menu
   void previewLink();
+  void saveLink();
   void openLink();
   void copyLink();
   void previewImage(const QString &filename, bool raiseViewer);
@@ -171,6 +184,7 @@ signals:
   void changeEvent(QEvent*);
   void closeEvent(QCloseEvent*);
   void keyPressEvent(QKeyEvent*);
+  void focusInEvent (QFocusEvent *);
 
  private:
   QMenu *menu_;
@@ -199,12 +213,13 @@ signals:
   FQTermSound *sound_;
 
 
-
+  FQTermConfig *config_;
   zmodemDialog *zmodemDialog_;
   
   //IP location
   QString location_;
   FQTermIPLocation *ipDatabase_;
+
 
   //osd
   PageViewMessage *pageViewMessage_;
@@ -215,6 +230,8 @@ signals:
   bool isMouseClicked_;
   bool blinkStatus_;
   bool isIpDataFileExisting_;
+
+  bool isUrlUnderLined_;
 
 #ifdef HAVE_PYTHON
   PyObject *pythonModule_,  *pythonDict_;

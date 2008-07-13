@@ -16,7 +16,11 @@ set(fqterm_common_SRCS
   fqterm_font.cpp
   fqterm_exif_extractor.h
   fqterm_exif_extractor.cpp
+  fqterm_filedialog.h
+  fqterm_filedialog.cpp
 )
+
+qt4_automoc(${fqterm_common_SRCS})
 
 include_directories(
   ${QT_INCLUDE_DIR}

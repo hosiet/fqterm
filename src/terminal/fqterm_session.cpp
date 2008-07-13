@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #include <stdio.h>
@@ -69,12 +72,13 @@ const QString  FQTermSession::endOfUrl[] = {
   "yu","za","zm","zw"
 };
 
-FQTermSession::FQTermSession(FQTermParam param, bool isBeep,
+FQTermSession::FQTermSession(FQTermConfig *config, FQTermParam param, bool isBeep,
                              int serverEncodingID, const QString &zmodemDir) {
   param_ = param;
   termBuffer_ = new FQTermBuffer(param_.numColumns_,
                                  param_.numRows_,
-                                 param_.numScrollLines_);
+                                 param_.numScrollLines_,
+                                 param_.hostType_ == 0);
 
   if (param.protocolType_ == 0) {
     telnet_ = new FQTermTelnet(param_.virtualTermType_.toLatin1(),
@@ -94,7 +98,7 @@ FQTermSession::FQTermSession(FQTermParam param, bool isBeep,
 #endif
   }
 
-  zmodem_ = new FQTermZmodem(telnet_, param.protocolType_, zmodemDir);
+  zmodem_ = new FQTermZmodem(config, telnet_, param.protocolType_, zmodemDir);
   decoder_ = new FQTermDecode(termBuffer_, telnet_, param.serverEncodingID_);
 
   //  isColorCopy_ = param.isColorCopy_;
@@ -569,6 +573,10 @@ QString FQTermSession::expandUrl(const QPoint& pt, QPair<int, int>& range)
 
 bool FQTermSession::checkUrl(QRect &rcUrl, QRect &rcOld, bool checkIP) {
 
+  QPoint urlStartPoint;
+  QPoint urlEndPoint;
+  urlStartPoint_ = QPoint();
+  urlEndPoint_ = QPoint();
 
   QPoint pt = cursorPoint_;
   int at = pt.x();
@@ -596,13 +604,19 @@ bool FQTermSession::checkUrl(QRect &rcUrl, QRect &rcOld, bool checkIP) {
   if (range.first < 0 || range.first >= range.second) {
     return false;
   }
+  
+
   QRect urlRect = QRect(range.first, pt.y(), range.second - range.first, 1);
+  urlStartPoint = QPoint(range.first, pt.y());
+  urlEndPoint = QPoint(range.second, pt.y());
 
   if (range.second == termBuffer_->getNumColumns()) {
     for (int i = pt.y() + 1; i < termBuffer_->getNumLines(); ++i) {
       QString lineText = expandUrl(QPoint(0, i), range);
       if (range.first == 0) {
         urlText += lineText;
+        urlEndPoint.setY(urlEndPoint.y() + 1);
+        urlEndPoint.setX(range.second);
         if (range.second == termBuffer_->getNumColumns()) {
           continue;
         }
@@ -622,6 +636,7 @@ bool FQTermSession::checkUrl(QRect &rcUrl, QRect &rcOld, bool checkIP) {
     if (begin != -1 && begin <= at) {
       prefixToAdd = protocolPrefix[protocolIndex];
       urlText = urlText.mid(begin + protocolPrefix[protocolIndex].length());
+      urlStartPoint.setX(urlStartPoint.x() + begin);
       break;
     }
   }
@@ -710,6 +725,8 @@ bool FQTermSession::checkUrl(QRect &rcUrl, QRect &rcOld, bool checkIP) {
 
   urlRect_ = urlRect;
   rcUrl = urlRect;
+  urlStartPoint_ = urlStartPoint;
+  urlEndPoint_ = urlEndPoint;
   return true;
 }
 
@@ -920,7 +937,6 @@ void FQTermSession::readReady(int size, int raw_size) {
 
     // TODO_UTF16: shall we disable trim?
     strText = strText.trimmed();
-
 
     if (termBuffer_->getCaretRow() == termBuffer_->getNumRows() - 1
         && termBuffer_->getCaretColumn() >= strText.length() - 1) {

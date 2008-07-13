@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #include <stdlib.h>
@@ -27,7 +30,10 @@
 #endif
 
 #if defined(FQTERM_USE_STATIC_QT)
-  // static link Qt4 under other OS.
+  // You can change the definition of FQTERM_USE_STATIC_QT in 
+  // fqterm/CMakeLists.txt.{linux, macos, win32}.
+
+  // static link Qt4 plugins.
   void loadNecessaryQtPlugins() {}
   #include <QtPlugin>
   Q_IMPORT_PLUGIN(qkrcodecs)
@@ -38,7 +44,7 @@
   Q_IMPORT_PLUGIN(qgif)
   Q_IMPORT_PLUGIN(qmng)
 #else
-  // dynamic link Qt4 under linux
+  // dynamic link Qt4 plugins.
   #include <QPluginLoader>
   void loadNecessaryQtPlugins() {
     static QPluginLoader qkrcodecsLoader( "qkrcodecs" );
@@ -62,6 +68,7 @@
 #include <QApplication>
 #include <QTranslator>
 #include <QFontDatabase>
+#include <QTextCodec>
 
 #include "fqterm.h"
 #include "fqterm_frame.h"
@@ -92,6 +99,19 @@ int main(int argc, char **argv) {
 
   loadNecessaryQtPlugins();
 
+  // char buf[] = "\xc8\xb8";
+  // QString ucs2 = QTextCodec::codecForName("Big5")->toUnicode(buf);
+  // QVector<uint> ucs4 = ucs2.toUcs4(); 
+  // QByteArray utf8 = ucs2.toUtf8();
+  // const char *utf8c = utf8.constData();
+
+  // FQ_TRACE("text", 0) << "\n" << dumpHexString << std::string(buf, sizeof(buf) - 1)
+  //                     << dumpNormalString << " \n-->"
+  //                     << dumpNormalString << "\nucs4 " << ucs4.size() << " " << ucs4[0]
+  //                     << dumpNormalString << "\nucs2 " << ucs2.size() << " " << ucs2.at(0).unicode()
+  //                     << dumpNormalString << "\nutf8   " << dumpHexString << utf8c;
+  //return 0;
+  
   if (!iniSettings()) {
     return -1;
   }

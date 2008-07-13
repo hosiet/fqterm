@@ -1,4 +1,7 @@
 /***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
  *   the Free Software Foundation; either version 2 of the License, or     *
@@ -12,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program; if not, write to the                         *
  *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.              *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
 #include <QString>
@@ -28,16 +31,21 @@
 #include "fqterm_path.h"
 #include "fqterm_http.h"
 #include "fqterm_config.h"
+#include "fqterm_filedialog.h"
 
 namespace FQTerm {
 
 QMap<QString, int> FQTermHttp::downloadMap_;
 QMutex FQTermHttp::mutex_;
 
-FQTermHttp::FQTermHttp(QWidget *p, const QString &poolDir)
+FQTermHttp::FQTermHttp(FQTermConfig *config, QWidget *p, const QString &poolDir)
   : poolDir_(poolDir) {
   // 	m_pDialog = NULL;
   parent_ = p;
+
+  config_ = config;
+  fileDlg_ = new FQTermFileDialog(config_);
+
   FQ_VERIFY(connect(&http_, SIGNAL(done(bool)), this, SLOT(httpDone(bool))));
   FQ_VERIFY(connect(&http_, SIGNAL(dataReadProgress(int, int)),
                   this, SLOT(httpRead(int, int))));
@@ -79,8 +87,8 @@ void FQTermHttp::getLink(const QString &url, bool preview) {
   //							false));
 
   if (QFile::exists(getPath(USER_CONFIG) + "hosts.cfg")) {
-    FQTermConfig conf(getPath(USER_CONFIG) + "hosts.cfg");
-    QString strTmp = conf.getItemValue("hosts", u.host().toLocal8Bit());
+    config_ = new FQTermConfig(getPath(USER_CONFIG) + "hosts.cfg");
+    QString strTmp = config_->getItemValue("hosts", u.host().toLocal8Bit());
     if (!strTmp.isEmpty()) {
       QString strUrl = url;
       strUrl.replace(QRegExp(u.host(), Qt::CaseInsensitive), strTmp);
@@ -91,12 +99,26 @@ void FQTermHttp::getLink(const QString &url, bool preview) {
   http_.setHost(u.host(), u.port(80));
   http_.get(u.path() + "?" + u.encodedQuery());
 }
-
+/*
 static void getSaveFileName(const QString &filename, QWidget *widget, QString &fileSave) {
-  //TODO: load previous path
-  QString strSave = QFileDialog::getSaveFileName(widget,
-                                                 "Choose a file to save under",
-                                                 getPath(USER_CONFIG) + "/" + filename, "*");
+
+  QString strPrevSave, strSave;
+  QString userConfig = getPath(USER_CONFIG) + "fqterm.cfg";
+  config_ = new FQTermConfig(userConfig);
+
+  if (QFile::exists(userConfig)) {
+	strPrevSave = config_->getItemValue("global", "previous");
+  }
+
+  if (strPrevSave.isEmpty()) {
+	strSave = QFileDialog::getSaveFileName(widget,
+										"Choose a directory to save under",
+										getPath(USER_CONFIG) + "/" + filename, "*");
+  } else {
+	strSave = QFileDialog::getSaveFileName(widget,
+										"Choose a directory to save under",
+										strPrevSave + "/" + filename, "*");
+  }
 
   QFileInfo fi(strSave);
 
@@ -108,26 +130,30 @@ static void getSaveFileName(const QString &filename, QWidget *widget, QString &f
     }
 
     strSave = QFileDialog::getSaveFileName(widget,
-                                           "Choose a file to save under",
-                                           getPath(USER_CONFIG) + "/" + filename, "*");
+                                           "Choose a directory to save under",
+                                           fi.absolutePath() + "/" + filename, "*");
     if (strSave.isEmpty()) {
       break;
     }
   }
 
   if (!strSave.isEmpty()) {
-    // TODO: save the path
+	if (QFile::exists(userConfig)) {
+	  config_->setItemValue("global", "previous", fi.absolutePath());
+	  config_->save(userConfig);
+	}
   }
 
   fileSave = strSave;
 }
-
+*/
 
 void FQTermHttp::httpResponse(const QHttpResponseHeader &hrh) {
   if (hrh.statusCode() == 302) {
     //FIXME: according to RC, this code still could not work
     //if the server send the relative location.
-    QString realLocation = '/' + hrh.value("Location");
+//    QString realLocation = '/' + hrh.value("Location");
+	QString realLocation = '/' + hrh.value("Location");
     http_.close();
     http_.get(realLocation);
     return;
@@ -187,9 +213,9 @@ void FQTermHttp::httpResponse(const QHttpResponseHeader &hrh) {
         http_.abort();
         break;
       } else {
-        
-        cacheFileName_ = QString("%1/%2(%3).%4").arg(fi.path()).arg
-                         (fi.completeBaseName()).arg(i).arg(fi.suffix());
+
+		cacheFileName_ = QString("%1/%2(%3).%4").arg(fi.path())
+								.arg(fi.completeBaseName()).arg(i).arg(fi.suffix());
         fi2.setFile(cacheFileName_);
         if (!fi2.exists()) {
           downloadMap_[cacheFileName_] = FileLength;
@@ -211,8 +237,10 @@ void FQTermHttp::httpResponse(const QHttpResponseHeader &hrh) {
       isPreview_ = false;
     }
   } else {
-    QString strSave;
-    getSaveFileName(cacheFileName_, NULL, strSave);
+//    getSaveFileName(cacheFileName_, NULL, strSave);
+	mutex_.lock();
+    QString strSave = fileDlg_->getSaveName(cacheFileName_, "*", parent_);
+	mutex_.unlock();
     // no filename specified which means the user canceled this download
     if (strSave.isEmpty()) {
       http_.abort();
