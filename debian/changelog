@@ -1,5 +1,5 @@
-fqterm (0.9.1~beta+svn547-0a1) unstable; urgency=low
+fqterm (0.9.3+svn628-0a1) unstable; urgency=low
 
   * Initial release (Closes: 479367)
 
- -- LI Daobing <lidaobing@gmail.com>  Thu, 15 May 2008 20:28:18 +0800
+ -- LI Daobing <lidaobing@gmail.com>  Sun, 13 Jul 2008 16:52:49 +0800
