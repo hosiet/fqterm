@@ -4,3 +4,7 @@ DEB_CLEAN_EXCLUDE = res/userconf/address.cfg.orig res/userconf/fqterm.cfg.orig r
   
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/cmake.mk
+
+install/fqterm::
+	rm -f debian/fqterm/usr/share/FQTerm/fqterm.sh
+	rm -f debian/fqterm/usr/share/FQTerm/fqterm.desktop.in
