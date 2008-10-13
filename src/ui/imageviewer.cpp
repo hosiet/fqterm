@@ -18,1267 +18,1698 @@
  *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
-#include "imageviewer.h"
-#include "fqterm_exif_extractor.h"
-#include "fqterm_canvas.h"
-
 #include <QAction>
 #include <QBuffer>
 #include <QCursor>
-#include <QFile>
-#include <QPixmap>
-#include <QPainter>
-#include <QKeyEvent>
-#include <QDir>
+#include <QComboBox>
+#include <QDateTime>
 #include <QDataStream>
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
-#include <QSizeGrip>
-#include <QString>
 #include <QIcon>
-#include <QTextCodec>
-#include <QToolTip>
-#include <QTransform>
+#include <QKeyEvent>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QMenu>
-
-
-#include <QTreeView>
 #include <QMenuBar>
-#include <QComboBox>
+#include <QPainter>
+#include <QPixmap>
+#include <QPushButton>
+#include <QSizeGrip>
+#include <QString>
+#include <QTextCodec>
+#include <QTimer>
+#include <QToolTip>
+#include <QTransform>
+#include <QTreeView>
 #include <QTextEdit>
 
-#include "fqterm_trace.h"
-#include "fqterm_path.h"
+#include "fqterm_canvas.h"
 #include "fqterm_config.h"
+#include "fqterm_exif_extractor.h"
 #include "fqterm_filedialog.h"
-#include "pictureflow.h"
+#include "fqterm_path.h"
+#include "fqterm_trace.h"
+#include "imageviewer.h"
+
 
 namespace FQTerm {
 
+  typedef enum {
+	V_UNKNOWN = -1,
+	V_ORIGINAL = 0,
+	V_SHADOW,
+	V_BESTFIT,
+	V_ZOOMIN,
+	V_ZOOMOUT,
+	V_ROTLEFT,
+	V_ROTRIGHT,
+	V_FULLSCREEN
+  } slideViewModes;
 
-FQTermImageFlow::~FQTermImageFlow() {
-  delete desktop;
-  delete ivPicFlow;
-  delete ivPicView;
-  delete ivSortOpts;
-  delete ivToolBar;
-  delete ivSlider;
-  delete ivMainLayout;
-}
+  typedef enum {
+    SORT_UNSORTED = -1,
+    SORT_LIKE,
+    SORT_NEW,
+    SORT_TRASH,
+    SORT_RECOVER,
+    SORT_TITLE
+  } slideSortFlags;
 
-FQTermImageFlow::FQTermImageFlow(FQTermConfig * config, QWidget *parent,
-                         Qt::WindowFlags wflag) :
+
+  typedef enum {
+    STAT_UNKNOWN = -1,
+    STAT_LIKE,
+    STAT_NEW,
+    STAT_TRASH,
+    STAT_RECOVER,
+    STAT_TITLE,
+    STAT_ALL
+  } slideStatus;
+
+  typedef enum {
+    GEN_UNKNOWN = -1,
+    GEN_CANCEL,
+    GEN_NOCHANGE,
+    GEN_RESHUFFLE,
+    GEN_NOTAG,
+    GEN_INTRASH,
+    GEN_INTRASHES,
+    GEN_TOSAVE,
+    GEN_TOSAVES,
+    GEN_TRASH,
+    GEN_TRASHES,
+    GEN_NOTRASH,
+    GEN_RECOVER,
+    GEN_RECOVERS,
+    GEN_NORECOVER,
+    GEN_SAVE,
+    GEN_SAVES,
+    GEN_DELETE,
+    GEN_DELETES,
+    GEN_SEARCHWRAP,
+    GEN_SEARCHNOMATCH
+  } generalStatus;
+
+  static const char *fqloraTagStatus[] = {
+    "Like",
+    "New",
+    "Trash",
+    "Recover",
+    "Title"
+  };
+
+  static const char *fqloraGeneralStatus[] = {
+    "Canceled.",
+    "No changes for ",
+    "Reshuffled by ",
+    "No tags by ",
+    "item in the trash.",
+    "items in the trash.",
+    "item to save.",
+    "items to save.",
+    "image trashed.",
+    "images trashed.",
+    "Nothing to trash.",
+    "image recovered.",
+    "images recovered.",
+    "Nothing to recover.",
+    "image saved in ",
+    "images saved in ",
+    "image deleted.",
+    "images deleted.",
+    "Search wrapped.",
+    "No matches."
+  };
+
+  static const int toolBarFixedHeight = 40;
+  static const int statusBarFixedHeight = 18;
+  static const QSize sortBoxFixedSize(110, 25);
+
+  static const QString &iconPath(const QString &fileName) {
+
+    static QString p = "";
+
+    if (!fileName.isEmpty()) {
+      p = getPath(RESOURCE) + ICON_SOURCE + fileName;
+    }
+
+    return p;
+  }
+
+  const QString &isPlural(const int num, const int status) {
+
+    static QString m = "";
+
+    if (num == 1) {
+      return (m = fqloraGeneralStatus[status]);
+    } else if (num > 1 && status > GEN_UNKNOWN && status < GEN_DELETES) {
+      return (m = fqloraGeneralStatus[status + 1]);
+    }
+
+    return (m = fqloraGeneralStatus[GEN_UNKNOWN]);
+  }
+
+  // get user's desktop rectangle
+  static const QRect &desktopSize() {
+
+	static QRect size;
+    QDesktopWidget myDesktop;
+	return ((size = myDesktop.screenGeometry(myDesktop.primaryScreen())));
+  }
+
+  // FQTermImageFlow
+  FQTermImageFlow::~FQTermImageFlow() {
+
+	delete statusBar_;
+    delete imageMenu_;
+	delete imageFlow_;
+
+    statusBar_ = NULL;
+    imageMenu_ = NULL;
+    imageFlow_ = NULL;
+  }
+  
+  FQTermImageFlow::FQTermImageFlow(FQTermConfig * config, QWidget *parent,
+								   Qt::WindowFlags wflag) :
 	FQTermImage(parent, wflag),
-	config_(config) {
+	imageFlow_(new ImageFlow(this)),
+    imageMenu_(new ImageMenu(this)),
+    statusBar_(new QStatusBar(this)),
+    config_(config) {
 
-  // first we get user's desktop geometry (the whole visible area)
-  // to determine display parameters.
-  desktop = new QDesktopWidget;
-  dispRect = desktop->screenGeometry(desktop->primaryScreen());
-  double slideWidth = dispRect.width() / 3.7;
-  double slideHeight = dispRect.height() / 3.7;
-  frameWidth = dispRect.width() / 1.6;
-  frameHeight = dispRect.height() / 1.6;
-  pixmapWidth = dispRect.width() / 2.0;
-  pixmapHeight = dispRect.height() / 2.0;
+    setWindowTitle(IMAGE_BROWSER_NAME);
+    setAutoFillBackground(true);
+    setBackgroundRole(QPalette::Midlight);
+	setFixedSize(desktopSize().width() / 1.3, desktopSize().height() / 1.9);
 
-  setWindowTitle("FQterm Image Viewer");
-  setFixedSize(QSize(frameWidth, frameHeight));
-  setFocusPolicy(Qt::StrongFocus);
-  setFont(QFont("Sans Serif", 12));
+    FQ_VERIFY(connect(this, SIGNAL(isTrashEmpty()), this, SLOT(checkTrashState())));
 
-  iconSource = getPath(RESOURCE) + ICON_SOURCE;
-  poolPath = getPath(USER_CONFIG) + POOL_SOURCE;
-  shadowPath = poolPath + SHADOW_SOURCE;
-  // decent image formats
-  imageSuffixes << "*.jpg" << "*.jpeg" << "*.gif"
-			<< "*.png" << "*.tiff" << "*.bmp"
-			<< "*.mng";
+    // emblem state
+    FQ_VERIFY(connect(imageFlow_, SIGNAL(emblemStatus(const int)), imageMenu_, SLOT(updateEmblems(const int))));
+    FQ_VERIFY(connect(imageMenu_, SIGNAL(toggleFlowStatus(const int)), imageFlow_, SLOT(toggleStatus(const int))));
 
-  ivPicFlow = new PictureFlow(this);
-  ivPicFlow->setBackgroundColor(Qt::black);
-  // it seems the slides look better with a swap of slideWidth and slideHeight...
-  ivPicFlow->setSlideSize(QSize(slideHeight, slideWidth));
+    // clear state
+    FQ_VERIFY(connect(imageFlow_, SIGNAL(clearStatus(const bool)), imageMenu_, SLOT(updateClear(const bool))));
+    FQ_VERIFY(connect(imageMenu_, SIGNAL(clearImages()), this, SLOT(clearImages())));
 
-  ivPicView = new PictureView(this, Qt::Window);
-  ivPicView->setMinimumSize(QSize(frameWidth, frameHeight));
+    // save state
+    FQ_VERIFY(connect(imageFlow_, SIGNAL(saveStatus(const bool)), imageMenu_, SLOT(updateSave(const bool))));
+    FQ_VERIFY(connect(imageMenu_, SIGNAL(saveImages()), this, SLOT(saveImages())));
 
-  QAction *quitThisAct = new QAction(newIcon(tr("window-close.png")), tr("&Quit"), this);
-  quitThisAct->setShortcut(QKeySequence(Qt::Key_Q));
-  quitThisAct->setToolTip("Quit");
-  FQ_VERIFY(connect(quitThisAct, SIGNAL(triggered()), this, SLOT(close())));
+    // trash state
+    FQ_VERIFY(connect(this, SIGNAL(trashStatus(const bool)), imageMenu_, SLOT(updateDustbin(const bool))));
+    FQ_VERIFY(connect(imageMenu_, SIGNAL(recoverImages()), this, SLOT(recoverImages())));
 
-  QAction *saveImageAct = new QAction(newIcon(tr("document-save-as.png")), tr("&Save"), this);
-  saveImageAct->setShortcut(QKeySequence(Qt::Key_S));
-  saveImageAct->setToolTip("Save as");
-  FQ_VERIFY(connect(saveImageAct, SIGNAL(triggered()), this, SLOT(saveImage())));
+	// constructs a tool bar and its tool buttons
+	QAction *closeBrowserAct = new QAction(QIcon(iconPath("window-close.png")), tr("Close"), this);
+	closeBrowserAct->setShortcut(QKeySequence(Qt::Key_Q));
+	FQ_VERIFY(connect(closeBrowserAct, SIGNAL(triggered()), this, SLOT(close())));
 
-  QAction *deleteImageAct = new QAction(newIcon(tr("edit-delete.png")), tr("&Delte"), this);
-  deleteImageAct->setShortcut(QKeySequence(Qt::Key_D));
-  deleteImageAct->setToolTip("Delete");
-  FQ_VERIFY(connect(deleteImageAct, SIGNAL(triggered()), this, SLOT(deleteImage())));
+	QAction *trashAllAct = new QAction(QIcon(iconPath("trash-empty.png")), tr("Trash All"), this);
+	trashAllAct->setShortcut(QKeySequence(Qt::Key_Delete));
+	FQ_VERIFY(connect(trashAllAct, SIGNAL(triggered()), this, SLOT(trashAllImages())));
 
-  QLabel *textLabel = new QLabel(tr("Sort by "), 0);
-  textLabel->setFont(QFont("Sans Serif", 10, QFont::Bold));
+    QLabel *sortLabel = new QLabel(this);
+    sortLabel->setMargin(5);
+    sortLabel->setToolTip("Reshuffle images by tags");
+    sortLabel->setPixmap(QPixmap(iconPath("edit-shuffle.png")));
 
-  sortFlag = QDir::Time;
-  ivSortOpts = new QComboBox(this);
-  ivSortOpts->setFocusPolicy(Qt::NoFocus);
-  ivSortOpts->setFont(QFont("Sans Serif", 10));
-  ivSortOpts->setFrame(false);
-  ivSortOpts->insertItem(1, tr("Time "));
-  ivSortOpts->insertItem(0, tr("Name "));
-  ivSortOpts->insertItem(2, tr("Size "));
-  ivSortOpts->insertItem(3, tr("Type "));
-  FQ_VERIFY(connect(ivSortOpts, SIGNAL(currentIndexChanged(int)), this, SLOT(sortPoolDir(int))));
+    QComboBox *sortBox = new QComboBox(this);
+    sortBox->setFocusPolicy(Qt::ClickFocus);
+    sortBox->setFont(QFont("Serif", 12));
+    sortBox->setFrame(false);
+    sortBox->setFixedSize(sortBoxFixedSize);
+    sortBox->insertItem(0, QIcon(iconPath("emblem-like-16x16.png")), tr("Like "));
+    sortBox->insertItem(1, QIcon(iconPath("emblem-new-16x16.png")), tr("New "));
+    sortBox->insertItem(2, QIcon(iconPath("emblem-trash-16x16.png")), tr("Trash "));
+    sortBox->insertItem(3, QIcon(iconPath("emblem-recover-16x16.png")), tr("Recover "));
+    sortBox->insertItem(4, QIcon(iconPath("emblem-title-16x16.png")), tr("Title "));
+    FQ_VERIFY(connect(sortBox, SIGNAL(currentIndexChanged(int)), this, SLOT(reshuffleImages(int))));
 
-  ivToolBar = new QToolBar(this);
-  ivToolBar->setIconSize(QSize(32, 24));
-  ivToolBar->addAction(quitThisAct);
-  ivToolBar->addSeparator();
-  ivToolBar->addAction(saveImageAct);
-  ivToolBar->addAction(deleteImageAct);
-  ivToolBar->addSeparator();
-  ivToolBar->addWidget(textLabel);
-  ivToolBar->addWidget(ivSortOpts);
+	QToolBar *toolBar = new QToolBar(this);
+	toolBar->setFixedHeight(toolBarFixedHeight);
+	toolBar->setIconSize(QSize(32, 32));
+	toolBar->addAction(closeBrowserAct);
+    toolBar->addSeparator();
+    toolBar->addWidget(sortLabel);
+    toolBar->addWidget(sortBox);
+    toolBar->addSeparator();
+	toolBar->addAction(trashAllAct);
 
-  ivSlider = new QSlider(Qt::Horizontal, this);
-  ivSlider->setFocusPolicy(Qt::ClickFocus);
-  ivSlider->setSingleStep(1);
-  ivSlider->setPageStep(1);
-
-  FQ_VERIFY(connect(this, SIGNAL(totalCountChanged(int)), this, SLOT(setSliderMax(int))));
-  FQ_VERIFY(connect(ivPicFlow, SIGNAL(totalCountChanged(int)), this, SLOT(setSliderMax(int))));
-  FQ_VERIFY(connect(ivPicFlow, SIGNAL(centerIndexChanged(int)), this, SLOT(setSliderPos(int))));
-  FQ_VERIFY(connect(this, SIGNAL(dirListChanged(QFileInfoList &, QString &)), ivPicFlow, SLOT(updateDirList(QFileInfoList &, QString &))));
-  FQ_VERIFY(connect(this, SIGNAL(purgeImageCache(QString &)), ivPicFlow, SLOT(purgeImageHash(QString &))));
-  FQ_VERIFY(connect(ivPicView, SIGNAL(purgeImageCache(QString &)), ivPicFlow, SLOT(purgeImageHash(QString &))));
-  FQ_VERIFY(connect(ivSlider, SIGNAL(valueChanged(int)), this, SLOT(showSlideImage(int))));
-  FQ_VERIFY(connect(ivPicFlow, SIGNAL(viewCurrentIndex()), ivPicView, SLOT(viewCurrentImage())));
-
-  ivMainLayout = new QVBoxLayout(this);
-  ivMainLayout->setMargin(0);
-  ivMainLayout->addWidget(ivPicFlow);
-  ivMainLayout->addWidget(ivSlider);
-  ivMainLayout->addWidget(ivToolBar);
-  ivMainLayout->setEnabled(true);
-  setLayout(ivMainLayout);
-
-  // for pixmap cache
-  if (QPixmapCache::cacheLimit() < PIXMAP_CACHESIZE) {
-	QPixmapCache::setCacheLimit(PIXMAP_CACHESIZE);
+	// constructs a status bar to show instant messages
+	statusBar_->setSizeGripEnabled(false);
+	statusBar_->setFixedHeight(statusBarFixedHeight);
+	statusBar_->setFont(QFont("Serif", 10, QFont::Bold));
+    FQ_VERIFY(connect(imageFlow_, SIGNAL(statusMessage(const QString &)), this, SLOT(showStatusMessage(const QString &))));
+    FQ_VERIFY(connect(this, SIGNAL(statusMessage(const QString &)), this, SLOT(showStatusMessage(const QString &))));
+	// constructs a horizontal layout
+	QVBoxLayout *vBox = new QVBoxLayout(this);
+	vBox->setMargin(0);
+    vBox->setSpacing(0);
+    vBox->addWidget(toolBar);
+	vBox->addWidget(imageFlow_);
+    vBox->addWidget(imageMenu_);
+	vBox->addWidget(statusBar_);
+	vBox->setEnabled(true);
+	setLayout(vBox);
   }
 
-  // at startup we need to hide ivPicView
-  ivPicView->hide();
-  sortPoolDir(-1);
-  // move to the center of the screen.
-  move((dispRect.width() - width()) / 2.0,
-		(dispRect.height() - height()) / 2.0);
-}
+  const QString &FQTermImageFlow::poolSource(void) const {
 
-QIcon FQTermImageFlow::newIcon(const QString &iconPath) {
+    static QString p = "";
 
-  if (iconPath.isEmpty()) {
-	return QIcon();
-  } else {
-	return QIcon(iconSource + iconPath);
-  }
-}
+    p = config_->getItemValue("preference", "pool");
 
-/***********************************************/
-/* these three functions below are kept for    */
-/* API compatibility.                          */
-/***********************************************/
-void FQTermImageFlow::adjustItemSize() {
+    if (p.isEmpty()) {
+      p = getPath(USER_CONFIG) + POOL_SOURCE;
+    }
 
-}
-
-void FQTermImageFlow::scrollTo(const QString &filePath) {
-
-  ivPicView->viewImage(filePath, true);
-}
-
-void FQTermImageFlow::updateImage(const QString &filePath) {
-
-  ivPicView->viewImage(filePath, false);
-}
-/****************            *******************/
-/***********************************************/
-
-void FQTermImageFlow::setSliderMax(const int max) {
-
-  ivSlider->setRange(0, max);
-}
-
-void FQTermImageFlow::setSliderPos(const int pos) {
-
-  ivSlider->setSliderPosition(pos);
-}
-
-void FQTermImageFlow::showSlideImage(const int index) {
-
-  ivPicFlow->showSlide(index);
-}
-
-void FQTermImageFlow::saveImage() {
-
-  int index;
-
-  if ( (index = currentIndex()) < 0) {
-	return;
+    return p;
   }
 
-  FQTermFileDialog *saveDlg = new FQTermFileDialog(config_);
+  const QString &FQTermImageFlow::trashSource(void) const {
 
-  QFileInfo imgFile = imageDirList.at(index);
-  QString saveName = saveDlg->getSaveName(imgFile.fileName(),
-									"Image Files (*." + imgFile.suffix().toLower() + " *." + imgFile.suffix().toUpper() + ")", this);
+    static QString p = "";
 
-  if (!saveName.isEmpty()) {
-	QFile newFile(imgFile.absoluteFilePath());
-	newFile.copy(saveName);
-  } 
-
-  delete saveDlg;
-}
-
-void FQTermImageFlow::deleteImage() {
-
-  int index;
-
-  if ( (index = currentIndex()) < 0) {
-	return;
+    p = poolSource() + TRASH_SOURCE;
+    return p;
   }
 
-  QMessageBox *ivDelete = new QMessageBox(this);
-  QString strWarning = tr("<div>") +
-						tr("<h4>Are you sure to delete this image?</h4>") +
-						tr("</div>");
+  // these three functions below are kept for
+  // API compatibility.
+  void FQTermImageFlow::adjustItemSize() {
 
-  ivDelete->setWindowTitle(tr("Wanring!"));
-  ivDelete->setIcon(QMessageBox::Warning);
-  ivDelete->setStandardButtons(QMessageBox::Cancel | QMessageBox::Ok);
-  ivDelete->setDefaultButton(QMessageBox::Cancel);
-  ivDelete->setTextFormat(Qt::RichText);
-  ivDelete->setText(strWarning);
+  }
 
-  if (ivDelete->exec() == QMessageBox::Ok) {
+  void FQTermImageFlow::scrollTo(const QString &filePath) {
 
-	QFileInfo fi = imageDirList.at(index);
-	QString s = fi.fileName();
-	QFile imgFile(fi.absoluteFilePath());
+  }
 
-	if (imgFile.remove()) {
-	  // if there is a copy in disk cache, remove it.
-	  if (QFile::exists(shadowPath + s)) {
-		imgFile.setFileName(shadowPath + s);
-		imgFile.remove();
-		// finally, remove the copies in memory cache.
-		QPixmapCache::remove(s);
-		QPixmapCache::remove("sc-" + s);
+  void FQTermImageFlow::updateImage(const QString &filePath) {
+
+  }
+
+  // slots and functions
+  void FQTermImageFlow::loadImages(const int status) {
+
+    int i;
+    int itemStatus = (status == STAT_RECOVER) ? status : STAT_UNKNOWN;
+    QString comment;
+    QFileInfoList sourceList = sortedList(poolSource());
+    QFileInfoList targetList = imageFlow_->digest(STAT_ALL);
+
+    for (i = 0; i < sourceList.count(); i++) {
+
+      if (!targetList.contains(sourceList[i])) {
+
+        QImage image;
+
+        if (!image.load(sourceList[i].absoluteFilePath())) {
+          QFileIconProvider iconProvider;
+          image = iconProvider.icon(sourceList[i]).pixmap(desktopSize().height() / 6.0).toImage();
+        } else {
+          image = image.scaled(desktopSize().width() / 6.0, desktopSize().height() / 6.0,
+            Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        }
+
+        /* TODO */
+        /* there should be a more flexible */
+        /* method to deal with items' status */
+        if (status == STAT_ALL) {
+          itemStatus = STAT_NEW;
+        }
+
+        ImageFlowItem newItem(image, sourceList[i], comment,itemStatus);
+        imageFlow_->add(newItem);
+      }
+    }
+  }
+
+  void FQTermImageFlow::reshuffleImages(const int status) {
+
+    // there are images in the pool directory
+    QList<qint64> itemKeys = imageFlow_->sort(status);
+
+    if (imageFlow_->reorder(itemKeys)) {
+      imageFlow_->setCurrentSlide(0);
+      emit statusMessage(tr(fqloraGeneralStatus[GEN_RESHUFFLE]) + tr(fqloraTagStatus[status]));
+    } else {
+      emit statusMessage(tr(fqloraGeneralStatus[GEN_NOCHANGE]) + tr(fqloraTagStatus[status]));
+    }
+  }
+
+  void FQTermImageFlow::saveImages() {
+
+    QFileInfoList toSave = imageFlow_->digest(STAT_LIKE);
+
+    if (!toSave.isEmpty()) {
+
+      QMessageBox box;
+      box.setWindowModality(Qt::NonModal);
+      box.setWindowTitle("Information");
+      box.setIconPixmap(QPixmap(iconPath("emblem-info.png")));
+      box.setTextFormat(Qt::RichText);
+      box.setText(QString("<b>%1</b> ").arg(toSave.count()) + isPlural(toSave.count(), GEN_TOSAVE));
+      QPushButton *cancelButton = box.addButton(QMessageBox::Cancel);
+      QPushButton *saveAllButton = box.addButton(QMessageBox::SaveAll);
+      box.setDefaultButton(cancelButton);
+      box.exec();
+
+      if (box.clickedButton() == saveAllButton) {
+
+        FQTermFileDialog fileDialog(config_);
+        QString savePath =
+          fileDialog.getExistingDirectory(tr("Save your likes under"), "*");
+
+        if (savePath.isEmpty()) {
+          emit statusMessage(tr(fqloraGeneralStatus[GEN_CANCEL]));
+          return;
+        }
+
+        int i;
+        for (i = 0; i < toSave.count(); i++) {
+          QFile::rename(toSave[i].absoluteFilePath(), savePath + toSave[i].fileName());
+        }
+
+        imageFlow_->strip(STAT_LIKE);
+        emit statusMessage(QString("%1 ").arg(i) + isPlural(i, GEN_SAVE) + savePath);
+      } else {
+        emit statusMessage(tr(fqloraGeneralStatus[GEN_CANCEL]));
+      }
+    } else {
+      emit statusMessage(tr(fqloraGeneralStatus[GEN_NOTAG]) + tr(fqloraTagStatus[STAT_LIKE]));
+    }
+  }
+
+  void FQTermImageFlow::checkTrashState() {
+
+    QDir trashPath(trashSource());
+
+    if (trashPath.count() <= 2) {
+      emit trashStatus(false);
+    } else {
+      emit trashStatus(true);
+    }
+  }
+
+  void FQTermImageFlow::clearImages() {
+
+    int i;
+    QString trashPath = trashSource();
+    QDir trashDir(trashPath);
+    QFileInfoList toRemove = imageFlow_->digest(STAT_TRASH);
+
+    if (!trashDir.exists()) {
+      trashDir.mkdir(trashPath);
+    }
+
+    if (!toRemove.isEmpty()) {
+
+      for (i = 0; i < toRemove.count(); i++) {
+        if (QFile::exists(toRemove[i].absoluteFilePath())) {
+          QFile::rename(toRemove[i].absoluteFilePath(), trashPath + toRemove[i].fileName());
+        }
+      }
+
+      imageFlow_->strip(STAT_TRASH);
+      emit statusMessage(QString("%1 ").arg(i) + isPlural(i, GEN_TRASH));
+      emit isTrashEmpty();
+    } else {
+      emit statusMessage(tr(fqloraGeneralStatus[GEN_NOTAG]) + tr(fqloraTagStatus[STAT_TRASH]));
+    }
+  }
+
+  void FQTermImageFlow::trashAllImages() {
+
+	int i;
+	QString trashPath = trashSource();
+	QDir trashDir(trashPath);
+	QFileInfoList toRemove = imageFlow_->digest(STAT_ALL);
+
+	if (!trashDir.exists()) {
+	  trashDir.mkdir(trashPath);
+	}
+
+	if (imageFlow_->count() > 0) {
+	  for (i = 0; i < imageFlow_->count(); i++) {
+		if (QFile::exists(toRemove[i].absoluteFilePath())) {
+		  QFile::rename(toRemove[i].absoluteFilePath(), trashPath + toRemove[i].fileName());
+		}
 	  }
 
-	  ivPicFlow->deleteSlide(index);
-	  emit purgeImageCache(s);
-	  sortPoolDir(-1);
+	  imageFlow_->clear();
+	  emit statusMessage(QString("%1 ").arg(i) + isPlural(i, GEN_TRASH));
+	  emit isTrashEmpty();
+	} else {
+	  emit statusMessage(tr(fqloraGeneralStatus[GEN_NOTAG]) + tr(fqloraTagStatus[STAT_TRASH]));
 	}
   }
 
-  if (!hasFocus()) {
-	setFocus();
+  void FQTermImageFlow::recoverImages() {
+
+    QString trashPath = trashSource();
+    QDir trashDir(trashPath);
+
+    if (!trashDir.exists()) {
+      trashDir.mkdir(trashPath);
+    } else if (trashDir.count() > 2) {
+
+      int action = -1;;
+      QFileInfoList toRecover = sortedList(trashPath);
+
+      if (!toRecover.isEmpty()) {
+
+        QMessageBox box;
+        box.setWindowModality(Qt::NonModal);
+        box.setWindowTitle("Take action");
+        box.setIconPixmap(QPixmap(iconPath("emblem-info.png")));
+        box.setTextFormat(Qt::RichText);
+        box.setText(QString("<b>%1</b> ").arg(toRecover.count()) + isPlural(toRecover.count(), GEN_INTRASH));
+        QPushButton *cancelButton = box.addButton(QMessageBox::Cancel);
+        QPushButton *recoverButton = box.addButton(tr("Recover"), QMessageBox::ApplyRole);
+        recoverButton->setIcon(QIcon(iconPath("button-recover.png")));
+        QPushButton *deleteButton = box.addButton(tr("Delete"), QMessageBox::ApplyRole);
+        deleteButton->setIcon(QIcon(iconPath("button-delete.png")));
+        box.setDefaultButton(cancelButton);
+        box.exec();
+
+        if (box.clickedButton() == cancelButton) {
+          emit statusMessage(tr(fqloraGeneralStatus[GEN_CANCEL]));
+          return;
+        } else if (box.clickedButton() == recoverButton) {
+          action = 1;
+        } else if (box.clickedButton() == deleteButton) {
+          action = 0;
+        }
+
+        int i;
+        QFile imageFile;
+        QString poolPath = poolSource();
+
+        for (i = 0; i < toRecover.count(); i++) {
+          if (action == 1) {
+            QFile::rename(toRecover[i].absoluteFilePath(), poolPath + toRecover[i].fileName());
+          } else if (action == 0) {
+            imageFile.setFileName(toRecover[i].absoluteFilePath());
+            imageFile.remove();
+          }
+        }
+
+        if (action == 1) {
+          loadImages(STAT_RECOVER);
+          emit statusMessage(QString("%1 ").arg(i) + isPlural(i, GEN_RECOVER));
+        } else if (action == 0) {
+          emit statusMessage(QString("%1 ").arg(i) + isPlural(i, GEN_DELETE));
+        }
+      }
+    } else {
+
+      emit statusMessage(tr(fqloraGeneralStatus[GEN_NORECOVER]));
+    }
+
+    emit isTrashEmpty();
   }
-  delete ivDelete;
-}
 
-void FQTermImageFlow::sortPoolDir(const int index) {
 
-  QString originalImage;
-  QDir imageDir(poolPath);
+  void FQTermImageFlow::showStatusMessage(const QString &message) {
 
-  if (!imageDir.exists()) {
-	imageDir.mkdir(poolPath);
+    if (statusBar_) {
+      statusBar_->showMessage(message, 3000);
+    }
   }
 
-  if (index >= 0) {
-	sortFlag = QDir::SortFlag(index);
+  QFileInfoList FQTermImageFlow::sortedList(const QString &path) {
+
+    QDir sortPath(path);
+
+    if (!sortPath.exists()) {
+      sortPath.mkdir(path);
+    }
+
+    sortPath.setNameFilters((QStringList() << "*.jpg" << "*.jpeg" << "*.png" << "*.gif"
+        << "*.bmp" << "*.tiff" << "*.mng"));
+
+    return (sortPath.entryInfoList(QDir::Files | QDir::Readable | QDir::NoSymLinks, QDir::Time));
   }
 
-  if (!imageDirList.isEmpty()) {
-	originalImage = imageDirList.at(currentIndex()).absoluteFilePath();
-  }
+  // FQTermImageFlow events.
+  void FQTermImageFlow::showEvent(QShowEvent *event) {
 
-  QDir::Filters fileFilter = QDir::Files | QDir::Readable | QDir::NoSymLinks;
-  imageDir.setNameFilters(imageSuffixes);
-  imageDirList = imageDir.entryInfoList(fileFilter, sortFlag);
+    emit isTrashEmpty();
 
-  if (!imageDirList.isEmpty()) {
-	emit totalCountChanged(imageDirList.count() - 1);
-	emit dirListChanged(imageDirList, originalImage);
-  }
-}
-
-int FQTermImageFlow::currentIndex() {
-
-  int index = ivPicFlow->centerIndex();
-
-  if (imageDirList.isEmpty()
-	  || index < 0
-	  || index >= imageDirList.count()) {
-	return -1;
-  } else {
-	return index;
-  }
-}
-
-QPixmap *FQTermImageFlow::shadowPixmap(const QFileInfo &finfo) {
-
-  if (finfo.suffix().toLatin1().toLower() == "gif") {
-	return origPixmap(finfo);
-  }
-
-  QString shadowFilePath = shadowPath + finfo.fileName();
-  QPixmap *p = new QPixmap;
-
-  if (QPixmapCache::find("sc-" + finfo.fileName(), *p)) {
-	return p;
-  }
-
-  if (!QFile::exists(shadowFilePath)) {
-	p->load(finfo.absoluteFilePath(), finfo.suffix().toLatin1());
-	// if current image is no bigger than the framge size, don't resize it.
-	if (p->width() > pixmapWidth ||
-		(p->height() > pixmapHeight)) {
-	  p = new QPixmap(p->scaled(pixmapWidth, pixmapHeight, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-	  p->save(shadowFilePath, finfo.suffix().toLatin1(), 75);
+    if (imageFlow_->count() <= 0) {
+      loadImages(STAT_UNKNOWN);
+      move((desktopSize().width() - width()) / 2.0, (desktopSize().height() - height()) / 2.0);
+    } else {
+    // TODO: insert new images
+	loadImages(STAT_ALL);
 	}
-  } else {
-	p->load(shadowFilePath, finfo.suffix().toLatin1());
   }
 
-  QPixmapCache::insert("sc-" + finfo.fileName(), *p);
+  void FQTermImageFlow::closeEvent(QCloseEvent *event) {
 
-  return p;
-}
-
-QPixmap *FQTermImageFlow::origPixmap(const QFileInfo &finfo) {
-
-  QString origFilePath = poolPath + finfo.fileName();
-  QPixmap *p = new QPixmap;
-
-  if (QPixmapCache::find(finfo.fileName(), *p)) {
-	return p;
+	hide();
   }
 
-  if(!QFile::exists(origFilePath)) {
-	p->fill(Qt::transparent);
-  } else {
-	p->load(origFilePath, finfo.suffix().toLatin1());
-	QPixmapCache::insert(finfo.fileName(), *p);
+  class ImageMenu::Private {
+  public:
+    int emblemStatus;
+    bool dustbinStatus;
+    bool saveStatus;
+    bool clearStatus;
+
+    QString tipMessage;
+
+    QRect rectLike;
+    QRect rectTrash;
+    QRect rectNew;
+    QRect rectRecover;
+    QRect rectEmblems;
+
+    QRect rectClear;
+    QRect rectSave;
+    QRect rectDustbin;
+
+    QPixmap pixmapLike, pixmapLikeGray;
+    QPixmap pixmapTrash, pixmapTrashGray;
+    QPixmap pixmapNew, pixmapNewGray;
+    QPixmap pixmapRecover, pixmapRecoverGray;
+
+    QPixmap pixmapClear, pixmapClearGray;
+    QPixmap pixmapSave, pixmapSaveGray;
+    QPixmap pixmapDustbin, pixmapDustbinGray;
+  };
+
+  //ImageMenu
+  ImageMenu::ImageMenu(QWidget *parent)
+    : fh(new ImageMenu::Private) {
+
+    setAutoFillBackground(true);
+    setBackgroundRole(QPalette::Shadow);
+    setFocusPolicy(Qt::NoFocus);
+    setMouseTracking(true);
+    setFixedHeight(60);
+
+    fh->emblemStatus = -2;
+    fh->dustbinStatus = false;
+    fh->saveStatus = false;
+    fh->clearStatus = false;
+
+    fh->tipMessage = "";
+
+    fh->rectLike = QRect(50, 14, 32, 32);
+    fh->rectTrash = QRect(100, 14, 32, 32);
+    fh->rectNew = QRect(150, 14, 32, 32);
+    fh->rectRecover = QRect(200, 14, 32, 32);
+    fh->rectEmblems = QRect(50, 14, 232, 32);
+
+    fh->rectClear = QRect(300, 14, 32, 32);
+    fh->rectSave = QRect(350, 14, 32, 32);
+    fh->rectDustbin = QRect(400, 14, 32, 32);
+
+    fh->pixmapLike = QPixmap(iconPath("emblem-like.png"));
+    fh->pixmapLikeGray = QPixmap(iconPath("emblem-like-gray.png"));
+
+    fh->pixmapTrash = QPixmap(iconPath("emblem-trash.png"));
+    fh->pixmapTrashGray = QPixmap(iconPath("emblem-trash-gray.png"));
+
+    fh->pixmapNew = QPixmap(iconPath("emblem-new.png"));
+    fh->pixmapNewGray = QPixmap(iconPath("emblem-new-gray.png"));
+
+    fh->pixmapRecover = QPixmap(iconPath("emblem-recover.png"));
+    fh->pixmapRecoverGray = QPixmap(iconPath("emblem-recover-gray.png"));
+
+    fh->pixmapClear = QPixmap(iconPath("clear-state.png"));
+    fh->pixmapClearGray = QPixmap(iconPath("clear-state-gray.png"));
+
+    fh->pixmapSave = QPixmap(iconPath("save-state.png"));
+    fh->pixmapSaveGray = QPixmap(iconPath("save-state-gray.png"));
+
+    fh->pixmapDustbin = QPixmap(iconPath("trash-state.png"));
+    fh->pixmapDustbinGray = QPixmap(iconPath("trash-state-gray.png"));
   }
 
-  return p;
-}
+  ImageMenu::~ImageMenu() {
 
-void FQTermImageFlow::keyPressEvent(QKeyEvent *event) {
-
-  ivPicView->close();
-
-  switch (event->key()) {
-	case Qt::Key_Home:
-	  ivPicFlow->showSlide(0);
-	  break;
-	case Qt::Key_End:
-	  ivPicFlow->showSlide(imageDirList.count() - 1);
-	  break;
-	case Qt::Key_Up:
-	  ivPicFlow->showSlide(ivPicFlow->centerIndex() + 5);
-	  break;
-	case Qt::Key_Down:
-	  ivPicFlow->showSlide(ivPicFlow->centerIndex() - 5);
-	  break;
-	case Qt::Key_PageUp:
-	case Qt::Key_Delete:
-	case Qt::Key_Left:
-	  ivPicFlow->showPrevious();
-	  break;
-	case Qt::Key_PageDown:
-	case Qt::Key_Space:
-	case Qt::Key_Right:
-	  ivPicFlow->showNext();
-	  break;
-	case Qt::Key_Return:
-	case Qt::Key_Enter:
-	case Qt::Key_V:
-	  ivPicView->viewCurrentImage();
-	  break;
-	case Qt::Key_Q:
-		close();
-	  break;
-	default:
-	  break;
-  }
-}
-
-void FQTermImageFlow::wheelEvent(QWheelEvent *event) {
-  // enable mouse wheel events in the browser.
-  int numDegrees = event->delta() / 8;
-  int numSteps = numDegrees / 15;
-
-  if (numSteps < 0) {
-	ivPicFlow->showPrevious();
-  } else {
-	ivPicFlow->showNext();
+    delete fh;
+    fh = NULL;
   }
 
-  event->accept();
-}
+  void ImageMenu::updateEmblems(const int status) {
 
-void FQTermImageFlow::mousePressEvent(QMouseEvent *event) {
-  // any mouse press event will raise the browser.
-  ivPicView->close();
-  activateWindow();
-  raise();
-}
+    if (fh->emblemStatus != status) {
+      update(fh->rectEmblems);
+    }
 
-void FQTermImageFlow::closeEvent(QKeyEvent *event) {
-
-  ivPicView->hide();
-  hide();
-}
-
-/*******************************/
-/****  Picture viewer **********/
-/*******************************/
-
-PictureView::PictureView(FQTermImageFlow *parent, Qt::WindowFlags wflag)
-	:QWidget(parent, wflag) {
-
-  iv = parent;
-  picFlow = parent->ivPicFlow;
-
-  setAutoFillBackground(true);
-  setBackgroundRole(QPalette::Midlight);
-  setFocusPolicy(Qt::StrongFocus);
-
-  imageDisplay = new ImageDisplay(this);
-  imageDisplay->setMinimumSize(QSize(iv->frameWidth, iv->frameHeight));
-
-  scrollArea = new QScrollArea(this);
-  scrollArea->setFrameStyle(QFrame::NoFrame | QFrame::Plain);
-  scrollArea->setAutoFillBackground(true);
-  scrollArea->setBackgroundRole(QPalette::Dark);
-  scrollArea->setAlignment(Qt::AlignCenter);
-  scrollArea->setWidgetResizable(true);
-  scrollArea->setWidget(imageDisplay);
-
-  QAction *quitThisAct = new QAction(iv->newIcon(tr("window-close.png")), tr("&Quit"), this);
-  quitThisAct->setShortcut(QKeySequence(Qt::Key_Q));
-  quitThisAct->setToolTip("Quit this window");
-  FQ_VERIFY(connect(quitThisAct, SIGNAL(triggered()), this, SLOT(closeThisWindow())));
-
-  QAction *showOrigAct = new QAction(iv->newIcon(tr("zoom-original.png")), tr("Ori&ginal"), this);
-  showOrigAct->setShortcut(QKeySequence(Qt::Key_G));
-  showOrigAct->setToolTip("Original");
-  FQ_VERIFY(connect(showOrigAct, SIGNAL(triggered()), this, SLOT(showOrig())));
-
-  QAction *showBestfitAct = new QAction(iv->newIcon(tr("zoom-fit-best.png")), tr("&Best fit"), this);
-  showBestfitAct->setShortcut(QKeySequence(Qt::Key_B));
-  showBestfitAct->setToolTip("Fit best");
-  FQ_VERIFY(connect(showBestfitAct, SIGNAL(triggered()), this, SLOT(showBestfit())));
-
-  QAction *zoomInAct = new QAction(iv->newIcon(tr("zoom-in.png")), tr("Zoom &in"), this);
-  zoomInAct->setShortcut(QKeySequence(Qt::Key_I));
-  zoomInAct->setToolTip("Zoom in");
-  FQ_VERIFY(connect(zoomInAct, SIGNAL(triggered()), this, SLOT(zoomIn())));
-
-  QAction *zoomOutAct = new QAction(iv->newIcon(tr("zoom-out.png")), tr("Zoom &out"), this);
-  zoomOutAct->setShortcut(QKeySequence(Qt::Key_O));
-  zoomOutAct->setToolTip("Zoom out");
-  FQ_VERIFY(connect(zoomOutAct, SIGNAL(triggered()), this, SLOT(zoomOut())));
-
-  QAction *rotLeftAct = new QAction(iv->newIcon(tr("object-rotate-left.png")), tr("Rotate &left"), this);
-  rotLeftAct->setShortcut(QKeySequence(Qt::Key_L));
-  rotLeftAct->setToolTip("Rotate left");
-  FQ_VERIFY(connect(rotLeftAct, SIGNAL(triggered()), this, SLOT(rotateLeft())));
-
-  QAction *rotRightAct = new QAction(iv->newIcon(tr("object-rotate-right.png")), tr("Rotate &right"), this);
-  rotRightAct->setShortcut(QKeySequence(Qt::Key_R));
-  rotRightAct->setToolTip("Rotate right");
-  FQ_VERIFY(connect(rotRightAct, SIGNAL(triggered()), this, SLOT(rotateRight())));
-
-  QAction *showFullscreenAct = new QAction(iv->newIcon(tr("view-fullscreen.png")), tr("&Fullscreen"), this);
-  showFullscreenAct->setShortcut(QKeySequence(Qt::Key_F));
-  showFullscreenAct->setToolTip("Fullscreen");
-  FQ_VERIFY(connect(showFullscreenAct, SIGNAL(triggered()), this, SLOT(showFullscreen())));
-
-  statInfo = new QStatusBar(this);
-  statInfo->setSizeGripEnabled(true);
-
-  toolBar = new QToolBar(this);
-  toolBar->setIconSize(QSize(32, 24));
-
-  toolBar->addAction(quitThisAct);
-  toolBar->addSeparator();
-  toolBar->addAction(showOrigAct);
-  toolBar->addAction(showBestfitAct);
-  toolBar->addAction(zoomInAct);
-  toolBar->addAction(zoomOutAct);
-  toolBar->addSeparator();
-  toolBar->addAction(rotLeftAct);
-  toolBar->addAction(rotRightAct);
-  toolBar->addSeparator();
-  toolBar->addAction(showFullscreenAct);
-
-  mainLayout = new QVBoxLayout(this);
-  mainLayout->setMargin(0);
-  mainLayout->addWidget(scrollArea);
-  mainLayout->addWidget(toolBar);
-  mainLayout->addWidget(statInfo);
-  mainLayout->setEnabled(true);
-  setLayout(mainLayout);
-
-  FQ_VERIFY(connect(this, SIGNAL(viewModeChanged(v_modes)),
-				imageDisplay, SLOT(displayImage(v_modes))));
-  FQ_VERIFY(connect(imageDisplay, SIGNAL(imageInfoChanged(int)), this, SLOT(updateTitle(int))));
-  FQ_VERIFY(connect(picFlow, SIGNAL(centerIndexChanged(int)), imageDisplay, SLOT(renderImage(int))));
-
-  setViewMode(V_SHADOW);
-}
-
-PictureView::~PictureView() {
-  delete imageDisplay;
-  delete scrollArea;
-  delete statInfo;
-  delete toolBar;
-  delete mainLayout;
-}
-
-void PictureView::viewCurrentImage() {
-
-  activateWindow();
-  raise();
-  show();
-  emit viewModeChanged(V_SHADOW);
-}
-
-void PictureView::viewImage(const QString &filePath, const bool RealTime) {
-
-  iv->sortPoolDir(-1);
-
-  if (!iv->imageDirList.contains(filePath)) {
-	return;
+    fh->emblemStatus = status;
   }
 
-  int index = iv->imageDirList.indexOf(filePath);
+  void ImageMenu::updateClear(const bool hasOrNot) {
 
-  if (RealTime) {
+    if (fh->clearStatus != hasOrNot) {
+      update(fh->rectClear);
+    }
 
-	QFileInfo fi = iv->imageDirList.at(index);
-	QString sf = fi.fileName();
-	QString sa = fi.absoluteFilePath();
+    fh->clearStatus = hasOrNot;
+  }
 
-	QFile imgFile(sa);
-	qint64 fragSize;
-	QByteArray imgBytes;
+  void ImageMenu::updateSave(const bool hasOrNot) {
 
-	fragSize = 0;
-	imgFile.open(QIODevice::ReadOnly | QIODevice::Unbuffered);
+    if (fh->saveStatus != hasOrNot) {
+      update(fh->rectSave);
+    }
 
-	while (fragSize <= imgFile.size()) {
-	  imgBytes = imgFile.read(IMG_CHUNK);
-	  if (imgBytes.size() > 0) {
-		imgFile.reset();
-		fragSize += imgBytes.size();
-	  } // if we can't read in bytes, we do nothing.
+    fh->saveStatus = hasOrNot;
+  }
+
+  void ImageMenu::updateDustbin(const bool fullOrNot) {
+
+    if (fh->dustbinStatus != fullOrNot) {
+      update(fh->rectDustbin);
+    }
+
+    fh->dustbinStatus = fullOrNot;
+  }
+
+  void ImageMenu::paintEvent(QPaintEvent *event) {
+
+    QPainter p(this);
+
+    p.setRenderHints(QPainter::SmoothPixmapTransform | QPainter::Antialiasing);
+
+    if (fh->emblemStatus == STAT_LIKE) {
+      p.drawPixmap(fh->rectLike, fh->pixmapLike);
+    } else {
+      p.drawPixmap(fh->rectLike, fh->pixmapLikeGray);
+    }
+
+    if (fh->emblemStatus == STAT_TRASH) {
+      p.drawPixmap(fh->rectTrash, fh->pixmapTrash);
+    } else {
+      p.drawPixmap(fh->rectTrash, fh->pixmapTrashGray);
+    }
+
+    if (fh->emblemStatus == STAT_NEW) {
+      p.drawPixmap(fh->rectNew, fh->pixmapNew);
+    } else {
+      p.drawPixmap(fh->rectNew, fh->pixmapNewGray);
+    }
+
+    if (fh->emblemStatus == STAT_RECOVER) {
+      p.drawPixmap(fh->rectRecover, fh->pixmapRecover);
+    } else {
+      p.drawPixmap(fh->rectRecover, fh->pixmapRecoverGray);
+    }
+
+    if (fh->clearStatus == true) {
+      p.drawPixmap(fh->rectClear, fh->pixmapClear);
+    } else {
+      p.drawPixmap(fh->rectClear, fh->pixmapClearGray);
+    }
+
+    if (fh->saveStatus == true) {
+      p.drawPixmap(fh->rectSave, fh->pixmapSave);
+    } else {
+      p.drawPixmap(fh->rectSave, fh->pixmapSaveGray);
+    }
+
+    if (fh->dustbinStatus == true) {
+      p.drawPixmap(fh->rectDustbin, fh->pixmapDustbin);
+    } else {
+      p.drawPixmap(fh->rectDustbin, fh->pixmapDustbinGray);
+    }
+
+    p.end();
+  }
+
+  void ImageMenu::mouseReleaseEvent(QMouseEvent *event) {
+
+    if (event->button() == Qt::LeftButton
+      || event->button() == Qt::RightButton) {
+
+      if (fh->rectLike.contains(event->pos())) {
+        emit toggleFlowStatus(STAT_LIKE);
+      }
+
+      if (fh->rectTrash.contains(event->pos())) {
+        emit toggleFlowStatus(STAT_TRASH);
+      }
+
+      if (fh->rectClear.contains(event->pos())) {
+        emit clearImages();
+      }
+
+      if (fh->rectSave.contains(event->pos())) {
+        emit saveImages();
+      }
+
+      if (fh->rectDustbin.contains(event->pos())) {
+        emit recoverImages();
+      }
+    }
+  }
+
+  // ImageFlow: this subclasses PictureFlow
+  class ImageFlow::Private {
+  public:
+    int emblemStatus;
+    int likeCount;
+    int clearCount;
+
+    QList<QByteArray> itemsTitles;
+    QHash<QByteArray, qint64> itemsTitleKeyPairs;
+	QList<ImageFlowItem> items;
+  };
+
+  ImageFlow::~ImageFlow() {
+
+	delete m;
+	m = NULL;
+  }
+
+  // construct an emptry pictureflow.
+  ImageFlow::ImageFlow(QWidget *parent)
+	: PictureFlow(parent), m(new ImageFlow::Private) {
+
+    // initial setup
+    setFocusPolicy(Qt::StrongFocus);
+    setZoomFactor(120);
+	setSlideCount(0);
+    m->emblemStatus = -1;
+    m->likeCount = 0;
+    m->clearCount = 0;
+  }
+
+  const ImageFlowItem& ImageFlow::operator[](int index) const {
+
+    return (m->items[index]);
+  }
+
+  ImageFlowItem& ImageFlow::operator[](int index) {
+
+    return (m->items[index]);
+  }
+
+  const ImageFlowItem& ImageFlow::at(int index) const {
+
+    return (m->items[index]);
+  }
+
+  void ImageFlow::add(const ImageFlowItem &item) {
+
+    QByteArray title = item.info().fileName().toLocal8Bit();
+
+    m->items.append(item);
+    m->itemsTitles.append(title);
+    m->itemsTitleKeyPairs.insert(title, item.key());
+
+    // set the status pixmap
+    int index = m->items.indexOf(item);
+    m->items[index].setStatus(item.status());
+
+    int count = m->items.count();
+    setSlideCount(count);
+    setSlide(count - 1, item.image());
+  }
+
+  QList<QByteArray>& ImageFlow::itemsTitles() const {
+
+    return (m->itemsTitles);
+  }
+
+  void ImageFlow::clear() {
+
+    m->items.clear();
+    setSlideCount(0);
+    setCurrentSlide(0);
+    PictureFlow::clear();
+  }
+
+  int ImageFlow::count() const {
+
+    return (m->items.count());
+  }
+
+  int ImageFlow::size() const {
+
+    return (m->items.size());
+  }
+
+  QFileInfoList& ImageFlow::digest(const int status) {
+
+    int i;
+    int count = m->items.size();
+    static QFileInfoList result;
+
+    result.clear();
+
+    for (i = 0; i < count; i++) {
+      switch (status) {
+        case STAT_ALL:
+          result.append(m->items[i].info());
+          break;
+        default:
+          if (m->items[i].status() == status) {
+            result.append(m->items[i].info());
+          }
+          break;
+      }
+    }
+
+    return result;
+  }
+
+  void ImageFlow::strip(const int status) {
+
+    int i;
+    int count = m->items.count();
+    QList<int> dirtyIndexes;
+
+    // We cannot delete items in a loop because
+    // items count will change while deleting.
+    // A better method is to use another list
+    // to record 'dirty' items, and by looping this
+    // dirty list, we can correctly delete those
+    // dirty items successfully.
+    for (i = 0; i < count; i++) {
+      if (m->items[i].status() == status) {
+        dirtyIndexes.append(i);
+      }
+    }
+
+    if (!dirtyIndexes.isEmpty()) {
+
+      for (i = 0; i < dirtyIndexes.count(); i++) {
+        // Note: dirtyIndexes[i] - i: the actual
+        // position of the dirty item.
+        m->items.removeAt(dirtyIndexes[i] - i);
+      }
+
+      dirtyIndexes.clear();
+      reorder(sort(STAT_ALL));
+
+      for (i = 0; i < m->items.count(); i++) {
+        setSlide(i, m->items[i].image());
+      }
+
+      setSlideCount(i);
+      setCurrentSlide(0);
+
+      switch(status) {
+        case STAT_LIKE:
+          m->likeCount = 0;
+          emit saveStatus(false);
+          emit emblemStatus(STAT_UNKNOWN);
+          break;
+        case STAT_TRASH:
+          m->clearCount = 0;
+          emit clearStatus(false);
+          emit emblemStatus(STAT_UNKNOWN);
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  QList<qint64> ImageFlow::sort(const int status) {
+
+    int i;
+    int count = m->items.count();
+    QList<qint64> itemKeys;
+
+    switch (status) {
+      case STAT_TITLE:
+        qStableSort(m->itemsTitles.begin(), m->itemsTitles.end(), qLess<QByteArray>());
+        for (i = 0; i < m->itemsTitles.count(); i++) {
+          itemKeys.append(m->itemsTitleKeyPairs.value(m->itemsTitles[i]));
+        }
+        break;
+      default:
+        for (i = 0; i < count; i++) {
+          if (m->items[i].status() == status) {
+            itemKeys.prepend(m->items[i].key());
+          } else {
+            itemKeys.append(m->items[i].key());
+          }
+        }
+        break;
+    }
+
+    // this might be unnecessary here.
+    return itemKeys;
+  }
+
+  bool ImageFlow::reorder(const QList<qint64>& itemsKey) {
+
+	int items_count = m->items.size();
+
+	if (itemsKey.size() != items_count) {
+
+      return (false);
+    }
+
+	// Collect Items Key
+	QList<qint64> currentItemsKey;
+	for (int i = 0; i < items_count; i++) {
+
+      currentItemsKey.append(m->items.at(i).key());
+    }
+
+    if (currentItemsKey == itemsKey) {
+      // if identical, we don't sort.
+      return (false);
+    }
+
+	// Swap Items
+	for (int i=0; i < items_count; i++) {
+
+      int index = currentItemsKey.indexOf(itemsKey.at(i));
+      if (i == index) {
+        continue;
+      }
+
+      QImage imgA = m->items[i].image();
+      QImage imgB = m->items[index].image();
+
+      setSlide(index, imgA);
+      setSlide(i, imgB);
+
+      m->items.swap(i, index);
+      currentItemsKey.swap(i, index);	
 	}
 
-	imgFile.close();
-	imgFile.setFileName(iv->shadowPath + sf);
-	if (imgFile.exists()) {
-	  imgFile.remove();
+	update();
+    rehash();
+	return(true);
+  }
+
+  void ImageFlow::rehash(void) {
+
+    int count = m->items.count();
+
+    if (count <= 0) {
+      return;
+    }
+
+    int i;
+
+    m->itemsTitles.clear();
+    m->itemsTitleKeyPairs.clear();
+
+    qint64 k;
+    QByteArray b;
+
+    for (i = 0; i < count; i++) {
+      k = m->items[i].key();
+      b = m->items[i].info().fileName().toLocal8Bit();
+      m->itemsTitles.append(b);
+      m->itemsTitleKeyPairs.insert(b, k);
+    }
+  }
+
+  void ImageFlow::toggleStatus(const int status) {
+
+    int index = currentSlide();
+    int count = m->items.count();
+
+    if (index >= 0 && index < count) {
+
+      setUpdatesEnabled(false);
+      if (m->items[index].status() != status) {
+
+        switch (status) {
+          case STAT_LIKE:
+            m->likeCount++;
+            if (m->items[index].status() == STAT_TRASH) {
+              m->clearCount--;
+            }
+            emit saveStatus(true);
+            break;
+          case STAT_TRASH:
+            m->clearCount++;
+            if (m->items[index].status() == STAT_LIKE) {
+              m->likeCount--;
+            }
+            emit clearStatus(true);
+            break;
+          default:
+            break;
+        }
+
+        m->items[index].setStatus(status);
+        emit statusMessage(tr("Tagged as ") + tr(fqloraTagStatus[status]));
+
+      } else {
+
+        switch (status) {
+          case STAT_LIKE:
+            m->likeCount--;
+            break;
+          case STAT_TRASH:
+            m->clearCount--;
+            break;
+          default:
+            break;
+        }
+
+        m->items[index].setStatus(STAT_UNKNOWN);
+        emit statusMessage("Tag cleared");
+      }
+
+      if (m->likeCount <= 0) {
+        emit saveStatus(false);
+      } else {
+        emit saveStatus(true);
+      }
+
+      if (m->clearCount <= 0) {
+        emit clearStatus(false);
+      } else {
+        emit clearStatus(true);
+      }
+
+      setUpdatesEnabled(true);
+    }
+  }
+
+  void ImageFlow::setCurrentImage(const int index) {
+
+    int count = size();
+
+    if (count > 0 && index > 0 && index < count) {
+
+      setCurrentSlide(index);
+    }
+  }
+
+// events
+  void ImageFlow::paintEvent(QPaintEvent *event) {
+
+	PictureFlow::paintEvent(event);
+
+	if (slideCount() < 1) {
+      return;
+    }
+
+	QPainter p(this);
+
+	// White Pen for File Info
+	p.setPen(Qt::gray);
+
+	int cw = width() / 2;
+	int wh = height();
+
+	ImageFlowItem& item = m->items[currentSlide()];
+
+	// Draw File Name if it's not empty
+    QString title = item.info().fileName();
+    if (!title.isEmpty()) {
+
+      p.setFont(QFont(p.font().family(), p.font().pointSize() + 1, QFont::Bold));
+      p.drawText(cw - (QFontMetrics(p.font()).width(title) / 2), wh - 20, title);
+    }
+
+    p.end();
+
+    if (m->emblemStatus != item.status()) {
+      emit emblemStatus(item.status());
+    }
+
+    m->emblemStatus = item.status();
+  }
+
+  // ImageFlowItem
+  class ImageFlowItem::Private {
+  public:
+	QString filePath;
+    QFileInfo info;
+	QString comment;
+	QImage image;
+    int status;
+	qint64 key;
+
+  };
+
+  ImageFlowItem::~ImageFlowItem() {
+
+	delete m;
+	m = NULL;
+  }
+
+  // constructs an empty item
+  ImageFlowItem::ImageFlowItem(QObject *parent)
+	: QObject(parent), m(new ImageFlowItem::Private) {
+
+	m->key = qHash(QString::number(m->image.cacheKey()) + m->info.fileName() + m->comment);
+  }
+
+  ImageFlowItem::ImageFlowItem(const ImageFlowItem &item)
+    : QObject(item.parent()), m(new ImageFlowItem::Private) {
+
+    operator=(item);
+  }
+
+  // constructs an item with a given image
+  ImageFlowItem::ImageFlowItem(const QImage &image, QObject *parent)
+	: QObject(parent), m(new ImageFlowItem::Private) {
+
+	m->image = image;
+	m->key = qHash(QString::number(m->image.cacheKey()) + m->info.fileName() + m->comment);
+  }
+
+  // constructs an image with given image and title
+  ImageFlowItem::ImageFlowItem(const QImage &image, const QFileInfo &info, QObject *parent)
+	: QObject(parent), m(new ImageFlowItem::Private) {
+
+	m->image = image;
+	m->info = info;
+	m->key = qHash(QString::number(m->image.cacheKey()) + m->info.fileName() + m->comment);
+  }
+
+  // constructs an image with given image, title and comment
+  ImageFlowItem::ImageFlowItem(const QImage &image, const QFileInfo &info, const QString &comment, QObject *parent)
+	: QObject(parent), m(new ImageFlowItem::Private) {
+
+	m->image = image;
+	m->info = info;
+	m->comment = comment;
+	m->key = qHash(QString::number(m->image.cacheKey()) + m->info.fileName() + m->comment);
+  }
+
+  // constructs an image with given image, title, type, size, time and state
+  ImageFlowItem::ImageFlowItem(const QImage &image, const QFileInfo &info, const QString& comment, const int status, QObject *parent)
+    : QObject(parent), m(new ImageFlowItem::Private) {
+
+    m->image = image;
+    m->info = info;
+    m->comment = comment;
+    m->status = status;
+
+    m->key = qHash(QString::number(m->image.cacheKey()) + m->info.fileName() + m->comment);
+  }
+
+  // funcs and slots
+  ImageFlowItem& ImageFlowItem::operator=(const ImageFlowItem &item) {
+
+    m->info = item.m->info;
+    m->comment = item.m->comment;
+    m->key = item.m->key;
+
+    if (item.m->filePath.isEmpty()) {
+      m->image = item.m->image;
+    } else {
+      setImage(item.m->filePath, m->key);
+    }
+
+    return (*this);
+  }
+
+  bool ImageFlowItem::operator==(const ImageFlowItem& item) const {
+
+	return (item.m->key == m->key);
+  }
+
+  bool ImageFlowItem::operator!=(const ImageFlowItem& item) const {
+
+	return (item.m->key != m->key);
+  }
+
+  const QString& ImageFlowItem::comment() const {
+
+	return (m->comment);
+  }
+
+  const QImage& ImageFlowItem::image() const {
+
+	return (m->image);
+  }
+
+  int ImageFlowItem::status(void) const {
+
+    return (m->status);
+  }
+
+  const QFileInfo& ImageFlowItem::info(void) const {
+
+    return (m->info);
+  }
+
+  qint64 ImageFlowItem::key() const {
+
+	return (m->key);
+  }
+
+  void ImageFlowItem::setInfo(const QFileInfo& info) {
+
+	m->info = info;
+	m->key = qHash(QString::number(m->image.cacheKey()) + m->info.fileName() + m->comment);
+  }
+
+  void ImageFlowItem::setComment(const QString &comment) {
+
+	m->comment = comment;
+	m->key = qHash(QString::number(m->image.cacheKey()) + m->info.fileName() + m->comment);
+  }
+
+  void ImageFlowItem::setImage(const QImage &image) {
+
+	m->image = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	m->key = qHash(QString::number(m->image.cacheKey()) + m->info.fileName() + m->comment);
+  }
+
+  void ImageFlowItem::setImage(const QString &filePath, int size) {
+
+	m->filePath = filePath;
+	m->key = size;
+
+	QTimer::singleShot(1000, this, SLOT(loadImage()));
+  }
+
+  void ImageFlowItem::setStatus(const int status) {
+
+    m->status = status;
+  }
+
+  void ImageFlowItem::loadImage() {
+
+	int imageHeight = m->key;
+
+	if (!m->image.load(m->filePath)) {
+	  QFileIconProvider iconProvider;
+	  m->image = iconProvider.icon(QFileInfo(m->filePath)).pixmap(imageHeight).toImage();
+	} else {
+	  m->image = resizeImage(m->image, imageHeight);
 	}
 
-	QPixmapCache::remove("sc-" + sf);
-	QPixmapCache::remove(sf);
-	QPixmap *p = iv->shadowPixmap(fi);
-	emit purgeImageCache(sf);
-	picFlow->insertSlide(index, *p);
+	m->filePath.clear();
+	m->key = qHash(QString::number(m->image.cacheKey()) + m->info.fileName() + m->comment);
   }
 
-  iv->sortPoolDir(-1);
-  picFlow->setCenterIndex(index);
-}
+  QImage ImageFlowItem::resizeImage(const QImage &image, int size) {
 
-void PictureView::updateTitle(const int index) {
+    if (size == image.width() && size == image.height()) {
+      return image;
+    }
 
-  QString strTitle;
+    double scaleWidth = size / (double)image.width();
+    double scaleHeight = size / (double)image.height();
+    double smaller = qMin(scaleWidth, scaleHeight);
 
-  if (iv->imageDirList.isEmpty()) {
-	strTitle = tr("No image");
-  } else {
-	strTitle = iv->imageDirList.at(index).fileName();
+    int w = (int) qRound(smaller * image.width());
+    int h = (int) qRound(smaller * image.height());
+
+    return (image.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
   }
 
-  setWindowTitle(strTitle);
-}
+  // original viewer
+  void FQTermImageOrigin::onChange(const QModelIndex & index) {
 
-void PictureView::setViewMode(const v_modes mode) {
+    if (!model_->isDir(index)) {
 
-  emit viewModeChanged(mode);
-}
+      if (!isHidden())
+        canvas_->hide();
 
-void PictureView::showOrig() {
+      QString exifInfo = QString::fromStdString(exifExtractor_->extractExifInfo(model_->filePath(tree_->currentIndex()).toLocal8Bit().data()));
+      bool resized = false;
 
-  setViewMode(V_ORIGINAL);
-}
+      if (exifInfo != "") {
 
-void PictureView::showBestfit() {
+        if (!isExifTableShown_) {
+          adjustLayout(true);
+          isExifTableShown_ = true;
+          resized = true;
+        }
 
-  setViewMode(V_BESTFIT);
-}
+        updateExifInfo();
+      } else {
 
-void PictureView::zoomIn() {
+        if (isExifTableShown_) {
+          adjustLayout(false);
+          isExifTableShown_ = false;
+          resized = true;
+        }
+      }
 
-  setViewMode(V_ZOOMIN);
-}
+      QString path  = QDir::toNativeSeparators(model_->filePath(index));
 
-void PictureView::zoomOut() {
+      if (path.endsWith(QDir::separator()))
+        path.chop(1);
 
-  setViewMode(V_ZOOMOUT);
-}
+      canvas_->loadImage(path, !resized);
 
-void PictureView::rotateLeft() {
-
-  setViewMode(V_ROTLEFT);
-}
-
-void PictureView::rotateRight() {
-
-  setViewMode(V_ROTRIGHT);
-}
-
-void PictureView::showFullscreen() {
-
-  const Qt::WindowStates winState = windowState() ^ Qt::WindowFullScreen;
-
-  setWindowState(winState);
-
-  switch (winState) {
-	case Qt::WindowNoState:
-	case Qt::WindowMaximized:
-	  toolBar->show();
-	  setBackgroundRole(QPalette::Midlight);
-	  scrollArea->setBackgroundRole(QPalette::Dark);
-	  imageDisplay->setBackgroundRole(QPalette::Dark);
-	  setViewMode(V_SHADOW);
-	  break;
-	default:
-	  toolBar->hide();
-	  setBackgroundRole(QPalette::Shadow);
-	  scrollArea->setBackgroundRole(QPalette::Shadow);
-	  imageDisplay->setBackgroundRole(QPalette::Shadow);
-	  setViewMode(V_FULLSCREEN);
-	  break;
-  }
-}
-
-void PictureView::closeThisWindow() {
-
-  hide();
-}
-
-void PictureView::keyPressEvent(QKeyEvent *event) {
-
-  switch (event->key()) {
-	case Qt::Key_F:
-	  showFullscreen();
-	  break;
-// may we don't need specific key shortcuts
-// to do this.
-//	case Qt::Key_Q:
-//	  closeThisWindow();
-	default:
-	  lower();
-	  hide();
-	  iv->activateWindow();
-	  iv->raise();
-	  iv->show();
-	  break;
-  }
-}
-
-void PictureView::closeEvent(QCloseEvent *event) {
-
-  closeThisWindow();
-}
-
-
-/********************************************/
-/*****  ImageDisplay ************************/
-/********************************************/
-
-ImageDisplay::ImageDisplay(PictureView *parent) {
-
-  picView = parent;
-  iv = parent->iv;
-
-  setMinimumSize(QSize(iv->frameWidth - DISP_MARGIN,
-					iv->frameHeight - DISP_MARGIN));
-  setAutoFillBackground(true);
-  setBackgroundRole(QPalette::Dark);
-
-  FQ_VERIFY(connect(this, SIGNAL(imageInfoChanged(int)), this, SLOT(updateImageInfo(int))));
-  FQ_VERIFY(connect(this, SIGNAL(pixmapSizeChanged(int, int)), this, SLOT(updateFrameSize(int, int))));
-}
-
-ImageDisplay::~ImageDisplay() {
-}
-
-void ImageDisplay::renderImage(const int index) {
-
-  // maybe we don't want an update while
-  // iv is not visible.
-  if (isVisible()) {
-	updateImageCache(index);
+      //    canvas_->autoAdjust();
+      if (!isHidden())
+        canvas_->show();
+    }
   }
 
-  setCurrentPixmap(iv->shadowPixmap(iv->imageDirList.at(index)));
-}
-
-void ImageDisplay::updateImageInfo(const int index) {
-
-  QString strInfo;
-
-  if (index < 0) {
-	strInfo = tr("No image");
-  } else {
-	QFileInfo fi = iv->imageDirList.at(index);
-	QPixmap *current = currentPixmap();
-	QPixmap *original = iv->origPixmap(fi);
-
-	strInfo = QString("%1 x %2 - %3 KB - %4%")
-					.arg(original->width()).arg(original->height())
-					.arg(fi.size() / 1024.0, 0, 'f', 2)
-					.arg(qRound((((double)current->width() * (double)current->height()) /
-						   ((double)original->width() * (double)original->height())) * 100.0));
+  FQTermImageOrigin::~FQTermImageOrigin() {
+    delete menuBar_;
+    delete canvas_;
+    delete tree_;
+    delete model_;
   }
 
-  picView->statInfo->showMessage(strInfo); 
-}
+  FQTermImageOrigin::FQTermImageOrigin(FQTermConfig * config, QWidget *parent,
+    Qt::WindowFlags wflag) :
+    FQTermImage(parent, wflag),
+    config_(config),
+    isExifTableShown_(false) {
 
-QPixmap *ImageDisplay::renderPixmap(QPixmap *pixmap, const double x, const double y,
-							const v_modes mode) {
-  QPixmap *p;
-  QMatrix matrix;
+    setWindowTitle(tr("FQTerm Image Viewer"));
+    ItemDelegate* itemDelegate = new ItemDelegate;
+    exifExtractor_ = new ExifExtractor;
+    exifTable_ = new ExifTable(this);
+    exifTable_->setTextFormat(Qt::RichText);
+    exifTable_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    canvas_ = new FQTermCanvas(config, this, 0);
+    canvas_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+    model_ = new ImageViewerDirModel;
+    tree_ = new QTreeView;
+    tree_->setModel(model_);
+    tree_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    adjustItemSize();
+    tree_->setItemDelegate(itemDelegate);
+    tree_->setColumnWidth(0, 150);
+    //  tree_->hideColumn(0);
 
-  switch (mode) {
-	case V_BESTFIT:
-	case V_FULLSCREEN:
-	  p = new QPixmap(pixmap->scaled(x, y, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-	  break;
-	case V_SHADOW:
-	case V_ZOOMIN:
-	case V_ZOOMOUT:
-	  matrix.reset();
-	  matrix.scale(x, y);
-	  p = new QPixmap(pixmap->transformed(matrix, Qt::SmoothTransformation));
-	  break;
-	case V_ROTLEFT:
-	case V_ROTRIGHT:
-	  matrix.reset();
-	  matrix.rotate(x);
-	  p = new QPixmap(pixmap->transformed(matrix, Qt::SmoothTransformation));
-	  break;
-	case V_UNKNOWN:
-	default:
-	  p = currentPixmap();
-	  break;
-	}
+    tree_->setUniformRowHeights(true);
+    tree_->setWordWrap(true);
 
-  return p;
-}
+    comboBox_ = new QComboBox(this);
+    comboBox_->addItem(tr("Sort by name"), QDir::Name);
+    comboBox_->addItem(tr("Sort by time"), QDir::Time);
+    comboBox_->addItem(tr("Sort by size"), QDir::Size);
+    comboBox_->addItem(tr("Sort by type"), QDir::Type);
 
-void ImageDisplay::updateImageCache(const int index) {
+    FQ_VERIFY(connect(comboBox_, SIGNAL(currentIndexChanged(int)), this, SLOT(sortFileList(int))));
 
-  QPixmap *p = new QPixmap;
-  QFileInfo fi = iv->imageDirList.at(index);
+    comboBox_->setCurrentIndex(1);
 
-  if (QFile::exists(fi.absoluteFilePath())) {
-	p->load(fi.absoluteFilePath(), fi.suffix().toLatin1());
-	QPixmapCache::remove(fi.fileName());
-	QPixmapCache::insert(fi.fileName(), *p);
+    layout_ = new QGridLayout;
+    menuBar_ = new QMenuBar(this);
+    menuBar_->addMenu(canvas_->menu());
+    menuBar_->resize(1,1);
+
+    canvas_->ToolBar()->addAction(
+      QIcon(getPath(RESOURCE) + ICON_SOURCE + "prev.png"), tr("Previous"),
+      this, SLOT(previous()));
+    canvas_->ToolBar()->addAction(
+      QIcon(getPath(RESOURCE) + ICON_SOURCE + "next.png"), tr("Next"),
+      this, SLOT(next()));
+
+    layout_->addWidget(tree_, 0, 0, 12, 1);
+    layout_->addWidget(comboBox_, 12, 0, 1, 1);
+    layout_->addWidget(canvas_, 0, 1, 12, 10);
+    //  layout_->addWidget(exifTable_, 10, 1, 2, 10);
+    layout_->addWidget(canvas_->ToolBar(), 12, 1, 1, 10, Qt::AlignHCenter);
+    layout_->setColumnMinimumWidth(0, tree_->columnWidth(0) + 150);
+    setLayout(layout_);
+
+    /*
+      FQ_VERIFY(connect(tree_, SIGNAL(clicked(const QModelIndex &)),
+      this, SLOT(onChange(const QModelIndex &))));
+    */
+    FQ_VERIFY(connect(tree_, SIGNAL(activated(const QModelIndex &)),
+        this, SLOT(onChange(const QModelIndex &))));
+    FQ_VERIFY(connect(tree_->selectionModel(),
+        SIGNAL(selectionChanged(const QItemSelection&,
+            const QItemSelection&)),
+        this, SLOT(selectionChanged(const QItemSelection&,
+            const QItemSelection&))));
+    FQ_VERIFY(connect(exifTable_, SIGNAL(showExifDetails()),
+        this, SLOT(showFullExifInfo())));
   }
 
-  if (QFile::exists(iv->shadowPath + fi.fileName())) {
-	p->load(iv->shadowPath + fi.fileName(), fi.suffix().toLatin1());
-	QPixmapCache::remove("sc-" + fi.fileName());
-	QPixmapCache::insert("sc-" + fi.fileName(), *p);
+  void FQTermImageOrigin::scrollTo(const QString& filename) {
+
+    QString path = QFileInfo(filename).absolutePath();
+    model_->refresh();
+    tree_->setRootIndex(model_->index(path));
+    canvas_->loadImage(filename);
+
+    if (canvas_->isHidden() && !isHidden()) {
+      canvas_->show();
+    }
+
+    const QModelIndex& index = model_->index(filename);
+    tree_->scrollTo(index);
+    tree_->setCurrentIndex(index);
   }
 
-  delete p;
-}
+  void FQTermImageOrigin::updateImage(const QString& filename) {
 
-void ImageDisplay::setCurrentPixmap(QPixmap *p) {
-
-  curPixmap = p;
-}
-
-
-
-QPixmap *ImageDisplay::currentPixmap() const {
-
-  return curPixmap;
-}
-
-void ImageDisplay::updateFrameSize(const int width, const int height) {
-
-  if (width > 0 && width <= 4096
-	  && height > 0 && height <= 4096) {
-	setMinimumSize(QSize(width, height));
-  }
-}
-
-void ImageDisplay::displayImage(const v_modes mode) {
-
-  int index;
-
-  if ( (index = iv->currentIndex()) < 0) {
-	return;
+    static int i = 0;
+    if (++i == 10) {
+      model_->refresh(model_->index(filename));
+      i = 0;
+    }
+    canvas_->updateImage(filename);
   }
 
-  double fullX = iv->dispRect.width();
-  double fullY = iv->dispRect.height();
-  double x = picView->scrollArea->width();
-  double y = picView->scrollArea->height();
-  QPixmap *p = new QPixmap;
-  QFileInfo fi = iv->imageDirList.at(index);
+  void FQTermImageOrigin::previous() {
 
-  switch (mode) {
-	case V_SHADOW:
-	  p = iv->shadowPixmap(fi);
-	  setCurrentPixmap(p);
-	  break;
-	case V_ORIGINAL:
-	  p = iv->origPixmap(fi);
-	  setCurrentPixmap(p);
-	  break;
-	case V_FULLSCREEN:
-	  p = iv->origPixmap(fi);
-	  if (p->width() >= fullX || p->height() >= fullY) {
-		p = renderPixmap(p, fullX - DISP_MARGIN * 3.5, fullY - DISP_MARGIN * 3.5, V_FULLSCREEN);
-	  }
-	  setCurrentPixmap(p);
-	  break;
-	case V_BESTFIT:
-	  p = iv->origPixmap(fi);
-	  p = renderPixmap(p, x - DISP_MARGIN, y - DISP_MARGIN, V_BESTFIT);
-	  break;
-	case V_ZOOMOUT:
-	  p = renderPixmap(currentPixmap(), ZOOMOUT_FACTOR, ZOOMOUT_FACTOR, V_ZOOMOUT);
-	  break;
-	case V_ZOOMIN:
-	  p = renderPixmap(currentPixmap(), ZOOMIN_FACTOR, ZOOMIN_FACTOR, V_ZOOMIN);
-	  break;
-	case V_ROTLEFT:
-	  p = renderPixmap(currentPixmap(), ROTLEFT_DEG, ROTLEFT_DEG, V_ROTLEFT);
-	  break;
-	case V_ROTRIGHT:
-	  p = renderPixmap(currentPixmap(), ROTRIGHT_DEG, ROTRIGHT_DEG, V_ROTRIGHT);
-	  break;
-	case V_UNKNOWN:
-	default:
-	  p = currentPixmap();
-	  break;
+    const QModelIndex& index = tree_->indexAbove(tree_->currentIndex());
+    if (index.isValid()) {
+      tree_->setCurrentIndex(index);
+      canvas_->loadImage(QDir::toNativeSeparators(model_->filePath(index)));
+    }
   }
 
-  setCurrentPixmap(p);
+  void FQTermImageOrigin::next() {
 
-  if (mode != V_SHADOW) {
-	emit pixmapSizeChanged(p->width(), p->height());
-  } else {
-	emit pixmapSizeChanged(iv->pixmapWidth, iv->pixmapHeight);
+    const QModelIndex& index = tree_->indexBelow(tree_->currentIndex());
+    if (index.isValid()) {
+      tree_->setCurrentIndex(index);
+      canvas_->loadImage(QDir::toNativeSeparators(model_->filePath(index)));
+    }
   }
 
-  this->repaint();
-  emit imageInfoChanged(index);
-}
+  void FQTermImageOrigin::adjustItemSize() {
 
-void ImageDisplay::drawImage(const QPixmap *pixmap, QPainter &painter) {
-
-  painter.drawPixmap((width() - pixmap->width()) / 2.0,
-					(height() - pixmap->height()) / 2.0, *pixmap);
-
-}
-
-void ImageDisplay::paintEvent(QPaintEvent *event) {
-
-  QPixmap *p = currentPixmap();
-
-  if (!p->isNull()) {
-	QPainter painter(this);
-	painter.setRenderHint(QPainter::Antialiasing);
-	painter.setRenderHint(QPainter::TextAntialiasing);
-	painter.setRenderHint(QPainter::SmoothPixmapTransform);
-	drawImage(p, painter);
-	painter.end();
+    QFontMetrics fm(font());
+    ItemDelegate::size_.setWidth(qMax(128, fm.width("WWWWWWWW.WWW")));
+    ItemDelegate::size_.setHeight(fm.height() + 150);
   }
-}
 
+  void FQTermImageOrigin::selectionChanged(const QItemSelection & selected,
+    const QItemSelection & deselected) {
 
-//original image viewer
-void FQTermImageOrigin::onChange(const QModelIndex & index) {
-  if (!model_->isDir(index)) {
-    if (!isHidden())
-      canvas_->hide();
+    onChange(tree_->selectionModel()->currentIndex());
+  }
+
+  void FQTermImageOrigin::sortFileList(int index) {
+
+    model_->setSorting(QDir::SortFlag(comboBox_->itemData(index).toInt()));
+    QString poolPath = config_->getItemValue("preference", "pool");
+
+    if (poolPath.isEmpty()) {
+      poolPath = getPath(USER_CONFIG) + "pool/";
+    }
+
+    tree_->setRootIndex(model_->index(poolPath));
+  }
+
+  void FQTermImageOrigin::showFullExifInfo() {
 
     QString exifInfo = QString::fromStdString(exifExtractor_->extractExifInfo(model_->filePath(tree_->currentIndex()).toLocal8Bit().data()));
-    bool resized = false;
-    if (exifInfo != "") {
-      if (!isExifTableShown_) {
-        adjustLayout(true);
-        isExifTableShown_ = true;
-        resized = true;
-      }
-      updateExifInfo();
-    } else {
-      if (isExifTableShown_) {
-        adjustLayout(false);
-        isExifTableShown_ = false;
-        resized = true;
+    QString comment;
+
+    if ((*exifExtractor_)["UserComment"].length() > 8) {
+
+      QString commentEncoding = QString::fromStdString((*exifExtractor_)["UserComment"].substr(0, 8));
+
+      if (commentEncoding.startsWith("UNICODE")) {
+        //UTF-16
+        QTextCodec* c = QTextCodec::codecForName("UTF-16");
+        comment = c->toUnicode((*exifExtractor_)["UserComment"].substr(8).c_str());
+      } else if (commentEncoding.startsWith("JIS")) {
+        //JIS X 0208
+        QTextCodec* c = QTextCodec::codecForName("JIS X 0208");
+        comment = c->toUnicode((*exifExtractor_)["UserComment"].substr(8).c_str());
+      } else {
+        comment = QString::fromStdString((*exifExtractor_)["UserComment"].substr(8));
       }
     }
-    QString path  = QDir::toNativeSeparators(model_->filePath(index));
-    if (path.endsWith(QDir::separator()))
-      path.chop(1);
-    canvas_->loadImage(path, !resized);
-    //    canvas_->autoAdjust();
-    if (!isHidden())
-      canvas_->show();
+
+
+    QTextEdit* info = new QTextEdit;
+    info->setText(exifInfo + tr("Comment : ") + comment + "\n");
+    info->setWindowFlags(Qt::Dialog);
+    info->setAttribute(Qt::WA_DeleteOnClose);
+    info->setAttribute(Qt::WA_ShowModal);
+    //  info->setLineWrapMode(QTextEdit::NoWrap);
+    info->setReadOnly(true);
+    QFontMetrics fm(font());
+    info->resize(fm.width("Orientation : 1st row - 1st col : top - left side    "), fm.height() * 20);
+    info->show();
   }
-}
 
-FQTermImageOrigin::~FQTermImageOrigin() {
-  delete menuBar_;
-  delete canvas_;
-  delete tree_;
-  delete model_;
-}
+  void FQTermImageOrigin::adjustLayout(bool withExifTable) {
 
-FQTermImageOrigin::FQTermImageOrigin(FQTermConfig * config, QWidget *parent,
-                                     Qt::WindowFlags wflag) :
-FQTermImage(parent, wflag),
-config_(config),
-isExifTableShown_(false) {
-  setWindowTitle(tr("FQTerm Image Viewer"));
-  ItemDelegate* itemDelegate = new ItemDelegate;
-  exifExtractor_ = new ExifExtractor;
-  exifTable_ = new ExifTable(this);
-  exifTable_->setTextFormat(Qt::RichText);
-  exifTable_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-  canvas_ = new FQTermCanvas(config, this, 0);
-  canvas_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-  model_ = new ImageViewerDirModel;
-  tree_ = new QTreeView;
-  tree_->setModel(model_);
-  tree_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-  adjustItemSize();
-  tree_->setItemDelegate(itemDelegate);
-  tree_->setColumnWidth(0, 150);
-  //  tree_->hideColumn(0);
+    if (withExifTable) {
 
-  tree_->setUniformRowHeights(true);
-  tree_->setWordWrap(true);
+      layout_->addWidget(canvas_, 0, 1, 11, 10);
+      layout_->addWidget(exifTable_, 11, 1, 1, 10, Qt::AlignHCenter);
+      if (!isHidden() && exifTable_->isHidden()) {
+        exifTable_->show();
+      }
 
-  comboBox_ = new QComboBox(this);
-  comboBox_->addItem(tr("Sort by name"), QDir::Name);
-  comboBox_->addItem(tr("Sort by time"), QDir::Time);
-  comboBox_->addItem(tr("Sort by size"), QDir::Size);
-  comboBox_->addItem(tr("Sort by type"), QDir::Type);
-
-  FQ_VERIFY(connect(comboBox_, SIGNAL(currentIndexChanged(int)), this, SLOT(sortFileList(int))));
-
-  comboBox_->setCurrentIndex(1);
-
-  layout_ = new QGridLayout;
-  menuBar_ = new QMenuBar(this);
-  menuBar_->addMenu(canvas_->menu());
-  menuBar_->resize(1,1);
-
-  canvas_->ToolBar()->addAction(
-    QIcon(getPath(RESOURCE) + "/pic/ViewerButtons/prev.png"), tr("Previous"),
-    this, SLOT(previous()));
-  canvas_->ToolBar()->addAction(
-    QIcon(getPath(RESOURCE) + "/pic/ViewerButtons/next.png"), tr("Next"),
-    this, SLOT(next()));
-
-  layout_->addWidget(tree_, 0, 0, 12, 1);
-  layout_->addWidget(comboBox_, 12, 0, 1, 1);
-  layout_->addWidget(canvas_, 0, 1, 12, 10);
-  //  layout_->addWidget(exifTable_, 10, 1, 2, 10);
-  layout_->addWidget(canvas_->ToolBar(), 12, 1, 1, 10, Qt::AlignHCenter);
-  layout_->setColumnMinimumWidth(0, tree_->columnWidth(0) + 150);
-  setLayout(layout_);
-  /*
-  FQ_VERIFY(connect(tree_, SIGNAL(clicked(const QModelIndex &)),
-  this, SLOT(onChange(const QModelIndex &))));
-  */
-  FQ_VERIFY(connect(tree_, SIGNAL(activated(const QModelIndex &)),
-    this, SLOT(onChange(const QModelIndex &))));
-  FQ_VERIFY(connect(tree_->selectionModel(),
-    SIGNAL(selectionChanged(const QItemSelection&,
-    const QItemSelection&)),
-    this, SLOT(selectionChanged(const QItemSelection&,
-    const QItemSelection&))));
-  FQ_VERIFY(connect(exifTable_, SIGNAL(showExifDetails()),
-    this, SLOT(showFullExifInfo())));
-}
-
-void FQTermImageOrigin::scrollTo(const QString& filename) {
-  QString path = QFileInfo(filename).absolutePath();
-  model_->refresh();
-  tree_->setRootIndex(model_->index(path));
-  canvas_->loadImage(filename);
-  if (canvas_->isHidden() && !isHidden()) {
-    canvas_->show();
-  }
-  const QModelIndex& index = model_->index(filename);
-  tree_->scrollTo(index);
-  tree_->setCurrentIndex(index);
-}
-
-void FQTermImageOrigin::updateImage(const QString& filename) {
-  static int i = 0;
-  if (++i == 10) {
-    model_->refresh(model_->index(filename));
-    i = 0;
-  }
-  canvas_->updateImage(filename);
-}
-
-void FQTermImageOrigin::previous() {
-  const QModelIndex& index = tree_->indexAbove(tree_->currentIndex());
-  if (index.isValid()) {
-    tree_->setCurrentIndex(index);
-    canvas_->loadImage(QDir::toNativeSeparators(model_->filePath(index)));
-  }
-}
-
-void FQTermImageOrigin::next() {
-  const QModelIndex& index = tree_->indexBelow(tree_->currentIndex());
-  if (index.isValid()) {
-    tree_->setCurrentIndex(index);
-    canvas_->loadImage(QDir::toNativeSeparators(model_->filePath(index)));
-  }
-}
-
-void FQTermImageOrigin::adjustItemSize() {
-  QFontMetrics fm(font());
-  ItemDelegate::size_.setWidth(qMax(128, fm.width("WWWWWWWW.WWW")));
-  ItemDelegate::size_.setHeight(fm.height() + 150);
-}
-
-void FQTermImageOrigin::selectionChanged(const QItemSelection & selected,
-                                         const QItemSelection & deselected) {
-                                           onChange(tree_->selectionModel()->currentIndex());
-}
-
-void FQTermImageOrigin::sortFileList(int index) {
-  model_->setSorting(QDir::SortFlag(comboBox_->itemData(index).toInt()));
-  QString poolPath = config_->getItemValue("preference", "pool");
-  if (poolPath.isEmpty()) {
-    poolPath = getPath(USER_CONFIG) + "pool/";
-  }
-  tree_->setRootIndex(model_->index(poolPath));
-}
-
-void FQTermImageOrigin::showFullExifInfo()
-{
-  QString exifInfo = QString::fromStdString(exifExtractor_->extractExifInfo(model_->filePath(tree_->currentIndex()).toLocal8Bit().data()));
-  QString comment;
-  if ((*exifExtractor_)["UserComment"].length() > 8) {
-    QString commentEncoding = QString::fromStdString((*exifExtractor_)["UserComment"].substr(0, 8));
-
-    if (commentEncoding.startsWith("UNICODE")) {
-      //UTF-16
-      QTextCodec* c = QTextCodec::codecForName("UTF-16");
-      comment = c->toUnicode((*exifExtractor_)["UserComment"].substr(8).c_str());
-    } else if (commentEncoding.startsWith("JIS")) {
-      //JIS X 0208
-      QTextCodec* c = QTextCodec::codecForName("JIS X 0208");
-      comment = c->toUnicode((*exifExtractor_)["UserComment"].substr(8).c_str());
+      layout_->addWidget(canvas_->ToolBar(), 12, 1, 1, 10, Qt::AlignHCenter);
     } else {
-      comment = QString::fromStdString((*exifExtractor_)["UserComment"].substr(8));
+      layout_->addWidget(canvas_, 0, 1, 12, 10);
+      layout_->removeWidget(exifTable_);
+      exifTable_->hide();
+      layout_->addWidget(canvas_->ToolBar(), 12, 1, 1, 10, Qt::AlignHCenter);
     }
   }
 
+  void FQTermImageOrigin::updateExifInfo() {
 
-  QTextEdit* info = new QTextEdit;
-  info->setText(exifInfo + tr("Comment : ") + comment + "\n");
-  info->setWindowFlags(Qt::Dialog);
-  info->setAttribute(Qt::WA_DeleteOnClose);
-  info->setAttribute(Qt::WA_ShowModal);
-  //  info->setLineWrapMode(QTextEdit::NoWrap);
-  info->setReadOnly(true);
-  QFontMetrics fm(font());
-  info->resize(fm.width("Orientation : 1st row - 1st col : top - left side    "), fm.height() * 20);
-  info->show();
-}
+    exifTable_->clear();
 
-void FQTermImageOrigin::adjustLayout(bool withExifTable) {
-  if (withExifTable) {
-    layout_->addWidget(canvas_, 0, 1, 11, 10);
-    layout_->addWidget(exifTable_, 11, 1, 1, 10, Qt::AlignHCenter);
+    QString exifInfoToShow = "<table border=\"1\"><tr><td>"
+      + tr("Model") + " : " + QString::fromStdString((*exifExtractor_)["Model"]) + "</td><td>"
+      + QString::fromStdString((*exifExtractor_)["DateTime"]) + "</td><td>"
+      + QString::fromStdString((*exifExtractor_)["Flash"]) + "</td>"
+      + "</tr><tr><td>"
+      + tr("ExposureTime") + " : " + QString::fromStdString((*exifExtractor_)["ExposureTime"]) + "</td><td>"
+      + tr("FNumber") + " : " + QString::fromStdString((*exifExtractor_)["FNumber"]) + "</td><td>"
+      + tr("ISO") + " : " + QString::fromStdString((*exifExtractor_)["ISOSpeedRatings"]) + "</td>"
+      + "</tr><tr><td>"
+      + tr("FocalLength") + " : " + QString::fromStdString((*exifExtractor_)["FocalLength"]) + "</td><td>"
+      + tr("MeteringMode") + " : " + QString::fromStdString((*exifExtractor_)["MeteringMode"]) + "</td><td>" 
+      + tr("ExposureBias") + " : " + QString::fromStdString((*exifExtractor_)["ExposureBiasValue"]) + "</td></tr></tabel>";
+
+    exifTable_->setText(exifInfoToShow);
     if (!isHidden() && exifTable_->isHidden()) {
       exifTable_->show();
     }
-    layout_->addWidget(canvas_->ToolBar(), 12, 1, 1, 10, Qt::AlignHCenter);
-  } else {
-    layout_->addWidget(canvas_, 0, 1, 12, 10);
-    layout_->removeWidget(exifTable_);
-    exifTable_->hide();
-    layout_->addWidget(canvas_->ToolBar(), 12, 1, 1, 10, Qt::AlignHCenter);
   }
-}
 
-void FQTermImageOrigin::updateExifInfo() {
-  exifTable_->clear();
+  void FQTermImageOrigin::closeEvent( QCloseEvent *clse ) {
 
-  QString exifInfoToShow = "<table border=\"1\"><tr><td>"
-    + tr("Model") + " : " + QString::fromStdString((*exifExtractor_)["Model"]) + "</td><td>"
-    + QString::fromStdString((*exifExtractor_)["DateTime"]) + "</td><td>"
-    + QString::fromStdString((*exifExtractor_)["Flash"]) + "</td>"
-    + "</tr><tr><td>"
-    + tr("ExposureTime") + " : " + QString::fromStdString((*exifExtractor_)["ExposureTime"]) + "</td><td>"
-    + tr("FNumber") + " : " + QString::fromStdString((*exifExtractor_)["FNumber"]) + "</td><td>"
-    + tr("ISO") + " : " + QString::fromStdString((*exifExtractor_)["ISOSpeedRatings"]) + "</td>"
-    + "</tr><tr><td>"
-    + tr("FocalLength") + " : " + QString::fromStdString((*exifExtractor_)["FocalLength"]) + "</td><td>"
-    + tr("MeteringMode") + " : " + QString::fromStdString((*exifExtractor_)["MeteringMode"]) + "</td><td>" 
-    + tr("ExposureBias") + " : " + QString::fromStdString((*exifExtractor_)["ExposureBiasValue"]) + "</td></tr></tabel>";
-
-  exifTable_->setText(exifInfoToShow);
-  if (!isHidden() && exifTable_->isHidden()) {
-    exifTable_->show();
+    hide();
+    clse->ignore();
+    return ;
   }
-}
 
-void FQTermImageOrigin::closeEvent( QCloseEvent *clse )
-{
-  hide();
-  clse->ignore();
-  return ;
-}
-ImageViewerDirModel::ImageViewerDirModel(QObject *parent /*= 0*/)
-: QDirModel(parent) {
-  insertColumn(1);
-  QStringList nameFilterList;
-  nameFilterList << "*.jpg" <<  "*.jpeg" << "*.png"
-    << "*.mng" << "*.bmp" << "*.gif";
-  setNameFilters(nameFilterList);
-  setFilter(QDir::Files);
-}
+  ImageViewerDirModel::ImageViewerDirModel(QObject *parent /*= 0*/)
+  : QDirModel(parent) {
 
-int ImageViewerDirModel::columnCount(const QModelIndex &/*parent*/) const {
-  return 1;
-}
+    insertColumn(1);
+    QStringList nameFilterList;
+    nameFilterList << "*.jpg" <<  "*.jpeg" << "*.png"
+                   << "*.mng" << "*.bmp" << "*.gif";
+    setNameFilters(nameFilterList);
+    setFilter(QDir::Files);
+  }
 
-QVariant ImageViewerDirModel::headerData(
-  int section, Qt::Orientation orientation, int role) const {
+  int ImageViewerDirModel::columnCount(const QModelIndex &/*parent*/) const {
+
+    return 1;
+  }
+
+  QVariant ImageViewerDirModel::headerData(
+    int section, Qt::Orientation orientation, int role) const {
+
     if (role == Qt::DisplayRole) {
       if (section == 0) {
         return QString(tr("Image Preview"));
       }
     }
     return QDirModel::headerData(section, orientation, role);
-}
-
-QVariant ImageViewerDirModel::data(const QModelIndex &index, int role) const {
-  if (role == Qt::DecorationRole) {
-    if (isDir(index)) {
-      return QVariant();
-    }
-    QString path  = QDir::toNativeSeparators(filePath(index));
-    if (path.endsWith(QDir::separator()))
-      path.chop(1);
-
-    QPixmap pixmap(path);
-    if (pixmap.height() > 128 || pixmap.width() > 128) {
-      return pixmap.scaled(128, 128,
-        Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    }
-    return pixmap;
-  } else if (role == Qt::DisplayRole) {
-    return fileName(index);
-  }/*
-   else if (role == Qt::TextAlignmentRole) {
-   return Qt::Qt::AlignBottom;
-   }*/
-  return QVariant();
-}
-
-QSize ItemDelegate::size_;
-
-void ItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem & option,
-                         const QModelIndex & index ) const {
-                           QStyleOptionViewItemV3 opt = setOptions(index, option);
-
-                           // prepare
-                           painter->save();
-
-                           // get the data and the rectangles
-
-                           const QPixmap& pixmap
-                             = qvariant_cast<QPixmap>(index.data(Qt::DecorationRole));
-                           QRect decorationRect = QRect(opt.rect.topLeft(), pixmap.size());
-                           decorationRect.moveTo(decorationRect.left(), decorationRect.top() + 10);
-                           const QString& text = index.data(Qt::DisplayRole).toString();
-                           QFontMetrics fm(painter->font());
-                           QRect displayRect = QRect(decorationRect.bottomLeft(),
-                             QSize(fm.width(text),fm.height()));
-
-                           QRect checkRect;
-                           Qt::CheckState checkState = Qt::Unchecked;
-                           QVariant value = index.data(Qt::CheckStateRole);
-                           if (value.isValid()) {
-                             checkState = static_cast<Qt::CheckState>(value.toInt());
-                             checkRect = check(opt, opt.rect, value);
-                           }
-
-                           // do the layout
-
-                           //  doLayout(opt, &checkRect, &decorationRect, &displayRect, false);
-
-                           // draw the item
-
-                           drawBackground(painter, opt, index);
-                           painter->drawPixmap(decorationRect, pixmap);
-                           painter->drawText(displayRect, text);
-
-                           drawFocus(painter, opt, displayRect);
-
-                           // done
-                           painter->restore();
-}
-
-void ExifTable::mouseReleaseEvent(QMouseEvent *pEvent)
-{
-  if (pEvent->button() == Qt::LeftButton) {
-    emit(showExifDetails());
   }
-}
 
-ExifTable::ExifTable(QWidget *parent) : QLabel(parent) {
+  QVariant ImageViewerDirModel::data(const QModelIndex &index, int role) const {
 
-}
+    if (role == Qt::DecorationRole) {
+      if (isDir(index)) {
+        return QVariant();
+      }
 
+      QString path  = QDir::toNativeSeparators(filePath(index));
+      if (path.endsWith(QDir::separator()))
+        path.chop(1);
 
+      QPixmap pixmap(path);
+      if (pixmap.height() > 128 || pixmap.width() > 128) {
+        return pixmap.scaled(128, 128,
+          Qt::KeepAspectRatio, Qt::SmoothTransformation);
+      }
 
+      return pixmap;
+    } else if (role == Qt::DisplayRole) {
+      return fileName(index);
+    }/*
+       else if (role == Qt::TextAlignmentRole) {
+       return Qt::Qt::AlignBottom;
+       }*/
+    return QVariant();
+  }
 
-FQTermImage::FQTermImage( QWidget * parent, Qt::WindowFlags f ) : QWidget(parent, f) {
+  QSize ItemDelegate::size_;
 
-}
+  void ItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem & option,
+    const QModelIndex & index ) const {
+    QStyleOptionViewItemV3 opt = setOptions(index, option);
+ 
+    // prepare
+    painter->save();
+
+    // get the data and the rectangles
+    const QPixmap& pixmap
+      = qvariant_cast<QPixmap>(index.data(Qt::DecorationRole));
+    QRect decorationRect = QRect(opt.rect.topLeft(), pixmap.size());
+    decorationRect.moveTo(decorationRect.left(), decorationRect.top() + 10);
+    const QString& text = index.data(Qt::DisplayRole).toString();
+    QFontMetrics fm(painter->font());
+    QRect displayRect = QRect(decorationRect.bottomLeft(),
+      QSize(fm.width(text),fm.height()));
+
+    QRect checkRect;
+    Qt::CheckState checkState = Qt::Unchecked;
+    QVariant value = index.data(Qt::CheckStateRole);
+
+    if (value.isValid()) {
+      checkState = static_cast<Qt::CheckState>(value.toInt());
+      checkRect = check(opt, opt.rect, value);
+    }
+
+    // do the layout
+
+    //  doLayout(opt, &checkRect, &decorationRect, &displayRect, false);
+
+    // draw the item
+
+    drawBackground(painter, opt, index);
+    painter->drawPixmap(decorationRect, pixmap);
+    painter->drawText(displayRect, text);
+
+    drawFocus(painter, opt, displayRect);
+
+    // done
+    painter->restore();
+  }
+
+  void ExifTable::mouseReleaseEvent(QMouseEvent *pEvent) {
+
+    if (pEvent->button() == Qt::LeftButton) {
+      emit(showExifDetails());
+    }
+  }
+
+  ExifTable::ExifTable(QWidget *parent) : QLabel(parent) {
+
+  }
+
+  FQTermImage::FQTermImage( QWidget * parent, Qt::WindowFlags f ) : QWidget(parent, f) {
+  }
+
 }  // namespace FQTerm
 
 #include "imageviewer.moc"

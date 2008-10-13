@@ -1,3 +1,4 @@
+
 /***************************************************************************
  *   fqterm, a terminal emulator for both BBS and *nix.                    *
  *   Copyright (C) 2008 fqterm development group.                          *
@@ -42,14 +43,9 @@ class QMenuBar;
 class QTreeView;
 class QComboBox;
 
+#include "pictureflow.h"
+
 namespace FQTerm {
-
-class FQTermConfig;
-class FQTermFileDialog;
-class PictureFlow;
-class PictureView;
-class ImageDisplay;
-
 
 #define DISP_MARGIN				(10.0) // show a margin
 #define PIXMAP_CACHESIZE		(5120) // in KBytes
@@ -59,222 +55,254 @@ class ImageDisplay;
 #define ROTRIGHT_DEG			(90.0)
 #define IMG_CHUNK				(16384) // in bytes
 
-#define ICON_SOURCE				"/pic/ViewerButtons/"
-#define POOL_SOURCE				"/pool/"
-#define SHADOW_SOURCE			"/shadow-cache/sc-"
+#define IMAGE_BROWSER_NAME      "FQLora [Image Companion for FQTerm]"
+#define ICON_SOURCE				"pic/ViewerButtons/"
+#define POOL_SOURCE				"pool/"
+#define SHADOW_SOURCE			"shadow-cache/"
+#define TRASH_SOURCE            ".Trash/"
 
-typedef enum {
-  V_UNKNOWN = -1,
-  V_ORIGINAL,
-  V_SHADOW,
-  V_BESTFIT,
-  V_ZOOMIN,
-  V_ZOOMOUT,
-  V_ROTLEFT,
-  V_ROTRIGHT,
-  V_FULLSCREEN
-} v_modes;
-
-class FQTermImage : public QWidget {
-  Q_OBJECT;
-public:
-  FQTermImage(QWidget * parent, Qt::WindowFlags f);
-  virtual void adjustItemSize() = 0;
-  virtual void scrollTo(const QString &) = 0;
-  virtual void updateImage(const QString &) = 0;
-};
-
-class FQTermImageFlow: public FQTermImage {
-  Q_OBJECT;
-
-public:
-  FQTermImageFlow(FQTermConfig *, QWidget *, Qt::WindowFlags);
-  ~FQTermImageFlow();
-
-  // functions
-  QIcon newIcon(const QString &);
-  void adjustItemSize();
-  void scrollTo(const QString &);
-  void updateImage(const QString &);
-  int currentIndex();
-  QPixmap *shadowPixmap(const QFileInfo &);
-  QPixmap *origPixmap(const QFileInfo &);
-
-  // variables
-  FQTermConfig *config_;
-  PictureFlow *ivPicFlow;
-  PictureView *ivPicView;
-  QToolBar *ivToolBar;
-  QSlider *ivSlider;
-  QComboBox *ivSortOpts;
-  QVBoxLayout *ivMainLayout;
-  QDesktopWidget *desktop;
-  QRect dispRect;
-  QDir::SortFlags sortFlag;
-
-  double frameWidth, frameHeight;
-  double pixmapWidth, pixmapHeight;
-  QString iconSource;
-  QString poolPath, shadowPath;
-  QStringList imageSuffixes;
-  QFileInfoList imageDirList;
+#define EMBLEM_LIKE             "emblem-like.png"
+#define EMBLEM_NEW              "emblem-new.png"
+#define EMBLEM_RECOVER          "emblem-recover.png"
+#define EMBLEM_TRASH            "emblem-trash.png"
+#define EMBLEM_TITLE            "emblem-title.png"
+ 
+  class FQTermConfig;
+  class FQTermFileDialog;
 
 
-public slots:
-  void setSliderMax(const int);
-  void setSliderPos(const int);
-  void showSlideImage(const int);
-  void saveImage();
-  void sortPoolDir(const int);
-  void deleteImage();
+  class FQTermImage : public QWidget {
+	Q_OBJECT;
+  public:
+	FQTermImage(QWidget * parent, Qt::WindowFlags f);
+	virtual void adjustItemSize() = 0;
+	virtual void scrollTo(const QString &) = 0;
+	virtual void updateImage(const QString &) = 0;
+  };
 
-signals:
-  void totalCountChanged(const int);
-  void dirListChanged(QFileInfoList &, QString &);
-  void purgeImageCache(QString &);
+  class ImageFlow;
+  class ImageMenu;
+  class ImageFlowItem;
 
-protected:
-  void keyPressEvent(QKeyEvent *);
-  void wheelEvent(QWheelEvent *);
-  void mousePressEvent(QMouseEvent *);
-  void closeEvent(QKeyEvent *);
-};
+  class FQTermImageFlow: public FQTermImage {
+	Q_OBJECT;
 
-class PictureView: public QWidget {
-  Q_OBJECT;
+  public:
+	FQTermImageFlow(FQTermConfig *, QWidget *, Qt::WindowFlags);
+	~FQTermImageFlow();
 
-public:
-  PictureView(FQTermImageFlow *, Qt::WindowFlags);
-  ~PictureView();
-
-  // variables
-  FQTermImageFlow *iv;
-  PictureFlow *picFlow;
-  ImageDisplay *imageDisplay;
-  QScrollArea *scrollArea;
-  QToolBar *toolBar;
-  QVBoxLayout *mainLayout;
-  QStatusBar *statInfo;
-
-public slots:
-  void viewCurrentImage();
-  void viewImage(const QString &, const bool);
-  void closeThisWindow();
-
-signals:
-  void viewModeChanged(const v_modes);
-  void purgeImageCache(QString &);
-
-private:
-  void setViewMode(const v_modes);
-
-private slots:
-  void showOrig();
-  void showBestfit();
-  void zoomIn();
-  void zoomOut();
-  void rotateLeft();
-  void rotateRight();
-  void showFullscreen();
-  void updateTitle(const int);
-
-protected:
-  void keyPressEvent(QKeyEvent *);
-  void closeEvent(QCloseEvent *);
-
-};
-
-class ImageDisplay: public QLabel {
-  Q_OBJECT;
-
-public:
-  ImageDisplay(PictureView *parent);
-  ~ImageDisplay();
-
-  // functions
-  void setCurrentPixmap(QPixmap *);
-  QPixmap *currentPixmap() const;
-
-  // variables
-  FQTermImageFlow *iv;
-  PictureView *picView;
-  QPixmap *curPixmap;
-
-public slots:
-  // functions
-  void renderImage(const int);
-  void updateImageInfo(const int);
-  void updateFrameSize(const int, const int);
-
-signals:
-  void imageInfoChanged(const int);
-  void pixmapSizeChanged(const int, const int);
-
-private:
-  // functions
-  QPixmap *renderPixmap(QPixmap *, const double, const double, const v_modes);
-  void updateImageCache(const int);
-  void drawImage(const QPixmap *, QPainter &);
-
-private slots:
-  void displayImage(const v_modes);
-
-protected:
-  void paintEvent(QPaintEvent *);
-
-};
-
-
-//the origin image viewer
-class FQTermCanvas;
-class ExifExtractor;
-
-class ItemDelegate : public QItemDelegate{
-public:
-  ItemDelegate()
-  {
-    size_ = QSize(250,200);
-  }
-  QSize sizeHint (const QStyleOptionViewItem & option, const QModelIndex & index) const {
-    return size_;
-  }
-  void paint(QPainter * painter, const QStyleOptionViewItem & option, const QModelIndex & index) const;
-  static QSize size_;
-};
-
-class ExifTable : public QLabel
-{
-  Q_OBJECT
-public:
-  ExifTable(QWidget *parent);
-signals:
-  void showExifDetails();
-protected:
-  void mouseReleaseEvent(QMouseEvent *pEvent);
-
-
-};
-
-class ImageViewerDirModel : public QDirModel
-{
-public:
-  ImageViewerDirModel(QObject *parent = 0);
-
-  int columnCount(const QModelIndex & = QModelIndex()) const;
-  QVariant headerData ( int section, Qt::Orientation orientation, int role) const;
-  QVariant data(const QModelIndex &index, int role) const;
-};
-
-
-class FQTermImageOrigin: public FQTermImage {
-  Q_OBJECT;
-public:
-  FQTermImageOrigin(FQTermConfig * config, QWidget *parent, Qt::WindowFlags wflag);
-  ~FQTermImageOrigin();
-  void scrollTo(const QString& filename);
-  void updateImage(const QString& filename);
+	/* don't modify the funcs below */
+	/* they are for API compatibiliy */
+	void adjustItemSize();
+	void scrollTo(const QString &);
+	void updateImage(const QString &);
+	/*********************************/
 
   public slots:
+    void saveImages(void);
+    void clearImages(void);
+	void trashAllImages(void);
+    void recoverImages(void);
+    void showStatusMessage(const QString &message);
+
+  private:
+	ImageFlow *imageFlow_;
+    ImageMenu *imageMenu_;
+	QStatusBar *statusBar_;
+	FQTermConfig *config_;
+
+    QFileInfoList sortedList(const QString &path);
+    const QString& poolSource(void) const;
+    const QString& trashSource(void) const;
+
+  private slots:
+    void loadImages(const int status);
+    void reshuffleImages(const int status);
+    void checkTrashState(void);
+
+  signals:
+    void statusMessage(const QString &message);
+    void isTrashEmpty(void);
+    void trashStatus(const bool fullOrNot);
+    void saveStatus(const bool hasOrNot);
+    void clearStatus(const bool hasOrNot);
+
+  protected:
+	void showEvent(QShowEvent *event);
+	void closeEvent(QCloseEvent *event);
+  };
+
+  class ImageMenu: public QLabel {
+    Q_OBJECT;
+
+  public:
+    ImageMenu(QWidget *parent = 0);
+    ~ImageMenu();
+
+  public slots:
+    void updateEmblems(const int status);
+    void updateDustbin(const bool fullOrNot);
+    void updateSave(const bool hasOrNot);
+    void updateClear(const bool hasOrNot);
+
+  signals:
+    void toggleFlowStatus(const int status);
+    void recoverImages(void);
+    void saveImages(void);
+    void clearImages(void);
+
+  private:
+    class Private;
+    Private *fh;
+
+  protected:
+    void paintEvent(QPaintEvent *event);
+    void mouseReleaseEvent(QMouseEvent *event);
+  };
+
+  class ImageFlow: public PictureFlow {
+	Q_OBJECT;
+    Q_PROPERTY(QList<QByteArray> itemsTitles READ itemsTitles);
+
+  public:
+	ImageFlow(QWidget *parent);
+	~ImageFlow();
+
+    const ImageFlowItem& operator[](int index) const;
+    ImageFlowItem& operator[](int index);
+    const ImageFlowItem& at(int index) const;
+
+    QList<QByteArray>& itemsTitles(void) const;
+
+    QFileInfoList& digest(const int status);
+    void strip(const int status);
+    QList<qint64> sort(const int status);
+    bool reorder(const QList<qint64>& itemsKey);
+
+  public slots:
+    void add(const ImageFlowItem &item);
+    void clear(void);
+    int count(void) const;
+    int size(void) const;
+    void rehash(void);
+    void toggleStatus(const int status);
+    void setCurrentImage(const int index);
+
+  private:
+	class Private;
+	Private *m;
+
+  signals:
+    void statusMessage(const QString &message);
+    void emblemStatus(const int status);
+    void saveStatus(const bool hasOrNot);
+    void clearStatus(const bool hasOrNot);
+    void titlesChanged(QList<QByteArray> &titles);
+
+  protected:
+    void paintEvent(QPaintEvent *event);
+  };
+
+  class ImageFlowItem: public QObject {
+	Q_OBJECT;
+
+	Q_PROPERTY(qint64 key READ key);
+    Q_PROPERTY(int status READ status WRITE setStatus);
+	Q_PROPERTY(QImage image READ image WRITE setImage);
+	Q_PROPERTY(QFileInfo info READ info WRITE setInfo);
+	Q_PROPERTY(QString comment READ comment WRITE setComment);
+
+  public:
+	ImageFlowItem(QObject *parent = 0);
+    ImageFlowItem(const ImageFlowItem &item);
+	ImageFlowItem(const QImage &image, QObject *parent = 0);
+	ImageFlowItem(const QImage &image, const QFileInfo &info, QObject *parent = 0);
+    ImageFlowItem(const QImage &image, const QFileInfo &info, const int state, QObject *parent = 0);
+	ImageFlowItem(const QImage &image, const QFileInfo &info, const QString &comment, QObject *parent = 0);
+    ImageFlowItem(const QImage &image, const QFileInfo &info, const QString& comment, const int status, QObject *parent = 0);
+	~ImageFlowItem();
+
+	const QFileInfo& info(void) const;
+	const QString& comment(void) const;
+	const QImage& image(void) const;
+    int status(void) const;
+	qint64 key(void) const;
+
+    ImageFlowItem& operator=(const ImageFlowItem &item);
+    bool operator==(const ImageFlowItem &item) const;
+    bool operator!=(const ImageFlowItem &item) const;
+
+  public slots:
+    void setStatus(const int status);
+	void setInfo(const QFileInfo &info);
+	void setComment(const QString &comment);
+	void setImage(const QImage &image);
+	void setImage(const QString &filePath, int size);
+	
+  private slots:
+	void loadImage(void);
+	
+  private:
+	QImage resizeImage(const QImage &image, int size);
+	class Private;
+	Private *m;
+
+  };
+
+///////////////////////////////////////////////////////
+//////// the origin image viewer //////////////////////
+///////////////////////////////////////////////////////
+
+  class FQTermCanvas;
+  class ExifExtractor;
+
+  class ItemDelegate : public QItemDelegate {
+  public:
+    ItemDelegate() {
+      size_ = QSize(250,200);
+    }
+
+    QSize sizeHint (const QStyleOptionViewItem & option, const QModelIndex & index) const {
+      return size_;
+    }
+
+    void paint(QPainter * painter, const QStyleOptionViewItem & option, const QModelIndex & index) const;
+    static QSize size_;
+  };
+
+  class ExifTable : public QLabel {
+    Q_OBJECT;
+
+  public:
+    ExifTable(QWidget *parent);
+
+  signals:
+    void showExifDetails();
+
+  protected:
+    void mouseReleaseEvent(QMouseEvent *pEvent);
+  };
+
+  class ImageViewerDirModel : public QDirModel {
+  public:
+    ImageViewerDirModel(QObject *parent = 0);
+
+    int columnCount(const QModelIndex & = QModelIndex()) const;
+    QVariant headerData ( int section, Qt::Orientation orientation, int role) const;
+    QVariant data(const QModelIndex &index, int role) const;
+  };
+
+
+  class FQTermImageOrigin: public FQTermImage {
+    Q_OBJECT;
+
+  public:
+    FQTermImageOrigin(FQTermConfig * config, QWidget *parent, Qt::WindowFlags wflag);
+    ~FQTermImageOrigin();
+    void scrollTo(const QString& filename);
+    void updateImage(const QString& filename);
+
+    public slots:
     void onChange(const QModelIndex & index);
     void next();
     void previous();
@@ -285,23 +313,21 @@ public:
     void adjustLayout(bool withExifTable);
     void updateExifInfo();
 
-protected:
+  protected:
+    void closeEvent(QCloseEvent *clse);
 
-  void closeEvent(QCloseEvent *clse);
-
-
-private:
-  FQTermCanvas* canvas_;
-  QTreeView* tree_;
-  ImageViewerDirModel* model_;
-  QMenuBar* menuBar_;
-  QComboBox* comboBox_;
-  FQTermConfig* config_;
-  ExifExtractor* exifExtractor_;
-  ExifTable* exifTable_;
-  QGridLayout* layout_;
-  bool isExifTableShown_;
-};
+  private:
+    FQTermCanvas* canvas_;
+    QTreeView* tree_;
+    ImageViewerDirModel* model_;
+    QMenuBar* menuBar_;
+    QComboBox* comboBox_;
+    FQTermConfig* config_;
+    ExifExtractor* exifExtractor_;
+    ExifTable* exifTable_;
+    QGridLayout* layout_;
+    bool isExifTableShown_;
+  };
 
 
 }  // namespace FQTerm

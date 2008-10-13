@@ -232,7 +232,7 @@ void prefDialog::onSound() {
 }
 
 void prefDialog::onHttp() {
-  QString http = fileDialog_->getOpenName("Choose a WWW browser", "*", this);
+  QString http = fileDialog_->getOpenName("Choose a WWW browser", "*");
   if (!http.isEmpty()) {
     ui_.httpLineEdit->setText(http);
   }
@@ -254,21 +254,21 @@ void prefDialog::onHttp() {
 // }
 
 void prefDialog::onBrowse() {
-  QString dir = fileDialog_->getExistingDirectory("Choose a directory", ui_.zmodemLineEdit->text(), this);
+  QString dir = fileDialog_->getExistingDirectory("Choose a directory", ui_.zmodemLineEdit->text());
   if (!dir.isEmpty()) {
     ui_.zmodemLineEdit->setText(dir);
   }
 }
 
 void prefDialog::onImage() {
-  QString image = fileDialog_->getOpenName("Choose an Image Viewer", "*", this);
+  QString image = fileDialog_->getOpenName("Choose an Image Viewer", "*");
   if (!image.isEmpty()) {
     ui_.imageLineEdit->setText(image);
   }
 }
 
 void prefDialog::onPool() {
-  QString pool = fileDialog_->getExistingDirectory("Choose a directory", ui_.poolLineEdit->text(), this);
+  QString pool = fileDialog_->getExistingDirectory("Choose a directory", ui_.poolLineEdit->text());
   if (!pool.isEmpty()) {
     ui_.poolLineEdit->setText(pool);
   }
@@ -276,7 +276,7 @@ void prefDialog::onPool() {
 
 void prefDialog::onStyleSheet()
 {
-  QString qssFile = fileDialog_->getOpenName("Choose a QSS File", "Qt Style Sheets (*.qss *.QSS)", this);
+  QString qssFile = fileDialog_->getOpenName("Choose a QSS File", "Qt Style Sheets (*.qss *.QSS)");
   if (!qssFile.isEmpty()) {
     ui_.styleSheetLineEdit->setText(qssFile);
   }

@@ -33,10 +33,10 @@ public:
   FQTermFileDialog(FQTermConfig *config, QWidget *parent_ = 0, Qt::WFlags fl = 0);
   ~FQTermFileDialog();
 
-  QString getSaveName(const QString &filename, const QString &hints, QWidget *widget);
-  QString getOpenName(const QString &title, const QString &hints, QWidget *widget);
-  QStringList getOpenNames(const QString &title, const QString &hints, QWidget *widget);
-  QString getExistingDirectory(const QString &title, const QString &hints, QWidget *widget);
+  QString getSaveName(const QString &filename, const QString &hints, QWidget *widget = 0);
+  QString getOpenName(const QString &title, const QString &hints, QWidget *widget = 0);
+  QStringList getOpenNames(const QString &title, const QString &hints, QWidget *widget = 0);
+  QString getExistingDirectory(const QString &title, const QString &hints, QWidget *widget = 0);
 
 private:
   QString strSection, strSave, strOpen;
