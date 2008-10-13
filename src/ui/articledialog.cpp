@@ -80,8 +80,8 @@ void articleDialog::onCopy() {
 void articleDialog::onSave() {
 
   QString filename;
-  FQTermFileDialog *fileDialog = new FQTermFileDialog(config_);
-  filename = fileDialog->getSaveName(NULL, "", this);
+  FQTermFileDialog fileDialog(config_);
+  filename = fileDialog.getSaveName(NULL, "");
 
   if (!filename.isNull()) {
     QFile f(filename);
@@ -94,8 +94,6 @@ void articleDialog::onSave() {
       mb.exec();
     }
   }
-
-  delete fileDialog;
 }
 
 void articleDialog::onClose() {

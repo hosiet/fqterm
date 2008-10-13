@@ -279,8 +279,8 @@ void FQTermCanvas::copyImage() {
 //      QFileDialog::getSaveFileName(
 //          this,tr("Choose a filename to save under"),
 //          QDir::currentPath() + fi.fileName());
-  FQTermFileDialog *fileDialog = new FQTermFileDialog(config_);
-  QString strSave = fileDialog->getSaveName(fi.fileName(), "", this);
+  FQTermFileDialog fileDialog(config_);
+  QString strSave = fileDialog.getSaveName(fi.fileName(), "");
   if (strSave.isEmpty()) {
     return ;
   }
@@ -295,8 +295,6 @@ void FQTermCanvas::copyImage() {
     }
     file.close();
   }
-
-  delete fileDialog;
 }
 
 void FQTermCanvas::silentCopy() {
@@ -342,8 +340,8 @@ void FQTermCanvas::moveImage(float dx, float dy) {
 void FQTermCanvas::saveImage() {
 
   QFileInfo fi(fileName_);
-  FQTermFileDialog *fileDialog = new FQTermFileDialog(config_);
-  QString strSave = fileDialog->getSaveName(fi.fileName(), "", this);
+  FQTermFileDialog fileDialog(config_);
+  QString strSave = fileDialog.getSaveName(fi.fileName(), "");
   if (strSave.isEmpty()) {
     return ;
   }
@@ -352,8 +350,6 @@ void FQTermCanvas::saveImage() {
     QMessageBox::warning(this, tr("Failed to save file"),
                          tr("Cant save file, maybe format not supported"));
   }
-
-  delete fileDialog;
 }
 
 void FQTermCanvas::deleteImage() {

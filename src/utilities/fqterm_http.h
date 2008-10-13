@@ -68,8 +68,6 @@ class FQTermHttp: public QObject {
   static QMutex mutex_;
 
   FQTermConfig *config_;
-  FQTermFileDialog *fileDlg_;
-  QWidget *parent_;
 };
 
 }  // namespace FQTerm

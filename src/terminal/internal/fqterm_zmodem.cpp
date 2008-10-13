@@ -659,8 +659,8 @@ int FQTermZmodem::ZmodemTInit(ZModem *info) {
 //	strFileList = QFileDialog::getOpenFileNames(0, "Choose the files",
 //											strPrevSave, "All files(*)");
 //  }
-  FQTermFileDialog *fileDialog = new FQTermFileDialog(config_);
-  strFileList = fileDialog->getOpenNames("Choose a file to upload", "", 0);
+  FQTermFileDialog fileDialog(config_);
+  strFileList = fileDialog.getOpenNames("Choose a file to upload", "");
   if (strFileList.count() != 0) {
     QStringList::Iterator itFile = strFileList.begin();
     QFileInfo fi(*itFile);
@@ -684,7 +684,6 @@ int FQTermZmodem::ZmodemTInit(ZModem *info) {
 
   zmodemlog("ZmodemTInit[%s]: sent ZRQINIT\n", sname(info));
 
-  delete fileDialog;
   return 0;
 }
 

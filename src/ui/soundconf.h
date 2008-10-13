@@ -37,8 +37,6 @@ class soundConf: public QDialog {
   void loadSetting();
   void saveSetting();
 
-  FQTermFileDialog *fileDialog_;
-
  public slots:
   void onSelectFile();
   void onSelectProg();

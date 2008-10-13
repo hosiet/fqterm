@@ -45,7 +45,6 @@ soundConf::soundConf(FQTermConfig * config, QWidget *parent, Qt::WFlags fl)
   buttonGroup_.addButton(ui_.radioButton1, 0);
   buttonGroup_.addButton(ui_.radioButton2, 1);
   sound_ = NULL;
-  fileDialog_ = new FQTermFileDialog(config_);
   loadSetting();
   FQ_VERIFY(connect(ui_.bfSelect, SIGNAL(clicked()),
     this, SLOT(onSelectFile())));
@@ -64,14 +63,14 @@ soundConf::soundConf(FQTermConfig * config, QWidget *parent, Qt::WFlags fl)
  */
 soundConf::~soundConf() {
   // no need to delete child widgets, Qt does it all for us
-  delete fileDialog_;
 }
 
 /*
  * public slot
  */
 void soundConf::onSelectFile() {
-  QString soundfile = fileDialog_->getOpenName("Choose a WAVE file", "WAVE Audio Files (*.wav *.WAV)", this);
+  FQTermFileDialog fileDialog(config_);
+  QString soundfile = fileDialog.getOpenName("Choose a WAVE file", "WAVE Audio Files (*.wav *.WAV)");
   if (!soundfile.isEmpty()) {
     ui_.leFile->setText(soundfile);
   }
@@ -81,7 +80,8 @@ void soundConf::onSelectFile() {
  * public slot
  */
 void soundConf::onSelectProg() {
-  QString progfile = fileDialog_->getOpenName("Choose a program", "", this);
+  FQTermFileDialog fileDialog(config_);
+  QString progfile = fileDialog.getOpenName("Choose a program", "");
   if (!progfile.isEmpty()) {
     ui_.leProg->setText(progfile);
   }

@@ -979,15 +979,13 @@ void FQTermWindow::showStatusBar(bool bShow) {
 void FQTermWindow::runScript() {
   // get the previous dir
   QStringList fileList;
-  FQTermFileDialog *fileDialog = new FQTermFileDialog(config_);
+  FQTermFileDialog fileDialog(config_);
 
-  fileList = fileDialog->getOpenNames("Choose a JAVA script file", "JavaScript File (*.js)", this);
+  fileList = fileDialog.getOpenNames("Choose a JAVA script file", "JavaScript File (*.js)");
 
   if (!fileList.isEmpty() && fileList.count() == 1) {
     runScript(fileList.at(0));
   }
-
-  delete fileDialog;
 }
 
 void FQTermWindow::stopScript() {

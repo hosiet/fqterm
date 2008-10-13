@@ -1,8 +1,28 @@
+
+/***************************************************************************
+ *   fqterm, a terminal emulator for both BBS and *nix.                    *
+ *   Copyright (C) 2008 fqterm development group.                          *
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ *   This program is distributed in the hope that it will be useful,       *
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   GNU General Public License for more details.                          *
+ *                                                                         *
+ *   You should have received a copy of the GNU General Public License     *
+ *   along with this program; if not, write to the                         *
+ *   Free Software Foundation, Inc.,                                       *
+ *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
+ ***************************************************************************/
+
 /*
   PictureFlow - animated image show widget
   http://pictureflow.googlecode.com
 
-  Copyright (C) 2008 Ariya Hidayat (ariya@kde.org)
   Copyright (C) 2007 Ariya Hidayat (ariya@kde.org)
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -28,7 +48,6 @@
 #define PICTUREFLOW_H
 
 #include <QWidget>
-#include <QFileInfoList>
 
 namespace FQTerm {
 
@@ -48,20 +67,12 @@ class PictureFlow : public QWidget
 {
 Q_OBJECT
 
-  Q_PROPERTY(QColor backgroundColor READ backgroundColor WRITE setBackgroundColor)
+  Q_PROPERTY(int slideCount READ slideCount WRITE setSlideCount)
+  Q_PROPERTY(int currentSlide READ currentSlide WRITE setCurrentSlide)
   Q_PROPERTY(QSize slideSize READ slideSize WRITE setSlideSize)
-  Q_PROPERTY(int slideCount READ slideCount)
-  Q_PROPERTY(int centerIndex READ centerIndex WRITE setCenterIndex)
+  Q_PROPERTY(int zoomFactor READ zoomFactor WRITE setZoomFactor)
 
 public:
-
-  enum ReflectionEffect
-  {
-    NoReflection,
-    PlainReflection,
-    BlurredReflection
-  };
-
   /*!
     Creates a new PictureFlow widget.
   */  
@@ -73,14 +84,14 @@ public:
   ~PictureFlow();
 
   /*!
-    Returns the background color.
+    Returns the total number of slides.
   */
-  QColor backgroundColor() const;
+  int slideCount() const;
 
   /*!
-    Sets the background color. By default it is black.
+    Sets the total number of slides.
   */
-  void setBackgroundColor(const QColor& c);
+  void setSlideCount(int count);
 
   /*!
     Returns the dimension of each slide (in pixels).
@@ -93,90 +104,60 @@ public:
   void setSlideSize(QSize size);
 
   /*!
-    Returns the total number of slides.
+    Sets the zoom factor (in percent).
+  */ 
+  void setZoomFactor(int zoom);
+
+  /*!
+    Returns the zoom factor (in percent).
   */
-  int slideCount() const;
+  int zoomFactor() const;
 
   /*!
     Returns QImage of specified slide.
+    This function will be called only whenever necessary, e.g. the 100th slide
+    will not be retrived when only the first few slides are visible.
   */  
-  QImage slide(int index) const;
-
-  /*!
-    Returns the index of slide currently shown in the middle of the viewport.
-  */  
-  int centerIndex() const;
-
-  /*!
-    Returns the effect applied to the reflection.
-  */  
-  ReflectionEffect reflectionEffect() const;
-
-  /*!
-    Sets the effect applied to the reflection. The default is PlainReflection.
-  */  
-  void setReflectionEffect(ReflectionEffect effect);
-
-
-public slots:
-
-  /*!
-	Purge image cache.
-  */
-  void purgeImageHash(QString &path);
-
-  /*!
-	Update the image directory list.
-  */
-  void updateDirList(QFileInfoList &list, QString &);
-
-  /*!
-    Adds a new slide.
-  */  
-  void addSlide(QImage* image);
-
-  /*!
-    Adds a new slide.
-  */  
-  void addSlide(const QPixmap& pixmap);
-
-  /*!
-	Insert a new slide at the specified index.
-  */
-  void insertSlide(const int index, QImage* image);
-
-  /*!
-	Insert a new slide at the specified index.
-  */
-  void insertSlide(const int index, const QPixmap& pixmap);
-
-  /*!
-	Delete a slide.
-  */
-  void deleteSlide(const int index);
+  virtual QImage slide(int index) const;
 
   /*!
     Sets an image for specified slide. If the slide already exists,
     it will be replaced.
   */  
-  void setSlide(int index, QImage* image);
+  virtual void setSlide(int index, const QImage& image);
 
   /*!
     Sets a pixmap for specified slide. If the slide already exists,
     it will be replaced.
   */  
-  void setSlide(int index, const QPixmap& pixmap);
+  virtual void setSlide(int index, const QPixmap& pixmap);
+
+  /*!
+    Returns the index of slide currently shown in the middle of the viewport.
+  */  
+  int currentSlide() const;
+
+signals:
+	void slideSelected (int index);
+
+public slots:
 
   /*!
     Sets slide to be shown in the middle of the viewport. No animation 
     effect will be produced, unlike using showSlide.
   */  
-  void setCenterIndex(int index);
+  void setCurrentSlide(int index);
 
   /*!
-    Clears all slides.
+    Clears images of all slides.
   */
   void clear();
+
+  /*!
+    Rerender the widget. Normally this function will be automatically invoked
+    whenever necessary, e.g. during the transition animation.
+  */
+  void render();
 
   /*!
     Shows previous slide using animation effect.
@@ -193,37 +174,25 @@ public slots:
   */
   void showSlide(int index);
 
+
   /*!
-    Rerender the widget. Normally this function will be automatically invoked
-    whenever necessary, e.g. during the transition animation.
+    Go to slide at specified position using animation effect.
   */
-  void render();
-
-  /*!
-    Schedules a rendering update. Unlike render(), this function does not cause
-    immediate rendering.
-  */  
-  void triggerRender();
-
-signals:
-  void centerIndexChanged(int index);
-  void totalCountChanged(int count);
-  void viewCurrentIndex();
-
+  void showSlideAt(int x, int y);
+	
 protected:
+  void mouseReleaseEvent (QMouseEvent *event);
+  void mouseMoveEvent (QMouseEvent *event);
+  void wheelEvent (QWheelEvent *event);
   void paintEvent(QPaintEvent *event);
-//  void keyPressEvent(QKeyEvent* event);
-  void mousePressEvent(QMouseEvent* event);
-  void resizeEvent(QResizeEvent* event);
-
-private slots:
-  void updateAnimation();
+  void keyPressEvent(QKeyEvent *event);
+  void resizeEvent(QResizeEvent *event);
+  void timerEvent(QTimerEvent *event);
 
 private:
   PictureFlowPrivate* d;
 };
 
-} // FQTerm namespace;
+} // namespace FQTerm
 
 #endif // PICTUREFLOW_H
-

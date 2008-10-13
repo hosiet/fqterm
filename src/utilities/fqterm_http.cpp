@@ -41,10 +41,7 @@ QMutex FQTermHttp::mutex_;
 FQTermHttp::FQTermHttp(FQTermConfig *config, QWidget *p, const QString &poolDir)
   : poolDir_(poolDir) {
   // 	m_pDialog = NULL;
-  parent_ = p;
-
   config_ = config;
-  fileDlg_ = new FQTermFileDialog(config_);
 
   FQ_VERIFY(connect(&http_, SIGNAL(done(bool)), this, SLOT(httpDone(bool))));
   FQ_VERIFY(connect(&http_, SIGNAL(dataReadProgress(int, int)),
@@ -239,7 +236,9 @@ void FQTermHttp::httpResponse(const QHttpResponseHeader &hrh) {
   } else {
 //    getSaveFileName(cacheFileName_, NULL, strSave);
 	mutex_.lock();
-    QString strSave = fileDlg_->getSaveName(cacheFileName_, "*", parent_);
+
+	FQTermFileDialog fileDialog(config_);
+    QString strSave = fileDialog.getSaveName(cacheFileName_, "*");
 	mutex_.unlock();
     // no filename specified which means the user canceled this download
     if (strSave.isEmpty()) {
