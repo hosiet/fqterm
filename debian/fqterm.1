@@ -19,11 +19,31 @@ This manual page was written for the Debian distribution because the
 original program does not have a manual page.
 
 .PP
-FQTerm is a BBS client for X Window System. It support telnet and ssh1
-protocols. It also support zmodem, URL detect, mouse action.
+FQTerm is one of the most widely used BBS client in China, it
+supports telnet/ssh1/ssh2 protocols and can process ANSI control
+sequences. It can be used to login BBS sites or *NIX hosts.
+
+.PP
+Almost all the BBSes in Greater China Region are in BIG5 or GBK
+encoding. So FQTerm only support these two encodings and ASCII.
+
+.PP
+FQTerm is writtern in QT4.
 
 .PP
 Homepage: http://code.google.com/p/fqterm
+
+.SH "BUGS"
+
+.PP
+FQTerm is designed for Chinese BBS, so it will startup with a simplified
+Chinese interface (even your locale is not in zh_CN). You can switch it
+to a English interface by following key sequence "Alt+V,l,e". You can
+also close fqterm, then open $HOME/.fqterm/fqterm.cfg, change the
+"language=zh_CN" line to "language=en_US".
+
+.PP
+You can find more information in http://code.google.com/p/fqterm/issues/detail?id=196
 
 .SH "SEE ALSO"
 .BR qterm (1),
