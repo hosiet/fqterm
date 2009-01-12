@@ -12,7 +12,7 @@ Vcs-Git: git://git.debian.org/git/chinese/fqterm.git
 
 Package: fqterm
 Architecture: any
-Depends: ${shlibs:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: BBS client writtern in QT4
  FQTerm is one of the most widely used BBS client in China, it
  supports telnet/ssh1/ssh2 protocols and can process ANSI control
