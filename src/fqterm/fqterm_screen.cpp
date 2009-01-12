@@ -888,6 +888,8 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
 
   uint linelength = pTextLine->getWidth();
   bool *isEnglishLanguage = new bool[linelength];
+  bool isSessionSelected = session_->isSelected(index);
+  bool isTransparent = isSessionSelected && param_->menuType_ == 2;
 
   menuRect_ = QRect();
   QString cstrText;
@@ -900,7 +902,7 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
     endx = linelength;
   }
 
-  if (complete == true && session_->isSelected(index)) {
+  if (complete == true && isSessionSelected) {
     menuRect_ = drawMenuSelect(painter, index);
     startx = 0;
     endx = linelength;
@@ -970,7 +972,7 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
 
       if (isMonoSpace) {
         drawStr(painter, cstrText, sameLanguageStart, index, text_width,
-                tempcp, tempea, bSelected, bSelected);
+                tempcp, tempea, isTransparent, bSelected);
       } else {
         // Draw Characters one by one to fix the variable-width font
         // display problem.
@@ -981,13 +983,13 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
             drawStr(painter, (QString)cstrText.at(j),
                     sameLanguageStart + offset, index, 1,
                     tempcp, tempea,
-                    bSelected, bSelected);
+                    isTransparent, bSelected);
             offset++;
           } else {
             drawStr(painter, (QString)cstrText.at(j),
                     sameLanguageStart + offset, index, 2,
                     tempcp, tempea,
-                    bSelected, bSelected);
+                    isTransparent, bSelected);
             offset += 2;
           }
         }
