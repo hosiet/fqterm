@@ -234,13 +234,19 @@ void FQTermSession::detectPageState() {
   //TODO: Detect PageState in a clearer way.
   if (!colorInfo[0].hasBackgroundColor) {
     if (colorInfo[3].foregroundColorIndex.count() != 0 &&
-        colorInfo[3].hasBackgroundColor && colorInfo[3].uniBackgroundColor) {
-      QString text;
-      line[3]->getAllPlainText(text);
-      if (text[0] != L'\x3010') {
-        pageState_ = Read;
-      } else {
-        pageState_ = Edit;
+        colorInfo[3].hasBackgroundColor){
+        if (colorInfo[3].uniBackgroundColor) {
+            QString text;
+            line[3]->getAllPlainText(text);
+            if (text[0] != L'\x3010') {
+                pageState_ = Read;
+              } else {
+                  pageState_ = Edit;
+                }
+            } else if (colorInfo[3].backgroundColorIndex.count() == 2 &&
+                  colorInfo[3].backgroundColorIndex.at(0) == 4 &&
+                  colorInfo[3].backgroundColorIndex.at(1) == 0){
+          pageState_ = Read;
       }
     }
     return;
@@ -248,6 +254,13 @@ void FQTermSession::detectPageState() {
 
   if (colorInfo[0].backgroundColorIndex.at(0) != 4
       || !(colorInfo[3].hasBackgroundColor && colorInfo[3].backgroundColorIndex.at(0) == 4)) {
+      if (!colorInfo[3].hasBackgroundColor &&
+            colorInfo[0].foregroundColorIndex.count() == 4 &&
+            colorInfo[0].foregroundColorIndex.at(1) == 4 &&
+            colorInfo[0].foregroundColorIndex.at(2) == 7 &&
+            colorInfo[0].foregroundColorIndex.at(3) == 4){
+            pageState_ = TOP10;
+          }
     return;
   }
 
@@ -374,6 +387,13 @@ FQTermSession::CursorType FQTermSession::getCursorType(const QPoint &pt) {
       break;
     case Edit:
       // TODO: add action for kEdit state.
+      break;
+    case TOP10:
+      if (pt.x() < 12) {
+        nCursorType = kLeft;
+        } else if (rc.contains(pt)){
+          nCursorType = kRight;
+          }
       break;
     default:
       FQ_TRACE("error", 2) << "Error, wrong PageState.";
@@ -517,6 +537,32 @@ QRect FQTermSession::getSelectRect() {
       break;
     case Edit:
       break;
+    case TOP10:
+      {
+        int ln = cursorPoint_.y() - screenStartLineNumber_;
+        if (ln >= 3 && (ln & 1) && ln <= 21 &&
+              cursorPoint_.x() >= 12 &&
+              cursorPoint_.x() <= termBuffer_->getNumColumns() - 8){
+            line = termBuffer_->getTextLineInBuffer(cursorPoint_.y());
+  
+            QString str;
+            line->getAllPlainText(str);
+    
+            if (str.count(" ") != (int)str.length()) {
+              if (ln == 21){
+                  menuChar_ = '0';
+                } else {
+                    menuChar_ = ((ln - 1) >> 1) + '0';
+                  }
+    
+                  rect.setX(12);
+                rect.setY(cursorPoint_.y());
+                rect.setWidth(line->getWidth() - 20);
+                rect.setHeight(1);
+              }
+        }
+      }
+      break;
     default:
       break;
   }
@@ -573,10 +619,7 @@ QString FQTermSession::expandUrl(const QPoint& pt, QPair<int, int>& range)
 
 bool FQTermSession::checkUrl(QRect &rcUrl, QRect &rcOld, bool checkIP) {
 
-  QPoint urlStartPoint;
-  QPoint urlEndPoint;
-  urlStartPoint_ = QPoint();
-  urlEndPoint_ = QPoint();
+
 
   QPoint pt = cursorPoint_;
   int at = pt.x();
@@ -590,6 +633,11 @@ bool FQTermSession::checkUrl(QRect &rcUrl, QRect &rcOld, bool checkIP) {
     }
 
   }
+
+  QPoint urlStartPoint;
+  QPoint urlEndPoint;
+  urlStartPoint_ = QPoint();
+  urlEndPoint_ = QPoint();
   urlRect_ = QRect(0, 0, -1, -1);
   if (!checkIP) {
     url_.clear();

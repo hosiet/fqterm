@@ -93,6 +93,7 @@ class FQTermSession: public QObject {
     Message = 6,
     Read = 7,
     Edit = 8,
+    TOP10 = 9,
   };
 
   enum ProtocolIndex {

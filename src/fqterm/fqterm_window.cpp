@@ -1553,6 +1553,7 @@ void FQTermWindow::enterMenuItem() {
   switch (ps) {
     case FQTermSession::Menu:
     case FQTermSession::MailMenu:
+    case FQTermSession::TOP10:
       if (!rc.isEmpty()) {
         char cMenu = session_->getMenuChar();
         session_->write(&cMenu, 1);
