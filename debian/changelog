@@ -1,5 +1,5 @@
-fqterm (0.9.3+svn631-0ubuntu1) jaunty; urgency=low
+fqterm (0.9.3+svn632-0ubuntu1) jaunty; urgency=low
 
   * Initial Ubuntu package (LP: #285825)  
 
- -- LI Daobing <lidaobing@gmail.com>  Thu, 20 Nov 2008 23:34:08 +0800
+ -- LI Daobing <lidaobing@gmail.com>  Mon, 12 Jan 2009 20:41:21 +0800
