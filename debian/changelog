@@ -1,8 +1,12 @@
 fqterm (0.9.3+svn632-1) unstable; urgency=low
 
   * Initial upload to Debian (closes: #439367)
+  * add menu support:
+    - debian/menu: added.
+    - debian/fqterm.xpm: added, generated from res/pic/fqterm_128x128.png
+    - debian/fqterm.install: added, install fqterm.xpm
 
- -- LI Daobing <lidaobing@gmail.com>  Fri, 20 Feb 2009 21:22:23 +0800
+ -- LI Daobing <lidaobing@gmail.com>  Fri, 20 Feb 2009 22:01:32 +0800
 
 fqterm (0.9.3+svn632-0ubuntu1) jaunty; urgency=low
 

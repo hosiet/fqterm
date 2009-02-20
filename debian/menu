@@ -1,0 +1,6 @@
+?package(fqterm):\
+  needs="X11"\
+  section="Applications/Network/Communication"\
+  title="FQTerm"\
+  icon="/usr/share/pixmaps/fqterm.xpm"\
+  command="/usr/bin/fqterm"
