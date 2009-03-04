@@ -130,6 +130,7 @@ class FQTermSocket: public QObject {
   virtual QByteArray readBlock(unsigned long maxlen) = 0;
   virtual long writeBlock(const QByteArray &data) = 0;
   virtual unsigned long bytesAvailable() = 0;
+  virtual bool readyForInput() {return true;}
  signals:
   void connected();
   void hostFound();

@@ -61,6 +61,7 @@ struct FQTermPref {
   bool openUrlCheck_;
   // bool bAutoCopy;
   bool openAntiAlias_;
+  bool correctNonMonospace_;
   bool openMinimizeToTray_;
   bool needClearZmodemPoolOnClose_;
   bool useStyleSheet_;
@@ -95,21 +96,25 @@ class FQTermFrame: public QMainWindow {
   void updateScroll();
   void updateStatusBar(bool);
   void changeLanguage();
+  void frameClosed();
+  void fontAntiAliasing(bool);
+
  protected slots:
   
   bool event(QEvent *event);
 
   void viewImages();
-
+  bool clearUp();
 
   // Menu
   void recreateMenu();
   void addressBook();
   void quickLogin();
-  void exitQTerm();
+  void exitFQTerm();
+
 
   void selectionChanged(int);
-  void aboutQTerm();
+  void aboutFQTerm();
   void langEnglish();
   void defaultSetting();
   void preference();

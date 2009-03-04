@@ -1020,6 +1020,10 @@ int FQTermTelnet::tnabort(int) {
   return -1;
 }
 
+bool FQTermTelnet::readyForInput()
+{
+  return socket->readyForInput();
+}
 
 }  // namespace FQTerm
 

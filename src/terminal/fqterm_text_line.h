@@ -100,10 +100,10 @@ class FQTermTextLine {
   // insert string at specified cell,
   void insertText(const UTF16 *str, unsigned count,
                   unsigned cell_begin,
-                  unsigned char color, unsigned char attr);
+                  unsigned char color, unsigned char attr, bool over_write_one = false);
   void replaceText(const UTF16 *str, unsigned count,
                    unsigned cell_begin, unsigned cell_end,
-                   unsigned char color, unsigned char attr);
+                   unsigned char color, unsigned char attr, bool over_write_one = false);
   void deleteText(unsigned cell_begin, unsigned cell_end);
   void deleteAllText();
 

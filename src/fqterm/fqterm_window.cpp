@@ -36,6 +36,7 @@
 #include <QStatusBar>
 #include <QTextEdit>
 #include <QTimer>
+#include <QUrl>
 
 #include <QMdiArea>
 #include <QMdiSubWindow>
@@ -135,7 +136,7 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
   setFocusProxy(screen_);
   setCentralWidget(screen_);
   addMenu();
-  pageViewMessage_->display(tr("Not Connected"));
+  pageViewMessage_->display(tr("Not connected"));
   statusBar()->setSizeGripEnabled(false);
   statusBar()->setVisible(frame_->isStatusBarShown_);
 
@@ -478,11 +479,11 @@ void FQTermWindow::mouseMoveEvent(QMouseEvent *mouseevent) {
     isUrlUnderLined_ = true;
     urlStartPoint_ = session_->urlStartPoint_;
     urlEndPoint_ = session_->urlEndPoint_;
-	  clientRect_ = QRect(QPoint(0, urlStartPoint_.y()), QSize(session_->param_.numColumns_, urlEndPoint_.y() - urlStartPoint_.y() + 1));
+	  clientRect_ = QRect(QPoint(0, urlStartPoint_.y()), QSize(session_->getBuffer()->getNumColumns(), urlEndPoint_.y() - urlStartPoint_.y() + 1));
 	  repaintScreen();
 	  
   } else if (isUrlUnderLined_ && (session_->urlStartPoint_ != urlStartPoint_ || session_->urlEndPoint_ != urlEndPoint_)) {
-    clientRect_ = QRect(QPoint(0, urlStartPoint_.y()), QSize(session_->param_.numColumns_, urlEndPoint_.y() - urlStartPoint_.y() + 1));
+    clientRect_ = QRect(QPoint(0, urlStartPoint_.y()), QSize(session_->getBuffer()->getNumColumns(), urlEndPoint_.y() - urlStartPoint_.y() + 1));
     urlStartPoint_ = QPoint();
     urlEndPoint_ = QPoint();
 	  repaintScreen();
@@ -590,7 +591,9 @@ void FQTermWindow::keyPressEvent(QKeyEvent *keyevent) {
 
   // stop  the tab blinking
   stopBlink();
-
+  if (!session_->readyForInput()) {
+    return;
+  }
   // message replying
   session_->leaveIdle();
 
@@ -650,28 +653,28 @@ void FQTermWindow::ZmodemState(int type, int value, const char *status) {
       return;
     case RcvTimeout:
       /* receiver did not respond, aborting */
-      strMsg = QString(tr("time out!"));
+      strMsg = QString(tr("Time out!"));
       break;
     case SndTimeout:
       /* value is # of consecutive send timeouts */
-      strMsg = QString(tr("time out after trying %1 times")).arg(value);
+      strMsg = QString(tr("Time out after trying %1 times")).arg(value);
       break;
     case RmtCancel:
       /* remote end has cancelled */
-      strMsg = QString(tr("canceled by remote peer %1")).arg(status);
+      strMsg = QString(tr("Canceled by remote peer %1")).arg(status);
       break;
     case ProtocolErr:
       /* protocol error has occurred, val=hdr */
       strMsg = QString(
-          tr("unhandled header %1 at state %2")).arg(value).arg(status);
+          tr("Unhandled header %1 at state %2")).arg(value).arg(status);
       break;
     case RemoteMessage:
       /* message from remote end */
-      strMsg = QString(tr("msg from remote peer: %1")).arg(status);
+      strMsg = QString(tr("Msg from remote peer: %1")).arg(status);
       break;
     case DataErr:
       /* data error, val=error count */
-      strMsg = QString(tr("data errors %1")).arg(value);
+      strMsg = QString(tr("Data errors %1")).arg(value);
       break;
     case FileErr:
       /* error writing file, val=errno */
@@ -680,7 +683,12 @@ void FQTermWindow::ZmodemState(int type, int value, const char *status) {
     case FileBegin:
       /* file transfer begins, str=name */
       FQ_TRACE("window", 1) << "Starting file " << status;
-      zmodemDialog_->setFileInfo(G2U(status), value);
+      if (session_->param_.serverEncodingID_ == 0) {
+        zmodemDialog_->setFileInfo(G2U(status), value);
+      } else {
+        zmodemDialog_->setFileInfo(B2U(status), value);
+      }
+      
       zmodemDialog_->setProgress(0);
       zmodemDialog_->clearErrorLog();
       zmodemDialog_->show();
@@ -692,7 +700,7 @@ void FQTermWindow::ZmodemState(int type, int value, const char *status) {
       return;
     case FileSkip:
       /* file being skipped, str=name */
-      strMsg = QString(tr("skipping file %1")).arg(status);
+      strMsg = QString(tr("Skipping file %1")).arg(status);
       break;
   }
   zmodemDialog_->addErrorLog(strMsg);
@@ -702,60 +710,60 @@ void FQTermWindow::ZmodemState(int type, int value, const char *status) {
 void FQTermWindow::TelnetState(int state) {
   switch (state) {
     case TSRESOLVING:
-      pageViewMessage_->display(tr("resolving host name"));
+      pageViewMessage_->display(tr("Resolving host name"));
       break;
     case TSHOSTFOUND:
-      pageViewMessage_->display(tr("host found"));
+      pageViewMessage_->display(tr("Host found"));
       break;
     case TSHOSTNOTFOUND:
-      pageViewMessage_->display(tr("host not found"));
+      pageViewMessage_->display(tr("Host not found"));
       break;
     case TSCONNECTING:
-      pageViewMessage_->display(tr("connecting..."));
+      pageViewMessage_->display(tr("Connecting..."));
       break;
     case TSHOSTCONNECTED:
-      pageViewMessage_->display(tr("connected"));
+      pageViewMessage_->display(tr("Connected"));
       frame_->updateMenuToolBar();
       break;
     case TSPROXYCONNECTED:
-      pageViewMessage_->display(tr("connected to proxy"));
+      pageViewMessage_->display(tr("Connected to proxy"));
       break;
     case TSPROXYAUTH:
-      pageViewMessage_->display(tr("proxy authentation"));
+      pageViewMessage_->display(tr("Proxy authentation"));
       break;
     case TSPROXYFAIL:
-      pageViewMessage_->display(tr("proxy failed"));
+      pageViewMessage_->display(tr("Proxy failed"));
       break;
     case TSREFUSED:
-      pageViewMessage_->display(tr("connection refused"));
+      pageViewMessage_->display(tr("Connection refused"));
       break;
     case TSREADERROR:
-      pageViewMessage_->display(tr("error when reading from server"),
+      pageViewMessage_->display(tr("Error when reading from server"),
                                 PageViewMessage::Error);
       break;
     case TSCLOSED:
-      pageViewMessage_->display(tr("connection closed"));
+      pageViewMessage_->display(tr("Connection closed"));
       break;
     case TSCLOSEFINISH:
-      pageViewMessage_->display(tr("connection close finished"));
+      pageViewMessage_->display(tr("Connection close finished"));
       break;
     case TSCONNECTVIAPROXY:
-      pageViewMessage_->display(tr("connect to host via proxy"));
+      pageViewMessage_->display(tr("Connect to host via proxy"));
       break;
     case TSEGETHOSTBYNAME:
       pageViewMessage_->display(
-          tr("error in gethostbyname"), PageViewMessage::Error);
+          tr("Error in gethostbyname"), PageViewMessage::Error);
       break;
     case TSEINIWINSOCK:
       pageViewMessage_->display(
-          tr("error in startup winsock"), PageViewMessage::Error);
+          tr("Error in startup winsock"), PageViewMessage::Error);
       break;
     case TSERROR:
       pageViewMessage_->display(
-          tr("error in connection"), PageViewMessage::Error);
+          tr("Error in connection"), PageViewMessage::Error);
       break;
     case TSPROXYERROR:
-      pageViewMessage_->display(tr("error in proxy"), PageViewMessage::Error);
+      pageViewMessage_->display(tr("Error in proxy"), PageViewMessage::Error);
       break;
     case TSWRITED:
       break;
@@ -763,7 +771,7 @@ void FQTermWindow::TelnetState(int state) {
 }
 
 void FQTermWindow::showSessionErrorMessage(const char *reason) {
-  if (QString(reason) == tr("UserCancel")) {
+  if (QString(reason) == tr("User Cancel")) {
     return;
   }
   QMessageBox::critical(this, tr("Session error"), tr(reason));
@@ -950,7 +958,8 @@ void FQTermWindow::showIP(bool show) {
 
     QRect messageSize(
         pageViewMessage_->displayCheck(
-            G2U((country + city).toLatin1()), PageViewMessage::Info));
+        session_->param_.serverEncodingID_?B2U((country + city).toLatin1()):G2U((country + city).toLatin1()),
+        PageViewMessage::Info));
     PageViewMessage::Alignment ali;
     if (messageSize.width() + globalIPRectangle.left() >= screenRect.right()) {
       //"But There is No Room at the Right" -- Curvelet, 2007
@@ -962,7 +971,8 @@ void FQTermWindow::showIP(bool show) {
     }
 
     pageViewMessage_->display(
-        G2U((country + city).toLatin1()), PageViewMessage::Info,
+        session_->param_.serverEncodingID_?B2U((country + city).toLatin1()):G2U((country + city).toLatin1()),
+        PageViewMessage::Info,
         0, messagePos, ali);
   }
 }
@@ -1035,7 +1045,7 @@ void FQTermWindow::toggleAutoReply() {
 void FQTermWindow::connectionClosed() {
   stopBlink();
 
-  pageViewMessage_->display(tr("connection closed"));
+  pageViewMessage_->display(tr("Connection closed"));
 
   frame_->updateMenuToolBar();
 
@@ -1302,10 +1312,13 @@ void FQTermWindow::openLink() {
   if (!url.isEmpty()) {
     const QString &httpBrowser = frame_->preference_.httpBrowser_;
 	if (httpBrowser.isNull() || httpBrowser.isEmpty()) {
-      QDesktopServices::openUrl(url);
+#if QT_VERSION >= 0x040400
+    QDesktopServices::openUrl(QUrl::fromEncoded(url.toLocal8Bit()));
+#else
+    QDesktopServices::openUrl(url);
+#endif
     } else {
-      QString strCmd = "'" + httpBrowser + + "' '" + url + "'";
-	  runProgram(strCmd);
+	  runProgram(httpBrowser, url);
 	}
   }
 }
@@ -1355,10 +1368,13 @@ void FQTermWindow::openUrl()
   if (dlg.exec()) {
     const QString &httpBrowser = frame_->preference_.httpBrowser_;
     if (httpBrowser.isNull() || httpBrowser.isEmpty()) {
+#if QT_VERSION >= 0x040400
+	    QDesktopServices::openUrl(QUrl::fromEncoded(textEdit->toPlainText().toLocal8Bit()));
+#else
       QDesktopServices::openUrl(textEdit->toPlainText());
+#endif
     } else {
-      QString strCmd = "'" + httpBrowser + "' '" + textEdit->toPlainText() + "'";
-	  runProgram(strCmd);
+	    runProgram(httpBrowser, textEdit->toPlainText());
     }
     
   }
@@ -1386,7 +1402,7 @@ void FQTermWindow::getHttpHelper(const QString &url, bool preview) {
 
   const QString &strPool = frame_->preference_.zmodemPoolDir_;
 
-  FQTermHttp *http = new FQTermHttp(config_, this, strPool);
+  FQTermHttp *http = new FQTermHttp(config_, this, strPool, session_->serverEncodingID_);
   FQTerm::StatusBar::instance()->newProgressOperation(http).setDescription(tr("Waiting header...")).setAbortSlot(http, SLOT(cancel())).setMaximum(100);
   FQTerm::StatusBar::instance()->resetMainText();
   FQTerm::StatusBar::instance()->setProgress(http, 0);
@@ -1406,8 +1422,8 @@ void FQTermWindow::getHttpHelper(const QString &url, bool preview) {
   FQ_VERIFY(connect(http, SIGNAL(percent(int)),
                     FQTerm::StatusBar::instance(), SLOT(setProgress(int))));
 
-  FQ_VERIFY(connect(http, SIGNAL(previewImage(const QString &, bool)),
-                    this, SLOT(previewImage(const QString &, bool))));
+  FQ_VERIFY(connect(http, SIGNAL(previewImage(const QString &, bool, bool)),
+                    this, SLOT(httpPreviewImage(const QString &, bool, bool))));
 
 
   http->getLink(url, preview);
@@ -1425,6 +1441,13 @@ void FQTermWindow::httpDone(QObject *pHttp) {
   pHttp->deleteLater();
 }
 
+void FQTermWindow::httpPreviewImage(const QString &filename, bool raiseViewer, bool done) 
+{
+  if (config_->getItemValue("preference", "image").isEmpty() || done) {
+    previewImage(filename, raiseViewer);
+  }
+}
+
 void FQTermWindow::previewImage(const QString &filename, bool raiseViewer) {
 //  QString strViewer = frame_->config()->getItemValue("preference", "image");
   QString strViewer = config_->getItemValue("preference", "image");
@@ -1432,8 +1455,7 @@ void FQTermWindow::previewImage(const QString &filename, bool raiseViewer) {
   if (strViewer.isEmpty()) {
     frame_->viewImages(filename, raiseViewer);
   } else if(raiseViewer) {
-    QString strCmd = "'" + strViewer + "' '" + filename + "'";
-    runProgram(strCmd);
+    runProgram(strViewer, filename);
   }
 
 }

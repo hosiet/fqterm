@@ -210,10 +210,17 @@ void FQTermTextLine::getAnsiText(unsigned cell_begin, unsigned cell_end,
     unsigned char attr = cell_attrs_[cur_cell];
     
     for (next_cell = cur_cell;
-         next_cell < cell_end
-                     && cell_colors_[next_cell] == color
-                     && cell_attrs_[next_cell] == attr; 
+         next_cell < cell_end; 
          ++next_cell) {
+           if (!(cell_colors_[next_cell] == color
+             && cell_attrs_[next_cell] == attr)) {
+               if (next_cell > getCellBegin(next_cell)) {
+                 continue;
+               } else {
+                 break;
+               } 
+           }
+           
     }
 
     getAnsiCtrlSeq(color, attr, escape, result); 
@@ -291,7 +298,7 @@ void FQTermTextLine::replaceWithWhiteSpace(
 
 void FQTermTextLine::insertText(const UTF16 *str, unsigned count,
                                unsigned cell_begin,
-                               unsigned char color, unsigned char attr) {
+                               unsigned char color, unsigned char attr, bool over_write_one) {
   if (count == 0) return;
 
   // Calculate how many cells should be occupied for str.
@@ -304,6 +311,18 @@ void FQTermTextLine::insertText(const UTF16 *str, unsigned count,
 #endif
     return;
   }
+
+  unsigned char stored_color = color;
+  unsigned char stored_attr = attr;
+  if (over_write_one) {
+    if (cell_begin > 0) {
+      cell_begin--;
+      stored_color = cell_colors_[cell_begin];
+      stored_attr = cell_attrs_[cell_begin];
+      deleteText(cell_begin, cell_begin + 1);
+    }
+  }
+  
 
   breakCell(cell_begin);
 
@@ -318,6 +337,12 @@ void FQTermTextLine::insertText(const UTF16 *str, unsigned count,
 
   // Insert attrs.
   cell_attrs_.insert(cell_attrs_.begin() + cell_begin, width, attr);
+
+  if (over_write_one) {
+    cell_colors_[cell_begin] = stored_color;
+    cell_attrs_[cell_begin] = stored_attr;
+  }
+  
 
   // Change the cells_ mapping to chars_.
   cells_.insert(cells_.begin() + cell_begin, width, 0);
@@ -349,6 +374,8 @@ void FQTermTextLine::insertText(const UTF16 *str, unsigned count,
   for (unsigned i = cell_begin + width; i < cells_.size(); ++i) {
     cells_[i] += count;
   }
+
+  
 
   setDirtyFlag(cell_begin, cells_.size());
 
@@ -389,9 +416,9 @@ void FQTermTextLine::deleteAllText() {
 
 void FQTermTextLine::replaceText(const UTF16 *str, unsigned count,
                                 unsigned cell_begin, unsigned cell_end,
-                                unsigned char color, unsigned char attr) {
+                                unsigned char color, unsigned char attr, bool over_write_one) {
   deleteText(cell_begin, cell_end);
-  insertText(str, count, cell_begin, color, attr);
+  insertText(str, count, cell_begin, color, attr, over_write_one);
 
   setDirtyFlag(cell_begin, cells_.size());
 }

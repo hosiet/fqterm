@@ -90,6 +90,7 @@ void FQTermSSH1Channel::handlePacket(int type) {
       packet_sender_->write();
       emit channelOK();
       service_state_ = FQTermSSH1Channel::SERVICE_OK;
+      //emit msg to tell window we could process input.
       break;
     case SERVICE_OK:
       switch (type) {
@@ -409,6 +410,7 @@ void FQTermSSH2Channel::handlePacket(int type) {
         case SSH2_MSG_CHANNEL_SUCCESS:
           emit channelOK();
           channel_state_ = FQTermSSH2Channel::CHANNEL_OK;
+          //emit a msg to tell window we could process input.
           break;
         case SSH2_MSG_CHANNEL_FAILURE:
           emit channelError("Can't open a shell.");

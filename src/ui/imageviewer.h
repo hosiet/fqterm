@@ -263,6 +263,7 @@ namespace FQTerm {
     }
 
     QSize sizeHint (const QStyleOptionViewItem & option, const QModelIndex & index) const {
+	    //if (index.column() == 0) return QSize(1, 1);
       return size_;
     }
 

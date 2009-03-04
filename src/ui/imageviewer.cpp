@@ -45,6 +45,7 @@
 #include <QTransform>
 #include <QTreeView>
 #include <QTextEdit>
+#include <QHeaderView>
 
 #include "fqterm_canvas.h"
 #include "fqterm_config.h"
@@ -1390,16 +1391,23 @@ namespace FQTerm {
     canvas_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
     model_ = new ImageViewerDirModel;
     tree_ = new QTreeView;
+
+    
     tree_->setModel(model_);
     tree_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     adjustItemSize();
     tree_->setItemDelegate(itemDelegate);
     tree_->setColumnWidth(0, 150);
-    //  tree_->hideColumn(0);
+    tree_->setColumnWidth(1, 0);
+   
+    tree_->hideColumn(0);
 
     tree_->setUniformRowHeights(true);
     tree_->setWordWrap(true);
-
+    //tree_->header()->setResizeMode(0, QHeaderView::Fixed);
+    //tree_->header()->setResizeMode(1, QHeaderView::ResizeToContents);
+    //tree_->header()->resizeSection(0, 150);
+    //tree_->header()->resizeSection(1, 1);
     comboBox_ = new QComboBox(this);
     comboBox_->addItem(tr("Sort by name"), QDir::Name);
     comboBox_->addItem(tr("Sort by time"), QDir::Time);
@@ -1601,7 +1609,7 @@ namespace FQTerm {
   ImageViewerDirModel::ImageViewerDirModel(QObject *parent /*= 0*/)
   : QDirModel(parent) {
 
-    insertColumn(1);
+	  //insertColumn(1);
     QStringList nameFilterList;
     nameFilterList << "*.jpg" <<  "*.jpeg" << "*.png"
                    << "*.mng" << "*.bmp" << "*.gif";
@@ -1611,22 +1619,22 @@ namespace FQTerm {
 
   int ImageViewerDirModel::columnCount(const QModelIndex &/*parent*/) const {
 
-    return 1;
+    return 2;
   }
 
   QVariant ImageViewerDirModel::headerData(
     int section, Qt::Orientation orientation, int role) const {
-
+	  //if (section == 0) return QVariant();
     if (role == Qt::DisplayRole) {
-      if (section == 0) {
+	    //      if (section == 1) {
         return QString(tr("Image Preview"));
-      }
+	//}
     }
     return QDirModel::headerData(section, orientation, role);
   }
 
   QVariant ImageViewerDirModel::data(const QModelIndex &index, int role) const {
-
+	  //if (index.column() == 0) return QVariant();
     if (role == Qt::DecorationRole) {
       if (isDir(index)) {
         return QVariant();
@@ -1656,6 +1664,7 @@ namespace FQTerm {
 
   void ItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem & option,
     const QModelIndex & index ) const {
+	  //if (index.column() == 0) return;
     QStyleOptionViewItemV3 opt = setOptions(index, option);
  
     // prepare

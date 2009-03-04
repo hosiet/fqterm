@@ -186,7 +186,8 @@ void FQTermBuffer::setCurrentAttr(unsigned char color, unsigned char attr) {
   caret_.attr_ = attr;
 }
 
-void FQTermBuffer::writeText(const QString &str) {
+void FQTermBuffer::writeText(const QString &str, bool copy_color_attr) {
+  
   QString cstr = str;
 
   FQ_TRACE("term", 8) << "Add text: \"" << cstr << "\"";
@@ -238,16 +239,18 @@ void FQTermBuffer::writeText(const QString &str) {
       // FIXEME: How to move cursor if the entire line is wider than
       // line->getMaxCellCount() after insertion?
       line->insertText((UTF16 *)cstr.data(), element_consumed, cell_begin,
-                       caret_.color_, caret_.attr_);
+                       caret_.color_, caret_.attr_, copy_color_attr);
       if (line->getWidth() > num_columns_) {
         line->deleteText(num_columns_, line->getWidth());
       }
     } else {
       line->replaceText((UTF16 *)cstr.data(), element_consumed, 
                         cell_begin, qMin(cell_begin + width, line->getWidth()),
-                        caret_.color_, caret_.attr_);
+                        caret_.color_, caret_.attr_, copy_color_attr);
     }
-
+    if (copy_color_attr) {
+      width--;
+    }
     moveCaretOffset(width, 0);
 
     if (element_consumed == cstr.size()) {

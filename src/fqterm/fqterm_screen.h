@@ -115,6 +115,7 @@ class FQTermScreen: public QWidget {
   void termSizeChanged(int column, int row);
   void bossColor();
   void updateScrollBar();
+  void setFontAntiAliasing(bool on = true);
 
  protected:
   void initFontMetrics();

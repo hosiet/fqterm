@@ -112,6 +112,8 @@ public:
   QByteArray readBlock(unsigned long size);
   long writeBlock(const QByteArray &data);
 
+  virtual bool readyForInput() {return is_channel_ok_;}
+
   unsigned long bytesAvailable();
 
   void flush();

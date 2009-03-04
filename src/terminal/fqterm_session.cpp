@@ -98,7 +98,7 @@ FQTermSession::FQTermSession(FQTermConfig *config, FQTermParam param, bool isBee
 #endif
   }
 
-  zmodem_ = new FQTermZmodem(config, telnet_, param.protocolType_, zmodemDir);
+  zmodem_ = new FQTermZmodem(config, telnet_, param.protocolType_, zmodemDir, serverEncodingID);
   decoder_ = new FQTermDecode(termBuffer_, telnet_, param.serverEncodingID_);
 
   //  isColorCopy_ = param.isColorCopy_;
@@ -1360,6 +1360,8 @@ void FQTermSession::setLineAllChanged(int index) {
 
 void FQTermSession::setTermSize(int col, int row) {
   termBuffer_->setTermSize(col, row);
+  param_.numColumns_ = col;
+  param_.numRows_ = row;
 }
 
 const FQTermBuffer *FQTermSession::getBuffer() const {
@@ -1435,6 +1437,10 @@ void FQTermSession::getLineColorInfo(const FQTermTextLine * line,
   }
 }
 
+bool FQTermSession::readyForInput()
+{
+  return telnet_->readyForInput();
+}
 ArticleCopyThread::ArticleCopyThread(
     FQTermSession &bbs, QWaitCondition &waitCondition)
     : session_(bbs),

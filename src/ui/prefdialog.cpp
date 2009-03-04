@@ -119,6 +119,10 @@ void prefDialog::loadSetting() {
   strTmp = config_->getItemValue("preference", "antialias");
   ui_.aacheckBox->setChecked(strTmp != "0");
 
+  strTmp = config_->getItemValue("preference", "correctnonmonospace");
+  ui_.mscheckBox->setChecked(strTmp == "1");
+
+
   strTmp = config_->getItemValue("preference", "tray");
   ui_.trayCheckBox->setChecked(strTmp != "0");
 
@@ -177,6 +181,9 @@ void prefDialog::saveSetting() {
 
   strTmp.setNum(ui_.aacheckBox->isChecked() ? 1 : 0);
   config_->setItemValue("preference", "antialias", strTmp);
+
+  strTmp.setNum(ui_.mscheckBox->isChecked() ? 1 : 0);
+  config_->setItemValue("preference", "correctnonmonospace", strTmp);
 
   strTmp.setNum(ui_.trayCheckBox->isChecked() ? 1 : 0);
   config_->setItemValue("preference", "tray", strTmp);

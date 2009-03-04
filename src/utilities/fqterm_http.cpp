@@ -38,10 +38,12 @@ namespace FQTerm {
 QMap<QString, int> FQTermHttp::downloadMap_;
 QMutex FQTermHttp::mutex_;
 
-FQTermHttp::FQTermHttp(FQTermConfig *config, QWidget *p, const QString &poolDir)
+FQTermHttp::FQTermHttp(FQTermConfig *config, QWidget *p, const QString &poolDir, int serverEncodingID)
   : poolDir_(poolDir) {
   // 	m_pDialog = NULL;
   config_ = config;
+
+  serverEncodingID_ = serverEncodingID;
 
   FQ_VERIFY(connect(&http_, SIGNAL(done(bool)), this, SLOT(httpDone(bool))));
   FQ_VERIFY(connect(&http_, SIGNAL(dataReadProgress(int, int)),
@@ -73,7 +75,7 @@ void FQTermHttp::getLink(const QString &url, bool preview) {
   lastPercent_ = 0;
   QUrl u(url);
   if (u.isRelative() || u.scheme() == "file") {
-    emit previewImage(cacheFileName_, false);
+    emit previewImage(cacheFileName_, false, true);
     emit done(this);
     return ;
   }
@@ -178,7 +180,8 @@ void FQTermHttp::httpResponse(const QHttpResponseHeader &hrh) {
   if (pos != -1) {
     cacheFileName_ = ValueString.mid(pos + 9, re.matchedLength() - 10);
   }
-  filename = cacheFileName_ = G2U(cacheFileName_.toLatin1());
+
+  filename = cacheFileName_ = (serverEncodingID_?B2U(cacheFileName_.toLatin1()):G2U(cacheFileName_.toLatin1()));
 
   if (isPreview_) {
     cacheFileName_ = poolDir_ + cacheFileName_;
@@ -266,10 +269,10 @@ void FQTermHttp::httpRead(int done, int total) {
     int p = done *100 / total;
     if (p - lastPercent_ >= 10 && isPreview_ && QFileInfo(cacheFileName_).suffix().toLower() == "jpg") {
       if (!previewEmitted) {
-        emit previewImage(cacheFileName_,true);
+        emit previewImage(cacheFileName_,true, false);
         previewEmitted = true;
       } else {
-        emit previewImage(cacheFileName_,false);
+        emit previewImage(cacheFileName_,false, false);
       }
       lastPercent_ = p;
     }
@@ -299,7 +302,7 @@ void FQTermHttp::httpDone(bool err) {
   }
 
   if (isPreview_) {
-    emit previewImage(cacheFileName_, true);
+    emit previewImage(cacheFileName_, true, true);
   } else {
     emit message("Download one file successfully");
   }

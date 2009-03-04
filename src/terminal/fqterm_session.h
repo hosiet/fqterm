@@ -136,6 +136,8 @@ class FQTermSession: public QObject {
 
   bool isPageComplete();
 
+  bool readyForInput();
+
   // Set current screen start line to help detect cursor type
   // and select rectangle corresponding to current cursor postion.
   void setScreenStart(int);

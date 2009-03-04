@@ -82,6 +82,9 @@ class FQTermTelnet: public QObject {
   int raw_len();
   int read_raw(char *data, uint maxlen);
 
+  bool readyForInput();
+
+
  signals:
   void readyRead(int, int); // There are datas to be read out
   void TelnetState(int); // The  state telnet, defined as TSXXXX in fqterm.h

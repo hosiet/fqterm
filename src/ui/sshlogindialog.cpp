@@ -43,7 +43,13 @@ SSHLoginDialog::SSHLoginDialog(QString *username, QString *password,
   ui_.lePassword->setEchoMode(QLineEdit::Password);
   ui_.leUserName->setText(*username);
   ui_.lePassword->setText(*password);
-  ui_.leUserName->setFocus();
+  if (!username->isEmpty()) {
+    ui_.leUserName->setDisabled(true);
+    ui_.lePassword->setFocus();
+  } else {
+    ui_.leUserName->setDisabled(false);
+    ui_.leUserName->setFocus();
+  }
 
   FQ_VERIFY(connect(ui_.bOK, SIGNAL(clicked()), this, SLOT(accept())));
   FQ_VERIFY(connect(ui_.bCancel, SIGNAL(clicked()), this, SLOT(reject())));
