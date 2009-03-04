@@ -56,6 +56,10 @@ class FQTermDecode: public QObject {
     server_encoding_ = encoding;
   }
 
+  bool isBrokenCharStored() {
+    return brokenChar_;
+  }
+
   //signals:
   //	void decodeFinished();
  signals:
@@ -172,6 +176,8 @@ class FQTermDecode: public QObject {
   int server_encoding_;
 
   QString bbs2unicode(const QByteArray &text);
+  
+  char brokenChar_;
 };
 
 }  // namespace FQTerm

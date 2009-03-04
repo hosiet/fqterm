@@ -307,6 +307,7 @@ const char *FQTermDecode::getStateName(const StateOption *state) {
 
 FQTermDecode::FQTermDecode(FQTermBuffer *buffer, FQTermTelnet *telnet,
                            int server_encoding) {
+  brokenChar_ = '\0';
   termBuffer_ = buffer;
   telnet_ = telnet;
 
@@ -331,6 +332,7 @@ FQTermDecode::FQTermDecode(FQTermBuffer *buffer, FQTermTelnet *telnet,
 }
 
 FQTermDecode::~FQTermDecode() {
+  
 }
 
 // precess input string from telnet socket
@@ -428,45 +430,61 @@ void FQTermDecode::normalInput() {
 
   // TODO_UTF16: check ascii-incompitable encoding.
   int n = 0;
-  int non_ascii_count = 0;
-  while ((dataIndex_ + n) < inputLength_
-         && (signed(inputData_[dataIndex_ + n]) >= 0x20
-             || signed(inputData_[dataIndex_ + n]) < 0x00)) {
+  bool last_char_cant_be_end = brokenChar_?true:false;
+
+  while (((dataIndex_ + n) < inputLength_) && (signed(inputData_[dataIndex_ + n]) >= 0x20
+    || signed(inputData_[dataIndex_ + n]) < 0x00)) {
+    
     if (signed(inputData_[dataIndex_ + n]) < 0x00) {
-      ++non_ascii_count;
+      if (last_char_cant_be_end) {
+        last_char_cant_be_end = false;
+      } else {
+        last_char_cant_be_end = true;
+      }
+      
     } else {
-      non_ascii_count = 0;
+      last_char_cant_be_end = false;
     }
     n++;
   }
  
   // TODO_UTF16: only GBK or Big5, etc use two bytes to encode
   // a non-ascii characters. How about other encodings?
-  bool replace_last_byte = false;
-  if (non_ascii_count % 2 != 0) {
+  if (last_char_cant_be_end) {
     if(dataIndex_ + n == inputLength_) {
       // if it's the last byte can't decoded, then leave it to next time. 
-      --n;
+      //--n;
       interrupt_decode_ = true;
-    } else {
-      // We can't decode the byte, replace it with URC
-      // FIXME: decoding error.
-      // QVERIFY(false); 
-      replace_last_byte = true;
-    }
+    } 
   }
 
-  QByteArray cstr(inputData_ + dataIndex_, n);
-  if (replace_last_byte) {
-    cstr[n - 1] = URC;
+  
+  QByteArray cstr;
+  cstr.reserve(n + 1);
+  bool copy_color_attr = false;
+  if (brokenChar_) {
+    copy_color_attr = true;
+    cstr.push_back(brokenChar_);
+    brokenChar_ = '\0';
+  }
+  int real_n = n;
+  if (last_char_cant_be_end) {
+    real_n = n - 1;
+    brokenChar_ = inputData_[dataIndex_ + n - 1];
+  }
+  
+  cstr.push_back(QByteArray(inputData_ + dataIndex_, real_n));
+  if (last_char_cant_be_end) {
+    cstr.push_back('?');  //make sure the attr is recorded
   }
 
+  
   // 	Q3CString cstr( inputData + dataIndex, n + 1 );
   QString str = bbs2unicode(cstr);
   FQ_TRACE("normal_input", 9) << "hex: " << dumpHexString
                                << str.toLocal8Bit().constData() ;  
   FQ_TRACE("normal_input", 9) << "text: " << str;
-  termBuffer_->writeText(str);
+  termBuffer_->writeText(str, copy_color_attr);
 
   n--;
   dataIndex_ += n;

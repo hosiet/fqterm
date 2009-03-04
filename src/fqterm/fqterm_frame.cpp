@@ -22,6 +22,10 @@
 #include <unistd.h>
 #endif
 
+#if defined(__linux__)
+#include <QLocale>
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -316,6 +320,8 @@ void FQTermFrame::loadPref(FQTermConfig *conf) {
   //  m_pref.strHttp = strTmp;
   strTmp = conf->getItemValue("preference", "antialias");
   preference_.openAntiAlias_ = (strTmp != "0");
+  strTmp = conf->getItemValue("preference", "correctnonmonospace");
+  preference_.correctNonMonospace_ = (strTmp == "1");
   strTmp = conf->getItemValue("preference", "tray");
   if (strTmp.isEmpty()) {
 #if defined(__APPLE__) || defined(__linux__)
@@ -424,25 +430,11 @@ void FQTermFrame::quickLogin() {
   }
 }
 
-void FQTermFrame::exitQTerm() {
+void FQTermFrame::exitFQTerm() {
   
-  while (windowManager_->count() > 0) {
-    bool closed = windowManager_->activeWindow()->close();
-    if (!closed) {
-      return ;
-    }
-  }
-
-  saveSetting();
-  // clear zmodem and pool if needed
-  if (preference_.needClearZmodemPoolOnClose_) {
-    clearDir(preference_.zmodemDir_);
-    clearDir(preference_.zmodemPoolDir_);
-    clearDir(preference_.zmodemPoolDir_ + "shadow-cache/");
-  }
-
-  setUseDock(false);
-  qApp->quit();
+  if (!clearUp()) return;
+  
+  emit frameClosed();
 }
 
 void FQTermFrame::newWindow(const FQTermParam &param, int index) {
@@ -483,6 +475,9 @@ void FQTermFrame::newWindow(const FQTermParam &param, int index) {
                     this, SLOT(subWindowResized(FQTermWindow*))));
   FQ_VERIFY(connect(this, SIGNAL(bossColor()),
     window->screen_, SLOT(bossColor())));
+
+  FQ_VERIFY(connect(this, SIGNAL(fontAntiAliasing(bool)),
+    window->screen_, SLOT(setFontAntiAliasing(bool))));
 }
 
 //the tabbar selection changed
@@ -491,7 +486,7 @@ void FQTermFrame::selectionChanged(int n) {
   windowManager_->activateTheWindow(qtab, n);
 }
 
-void FQTermFrame::aboutQTerm() {
+void FQTermFrame::aboutFQTerm() {
   aboutDialog about(this);
   about.exec();
 }
@@ -505,8 +500,7 @@ void FQTermFrame::homepage() {
   if (httpBrowser.isNull() || httpBrowser.isEmpty()) {
 	QDesktopServices::openUrl(homeUrl);
   } else {
-	QString strCmd = "'" + httpBrowser + + "' '" + homeUrl + "'";
-	runProgram(strCmd);
+	  runProgram(httpBrowser, homeUrl);
   }
 }
 
@@ -647,28 +641,12 @@ void FQTermFrame::closeEvent(QCloseEvent *clse) {
     clse->ignore();
     return ;
   }
-
-  while (windowManager_->count() > 0) {
-    bool closed = mdiArea_->activeSubWindow()->close();
-    if (!closed) {
-      clse->ignore();
-      return;
-    }
-  }
-
-  saveSetting();
-  // clear zmodem and pool if needed
-  if (preference_.needClearZmodemPoolOnClose_) {
-    clearDir(preference_.zmodemDir_);
-    clearDir(preference_.zmodemPoolDir_);
-    clearDir(preference_.zmodemPoolDir_ + "shadow-cache/");
-
-  }
-
-  setUseDock(false);
+  if (!clearUp())
+    return;
 
   clse->accept();
 
+  emit frameClosed();
 }
 
 void FQTermFrame::langEnglish() {
@@ -926,6 +904,7 @@ void FQTermFrame::preference() {
       clearStyleSheet();
     }
   }
+  emit fontAntiAliasing(preference_.openAntiAlias_);
 }
 
 void FQTermFrame::keySetup() {
@@ -1187,7 +1166,7 @@ void FQTermFrame::addMainMenu() {
                            tr("&Quick login"),
                            this, SLOT(quickLogin()), tr("F3"));
   menuFile_->addSeparator();
-  menuFile_->addAction(tr("&Exit"), this, SLOT(exitQTerm()));
+  menuFile_->addAction(tr("&Exit"), this, SLOT(exitFQTerm()));
 
   //Edit Menu
   QMenu *edit = menuMain_->addMenu(tr("&Edit"));
@@ -1370,7 +1349,7 @@ void FQTermFrame::addMainMenu() {
 
   //Help menu
   QMenu *help = menuMain_->addMenu(tr("&Help"));
-  help->addAction(tr("About &FQTerm"), this, SLOT(aboutQTerm()), tr("F1"));
+  help->addAction(tr("About &FQTerm"), this, SLOT(aboutFQTerm()), tr("F1"));
 
   help->addAction(tr("FQTerm's &Homepage"), this, SLOT(homepage()));
 }
@@ -1516,8 +1495,8 @@ void FQTermFrame::setUseDock(bool use) {
       tray->hide();
       delete tray;
       tray = 0;
-      delete menuTray_;
-      menuTray_ = 0;
+      //delete menuTray_;
+      //menuTray_ = 0;
     }
     return ;
   }
@@ -1549,8 +1528,8 @@ void FQTermFrame::buildTrayMenu() {
     menuTray_->addAction(tr("Hide"), this, SLOT(trayHide()));
   }
   menuTray_->addSeparator();
-  menuTray_->addAction(tr("About"), this, SLOT(aboutQTerm()));
-  menuTray_->addAction(tr("Exit"), this, SLOT(exitQTerm()));
+  menuTray_->addAction(tr("About"), this, SLOT(aboutFQTerm()));
+  menuTray_->addAction(tr("Exit"), this, SLOT(exitFQTerm()));
 }
 
 void FQTermFrame::trayActived(QSystemTrayIcon::ActivationReason reason) {
@@ -1754,6 +1733,10 @@ void FQTermFrame::initTranslator() {
   if (!langList.contains(lang)) {
     lang = QLocale::system().name();
   }
+#if defined(__linux__)
+  if (QLocale::system().language() == QLocale::English)
+    lang = QLocale::system().name();
+#endif
   installTranslator(lang);
 }
 
@@ -1861,6 +1844,27 @@ void FQTermFrame::toggleAnsiColor() {
   actionToggleAnsiColor_->setChecked(
     windowManager_->activeWindow()->session_->param_.isAnsiColor_);
   refreshScreen();
+}
+
+bool FQTermFrame::clearUp() {
+  while (windowManager_->count() > 0) {
+    bool closed = windowManager_->activeWindow()->close();
+    if (!closed) {
+      return false;
+    }
+  }
+
+  saveSetting();
+  // clear zmodem and pool if needed
+  if (preference_.needClearZmodemPoolOnClose_) {
+    clearDir(preference_.zmodemDir_);
+    clearDir(preference_.zmodemPoolDir_);
+    clearDir(preference_.zmodemPoolDir_ + "shadow-cache/");
+  }
+
+  setUseDock(false);
+
+  return true;
 }
 
 

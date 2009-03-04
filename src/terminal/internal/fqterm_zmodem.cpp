@@ -557,11 +557,13 @@ const char *FQTermZmodem::hdrnames[] =  {
 
 #endif
 
-FQTermZmodem::FQTermZmodem(FQTermConfig *config, FQTermTelnet *netinterface, int type, const QString &zmodemDir) {
+FQTermZmodem::FQTermZmodem(FQTermConfig *config, FQTermTelnet *netinterface, int type, const QString &zmodemDir, int serverEncoding) {
 
   //now set network interface Telnet
 
   connectionType = type;
+
+  serverEncodingID = serverEncoding;
 
   switch (connectionType) {
 	case 0:
@@ -1191,7 +1193,7 @@ FILE *FQTermZmodem::ZOpenFile(char *name, ulong crc, ZModem *info) {
   //to be complete
   FILE *rval;
   int apnd = 0;
-  QString str = zmodemDir_ + G2U(name);
+  QString str = zmodemDir_ + (serverEncodingID?B2U(name):G2U(name));
 
   QString zpath = QFileInfo(zmodemDir_).absoluteFilePath();
   QString path = QFileInfo(str).absoluteFilePath();

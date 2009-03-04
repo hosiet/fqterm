@@ -126,8 +126,7 @@ void FQTermExternalSound::setPlayer(const QString &playername) {
 
 void FQTermExternalSound::play() {
   if (QFile::exists(soundFile_)) {
-    QString command = "'" + playerName_ + "' '" + soundFile_ + "'";
-    runProgram(command, false);
+    runProgram(playerName_, soundFile_, false);
   }
 }
 

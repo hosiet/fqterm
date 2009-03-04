@@ -34,7 +34,7 @@ class FQTermFileDialog;
 class FQTermHttp: public QObject {
   Q_OBJECT;
  public:
-  FQTermHttp(FQTermConfig *, QWidget*, const QString &poolDir);
+  FQTermHttp(FQTermConfig *, QWidget*, const QString &poolDir, int serverEncodingID);
   ~FQTermHttp();
 
   void getLink(const QString &, bool);
@@ -44,7 +44,7 @@ class FQTermHttp: public QObject {
   void message(const QString &);
   void percent(int);
   void headerReceived(FQTermHttp *, const QString &filename);
-  void previewImage(const QString &filename, bool raiseViewer);
+  void previewImage(const QString &filename, bool raiseViewer, bool done);
 
  public slots:
   void cancel();
@@ -61,6 +61,7 @@ class FQTermHttp: public QObject {
   bool isPreview_;
   bool isExisting_;
   int lastPercent_;
+  int serverEncodingID_;
 
   QString poolDir_;
 

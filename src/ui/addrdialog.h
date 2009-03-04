@@ -77,6 +77,9 @@ class addrDialog: public QDialog {
   Ui::addrDialog ui_;
 };
 
+
+
+
 }  // namespace FQTerm
 
 #endif  // FQTERM_ADDR_DIALOG_H

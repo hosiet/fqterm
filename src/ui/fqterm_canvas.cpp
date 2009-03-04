@@ -230,8 +230,9 @@ void FQTermCanvas::loadImage(QString name, bool performAdjust) {
     }
     if (isEmbedded) {
       label->hide();
-      label->setPixmap(fileName_);
       if (performAdjust) autoAdjust();
+      else label->setPixmap(fileName_);
+      
       label->show();
     }
 
@@ -241,10 +242,6 @@ void FQTermCanvas::loadImage(QString name, bool performAdjust) {
 }
 
 void FQTermCanvas::resizeImage(float ratio) {
-  if (label->pixmap() == NULL) {
-    return ;
-  }
-
   QSize szImg = imageSize_;
   szImg *= (1+ratio);
   //we dont need so big
@@ -407,7 +404,7 @@ void FQTermCanvas::keyPressEvent(QKeyEvent *ke) {
 
 void FQTermCanvas::adjustSize(QSize szView) {
   szView -= QSize(2 * frameWidth(), 2 * frameWidth());
-  if (label->pixmap() == NULL) {
+  if (label->pixmap() == NULL && image_.isNull()) {
     label->resize(szView);
     return ;
   }

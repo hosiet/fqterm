@@ -180,9 +180,15 @@ void FQTermScreen::syncBufferAndScreen() {
   } else {
     int cx = clientRectangle_.width() / charWidth_;
     int cy = clientRectangle_.height() / charHeight_;
-    if (cx > 10 && cy > 10) {
-      session_->setTermSize(cx, cy);
+    if (param_->hostType_ == 0) {
+      if (cx < 80) cx = 80;
+      if (cy < 24) cy = 24;
+    } else {
+      if (cx < 10) cx = 10;
+      if (cy < 10) cy = 10;
     }
+    session_->setTermSize(cx, cy);
+    //session_->writeStr("\0x5f");
   }
 }
 
@@ -288,9 +294,7 @@ void FQTermScreen::updateFont() {
   
   englishFont_->setWeight(QFont::Normal);
   nonEnglishFont_->setWeight(QFont::Normal);
-  // m_pFont->setStyleHint(QFont::System,
-  // m_pWindow->m_pFrame->m_pref.bAA ?
-  //  QFont::PreferAntialias : QFont::NoAntialias);
+  setFontAntiAliasing(termWindow_->frame_->preference_.openAntiAlias_);
 }
 
 void FQTermScreen::setFontMetrics() {
@@ -625,7 +629,8 @@ void FQTermScreen::blinkEvent() {
 
 void FQTermScreen::paintEvent(QPaintEvent *pe) {
   QPainter painter(this);
-
+  painter.setRenderHint(QPainter::Antialiasing, termWindow_->frame_->preference_.openAntiAlias_);
+  painter.setRenderHint(QPainter::TextAntialiasing, termWindow_->frame_->preference_.openAntiAlias_);
   if (paintState_ == System) {
     repaintScreen(pe, painter);
     return;
@@ -912,7 +917,9 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
   endx = pTextLine->getCellEnd(endx);
 
   bool isMonoSpace = true;
-  if (!QFontInfo(*englishFont_).fixedPitch() || !QFontInfo(*nonEnglishFont_).fixedPitch()) {
+  if (!QFontInfo(*englishFont_).fixedPitch() 
+    || !QFontInfo(*nonEnglishFont_).fixedPitch()
+    /*&& termWindow_->frame_->preference_.correctNonMonospace_*/) {
     isMonoSpace = false;
   }
   
@@ -941,7 +948,6 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
 
     int text_width;
 
-    //    painter.setRenderHint(QPainter::TextAntialiasing);
     unsigned char_begin = pTextLine->getCharBegin(cell_begin);
     for (unsigned k = cell_begin; k < cell_end; ++k) {
       unsigned begin = pTextLine->getCellBegin(k);
@@ -952,6 +958,13 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
                                             charEnd - charBegin));
     }
 
+    bool draw_half_begin_char = false;
+#if defined(WIN32)
+    if (startx > 0 &&  pTextLine->getCellBegin(startx) == pTextLine->getCellBegin(startx - 1) 
+      && *(pTextLine->getColors() + startx) != *(pTextLine->getColors() + startx - 1)) {
+      draw_half_begin_char = true;
+    }
+#endif
     for (unsigned k = cell_begin; k < cell_end; ++k){
       cstrText.clear();
       bool languageType = isEnglishLanguage[k];
@@ -971,6 +984,11 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
       painter.setFont(languageType?*englishFont_:*nonEnglishFont_);
 
       if (isMonoSpace) {
+        if (draw_half_begin_char) {
+          text_width--;
+          sameLanguageStart++;
+          draw_half_begin_char = false;
+        }
         drawStr(painter, cstrText, sameLanguageStart, index, text_width,
                 tempcp, tempea, isTransparent, bSelected);
       } else {
@@ -986,10 +1004,19 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
                     isTransparent, bSelected);
             offset++;
           } else {
+            int w = 2;
+            if (draw_half_begin_char) {
+              w--;
+              sameLanguageStart++;
+            }
             drawStr(painter, (QString)cstrText.at(j),
-                    sameLanguageStart + offset, index, 2,
+                    sameLanguageStart + offset, index, w,
                     tempcp, tempea,
                     isTransparent, bSelected);
+            if (draw_half_begin_char) {
+              draw_half_begin_char = false;
+              offset--;
+            }
             offset += 2;
           }
         }
@@ -1129,7 +1156,11 @@ void FQTermScreen::drawStr(QPainter &painter, const QString &str,
     int offset = (height_gap + 1)/2; 
     int ascent = qm.ascent() + offset; 
 
+#if defined(WIN32)
+    painter.drawText(rcErase, Qt::AlignRight, str);
+#else
     painter.drawText(pt.x(), pt.y() + ascent, str);
+#endif
   }
 }
 
@@ -1415,6 +1446,12 @@ void FQTermScreen::drawSingleUnderLine(QPainter &painter, const QPoint& startPoi
   painter.fillRect(realStart.x(), realStart.y() + 10 * charHeight_ / 11,
     realEnd.x() - realStart.x(), charHeight_ / 11, termWindow_->frame_->isBossColor_?colors_[0]:param_->menuColor_);
 }
+
+void FQTermScreen::setFontAntiAliasing( bool on /*= true*/ ) {
+  englishFont_->setStyleStrategy(on?QFont::PreferAntialias:QFont::NoAntialias);
+  nonEnglishFont_->setStyleStrategy(on?QFont::PreferAntialias:QFont::NoAntialias);
+}
+
 PreeditLine::PreeditLine(QWidget *parent,const QColor *colors)
     : QWidget(parent),
       pixmap_(new QPixmap()),

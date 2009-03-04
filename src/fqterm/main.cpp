@@ -120,7 +120,8 @@ int main(int argc, char **argv) {
   mw->setWindowTitle("FQTerm " + QString(FQTERM_VERSION_STRING));
   mw->setWindowIcon(QPixmap(getPath(RESOURCE) + "pic/fqterm.png"));
   mw->show();
-  FQ_VERIFY(a.connect(&a, SIGNAL(lastWindowClosed()), &a, SLOT(quit())));
+  a.setQuitOnLastWindowClosed(false);
+  FQ_VERIFY(a.connect(mw, SIGNAL(frameClosed()), &a, SLOT(quit())));
 
   int res = a.exec();
   return res;

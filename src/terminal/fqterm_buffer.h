@@ -133,7 +133,7 @@ class FQTermBuffer: public QObject {
   // mode of this buffer (is_insert_mode_, is_newline_mode_, and
   // etc.).
 
-  void writeText(const QString &cstr);
+  void writeText(const QString &cstr, bool copy_color_attr = false);
 
   void fillScreenWith(char c);
 

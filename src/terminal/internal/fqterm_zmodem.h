@@ -368,7 +368,7 @@ typedef struct {
 class FQTermZmodem: public QObject {
   Q_OBJECT;
  public:
-  FQTermZmodem(FQTermConfig *config, FQTermTelnet *netinterface, int type, const QString &zmodemDir);
+  FQTermZmodem(FQTermConfig *config, FQTermTelnet *netinterface, int type, const QString &zmodemDir, int serverEncoding);
   ~FQTermZmodem();
 
   /* zmodem-supplied functions: */
@@ -604,6 +604,8 @@ class FQTermZmodem: public QObject {
 
   QStringList strFileList;
   QStringList::Iterator itFile;
+
+  int serverEncodingID;
 
   // TODO: sync this with preference.
   QString zmodemDir_;

@@ -57,7 +57,7 @@ const char * const kDirections[] =  {
   "\x1b[C"   // 7 RIGHT
 };
 
-void runProgram(const QString &cmd, bool bg = true);
+void runProgram(const QString &cmd, const QString& arg = "", bool bg = true);
 
 }  // namespace FQTerm
 

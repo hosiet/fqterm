@@ -161,6 +161,7 @@ signals:
   void openLink();
   void copyLink();
   void previewImage(const QString &filename, bool raiseViewer);
+  void httpPreviewImage(const QString &filename, bool raiseViewer, bool done);
   void startHttpDownload(FQTermHttp *, const QString &filedesp);
 
   void httpDone(QObject*);
