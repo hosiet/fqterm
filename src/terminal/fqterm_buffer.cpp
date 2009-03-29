@@ -186,7 +186,7 @@ void FQTermBuffer::setCurrentAttr(unsigned char color, unsigned char attr) {
   caret_.attr_ = attr;
 }
 
-void FQTermBuffer::writeText(const QString &str, bool copy_color_attr) {
+void FQTermBuffer::writeText(const QString &str, FQTermTextLine::CHARSTATE charstate) {
   
   QString cstr = str;
 
@@ -215,6 +215,10 @@ void FQTermBuffer::writeText(const QString &str, bool copy_color_attr) {
       return ;
     }
 
+    if (charstate == FQTermTextLine::SECONDPART) {
+      moveCaretOffset(-1, 0);
+    } 
+
     if (caret_.column_ >= (int)line->getMaxCellCount()) {
       // move the caret to the next line.
       moveCaretTo(0, caret_.row_ + 1, true);
@@ -239,17 +243,14 @@ void FQTermBuffer::writeText(const QString &str, bool copy_color_attr) {
       // FIXEME: How to move cursor if the entire line is wider than
       // line->getMaxCellCount() after insertion?
       line->insertText((UTF16 *)cstr.data(), element_consumed, cell_begin,
-                       caret_.color_, caret_.attr_, copy_color_attr);
+                       caret_.color_, caret_.attr_, charstate);
       if (line->getWidth() > num_columns_) {
         line->deleteText(num_columns_, line->getWidth());
       }
     } else {
       line->replaceText((UTF16 *)cstr.data(), element_consumed, 
                         cell_begin, qMin(cell_begin + width, line->getWidth()),
-                        caret_.color_, caret_.attr_, copy_color_attr);
-    }
-    if (copy_color_attr) {
-      width--;
+                        caret_.color_, caret_.attr_, charstate);
     }
     moveCaretOffset(width, 0);
 
@@ -348,8 +349,13 @@ void FQTermBuffer::setMargins(int top, int bottom) {
 }
 
 void FQTermBuffer::moveCaretTo(int column, int row, bool scroll_if_necessary) {
+  if (row != caret_.row_)
+    emit caretChangeRow();
+
   FQ_TRACE("term", 5) << "Move caret to (" << column << ", " << row << ")";
-      
+  
+  //If th
+
   // detect index boundary
   if (column >= num_columns_) {
     column = num_columns_;

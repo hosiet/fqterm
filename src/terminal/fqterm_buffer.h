@@ -25,7 +25,7 @@
 #include <QObject>
 
 #include <QPoint>
-
+#include "fqterm_text_line.h"
 class QString;
 class QByteArray;
 class QRect;
@@ -133,7 +133,7 @@ class FQTermBuffer: public QObject {
   // mode of this buffer (is_insert_mode_, is_newline_mode_, and
   // etc.).
 
-  void writeText(const QString &cstr, bool copy_color_attr = false);
+  void writeText(const QString &cstr, FQTermTextLine::CHARSTATE charstate = FQTermTextLine::NORMAL);
 
   void fillScreenWith(char c);
 
@@ -212,7 +212,7 @@ class FQTermBuffer: public QObject {
  signals:
   void bufferSizeChanged();
   void termSizeChanged(int column, int row);
-
+  void caretChangeRow();
  private:
   // Scroll lines between startRow and bottom_row_ (see setMargin()).
   // num > 0 scroll up.

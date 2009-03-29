@@ -329,6 +329,7 @@ FQTermDecode::FQTermDecode(FQTermBuffer *buffer, FQTermTelnet *telnet,
   server_encoding_ = server_encoding;
 
   currentMode_[MODE_MouseX11] = savedMode_[MODE_MouseX11] = false;
+  FQ_VERIFY(connect(termBuffer_, SIGNAL(caretChangeRow()), this, SLOT(onCaretChangeRow())));
 }
 
 FQTermDecode::~FQTermDecode() {
@@ -420,6 +421,8 @@ QString FQTermDecode::bbs2unicode(const QByteArray &text) {
 // TODO: this function may contain bug, need double-check.
 //       1. input should be ascii-compitable encoding.
 void FQTermDecode::normalInput() {
+
+  FQTermTextLine::CHARSTATE charstate = FQTermTextLine::NORMAL;
   FQ_FUNC_TRACE("ansi", 8);
 
   // TODO_UTF16: check ascii-incompitable encoding.
@@ -461,10 +464,9 @@ void FQTermDecode::normalInput() {
   
   QByteArray cstr;
   cstr.reserve(n + 1);
-  bool copy_color_attr = false;
   if (brokenChar_) {
-    copy_color_attr = true;
     cstr.push_back(brokenChar_);
+    charstate = FQTermTextLine::SECONDPART;
     brokenChar_ = '\0';
   }
   int real_n = n;
@@ -475,7 +477,9 @@ void FQTermDecode::normalInput() {
   
   cstr.push_back(QByteArray(inputData_ + dataIndex_, real_n));
   if (last_char_cant_be_end) {
-    cstr.push_back('?');  //make sure the attr is recorded
+    cstr.push_back('?');  //make sure the attr is recorded,
+                          //since last -1 operation can make cstr to be empty
+    charstate = FQTermTextLine::FIRSTPART;
   }
 
   
@@ -484,7 +488,7 @@ void FQTermDecode::normalInput() {
   FQ_TRACE("normal_input", 9) << "hex: " << dumpHexString
                                << str.toLocal8Bit().constData() ;  
   FQ_TRACE("normal_input", 9) << "text: " << str;
-  termBuffer_->writeText(str, copy_color_attr);
+  termBuffer_->writeText(str, charstate);
 
   n--;
   dataIndex_ += n;
@@ -1111,6 +1115,12 @@ void FQTermDecode::logParam() const {
     }
   } else {
     FQ_TRACE("ansi", 8) << "No parameter.";
+  }
+}
+
+void FQTermDecode::onCaretChangeRow() {
+  if (brokenChar_) {
+    brokenChar_ = '\0';
   }
 }
 

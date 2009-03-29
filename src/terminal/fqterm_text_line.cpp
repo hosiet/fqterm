@@ -105,7 +105,9 @@ void FQTermTextLine::verifyCellRange(unsigned cell_begin, unsigned cell_end) con
 FQTermTextLine::FQTermTextLine(unsigned max_cell_count)
     : max_cell_count_(max_cell_count),
       dirty_cell_begin_(0),
-      dirty_cell_end_(max_cell_count) {
+      dirty_cell_end_(max_cell_count),
+      stored_color_(0),
+      stored_attr_(0){
   cells_.reserve(max_cell_count_);
   cell_colors_.reserve(max_cell_count_);
   cell_attrs_.reserve(max_cell_count_);
@@ -298,7 +300,7 @@ void FQTermTextLine::replaceWithWhiteSpace(
 
 void FQTermTextLine::insertText(const UTF16 *str, unsigned count,
                                unsigned cell_begin,
-                               unsigned char color, unsigned char attr, bool over_write_one) {
+                               unsigned char color, unsigned char attr, FQTermTextLine::CHARSTATE charstate) {
   if (count == 0) return;
 
   // Calculate how many cells should be occupied for str.
@@ -312,17 +314,27 @@ void FQTermTextLine::insertText(const UTF16 *str, unsigned count,
     return;
   }
 
-  unsigned char stored_color = color;
-  unsigned char stored_attr = attr;
-  if (over_write_one) {
-    if (cell_begin > 0) {
-      cell_begin--;
-      stored_color = cell_colors_[cell_begin];
-      stored_attr = cell_attrs_[cell_begin];
-      deleteText(cell_begin, cell_begin + 1);
+
+  switch(charstate)
+  {
+  case FQTermTextLine::NORMAL:
+    break;
+  case FQTermTextLine::FIRSTPART:
+    stored_color_ = color;
+    stored_attr_ = attr;
+    width--;
+    count--;
+    if (width == 0 || count == 0)
+    {
+      return;
     }
+    
+    break;
+  case FQTermTextLine::SECONDPART:
+    break;
+  default:
+    break;
   }
-  
 
   breakCell(cell_begin);
 
@@ -338,9 +350,18 @@ void FQTermTextLine::insertText(const UTF16 *str, unsigned count,
   // Insert attrs.
   cell_attrs_.insert(cell_attrs_.begin() + cell_begin, width, attr);
 
-  if (over_write_one) {
-    cell_colors_[cell_begin] = stored_color;
-    cell_attrs_[cell_begin] = stored_attr;
+  switch(charstate)
+  {
+  case FQTermTextLine::NORMAL:
+    break;
+  case FQTermTextLine::FIRSTPART:
+    break;
+  case FQTermTextLine::SECONDPART:
+    cell_colors_[cell_begin] = stored_color_;
+    cell_attrs_[cell_begin] = stored_attr_;
+    break;
+  default:
+    break;
   }
   
 
@@ -416,9 +437,29 @@ void FQTermTextLine::deleteAllText() {
 
 void FQTermTextLine::replaceText(const UTF16 *str, unsigned count,
                                 unsigned cell_begin, unsigned cell_end,
-                                unsigned char color, unsigned char attr, bool over_write_one) {
+                                unsigned char color, unsigned char attr, FQTermTextLine::CHARSTATE charstate) {
+  switch(charstate)
+  {
+  case FQTermTextLine::NORMAL:
+    break;
+  case FQTermTextLine::FIRSTPART:
+    stored_color_ = color;
+    stored_attr_ = attr;
+    count--;
+    if (count == 0)
+    {
+      return;
+    }
+    charstate = FQTermTextLine::NORMAL;
+    break;
+  case FQTermTextLine::SECONDPART:
+    break;
+  default:
+    break;
+  }
+
   deleteText(cell_begin, cell_end);
-  insertText(str, count, cell_begin, color, attr, over_write_one);
+  insertText(str, count, cell_begin, color, attr, charstate);
 
   setDirtyFlag(cell_begin, cells_.size());
 }
