@@ -24,7 +24,7 @@
 #include <vector>
 
 #include "fqwcwidth.h"
-
+#include "fqterm.h"
 class QString;
 
 namespace FQTerm {
@@ -42,6 +42,7 @@ class FQTermTextLine {
   FQTermTextLine(unsigned max_cell_count);
   ~FQTermTextLine();
 
+  enum CHARSTATE{NORMAL, FIRSTPART, SECONDPART};
   // Get the number of used cells.
   unsigned getWidth() const {return cells_.size();}
 
@@ -100,10 +101,10 @@ class FQTermTextLine {
   // insert string at specified cell,
   void insertText(const UTF16 *str, unsigned count,
                   unsigned cell_begin,
-                  unsigned char color, unsigned char attr, bool over_write_one = false);
+                  unsigned char color, unsigned char attr, FQTermTextLine::CHARSTATE charstate = FQTermTextLine::NORMAL);
   void replaceText(const UTF16 *str, unsigned count,
                    unsigned cell_begin, unsigned cell_end,
-                   unsigned char color, unsigned char attr, bool over_write_one = false);
+                   unsigned char color, unsigned char attr, FQTermTextLine::CHARSTATE charstate = FQTermTextLine::NORMAL);
   void deleteText(unsigned cell_begin, unsigned cell_end);
   void deleteAllText();
 
@@ -127,6 +128,9 @@ class FQTermTextLine {
   std::vector<unsigned char> cell_colors_; // store the color for each cell.
   std::vector<unsigned char> cell_attrs_; // store the attribute for each cell.
   std::vector<UTF16> chars_;  // store all the character.
+
+  unsigned char stored_color_;
+  unsigned char stored_attr_;
 
   // range of changed text.
   unsigned dirty_cell_begin_, dirty_cell_end_;

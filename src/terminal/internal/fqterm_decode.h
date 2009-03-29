@@ -44,6 +44,7 @@ class FQTermDecode: public QObject {
   FQTermDecode(FQTermBuffer *, FQTermTelnet *, int server_encoding);
   ~FQTermDecode();
 
+
   // translate data from telnet socket to our own buffer
   // return how many bytes are processed.
   int decode(const char *cstr, int length);
@@ -60,11 +61,18 @@ class FQTermDecode: public QObject {
     return brokenChar_;
   }
 
+  char retrieveBrokenChar() {
+    char tmp = brokenChar_;
+    brokenChar_ = '\0';
+    return tmp;
+  }
+
   //signals:
   //	void decodeFinished();
  signals:
   void mouseMode(bool);
-
+  public slots:
+    void onCaretChangeRow();
  private:
   // escape sequence actions
   // you'd better see FSM structure array in FQTermDecode.cpp
