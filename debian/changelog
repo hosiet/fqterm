@@ -1,18 +1,13 @@
-fqterm (0.9.3+svn662-0ubuntu1) jaunty; urgency=low
+fqterm (0.9.3+svn666-1) unstable; urgency=low
 
-  * new upstream release.
-
- -- LI Daobing <lidaobing@gmail.com>  Wed, 04 Mar 2009 19:54:46 +0800
-
-fqterm (0.9.3+svn632-1) unstable; urgency=low
-
-  * Initial upload to Debian (closes: #439367)
+  * Initial upload to Debian (closes: #479367)
+  * new upstream snapshot.
   * add menu support:
     - debian/menu: added.
     - debian/fqterm.xpm: added, generated from res/pic/fqterm_128x128.png
     - debian/fqterm.install: added, install fqterm.xpm
 
- -- LI Daobing <lidaobing@gmail.com>  Fri, 20 Feb 2009 22:01:32 +0800
+ -- LI Daobing <lidaobing@gmail.com>  Sun, 29 Mar 2009 14:46:13 +0800
 
 fqterm (0.9.3+svn632-0ubuntu1) jaunty; urgency=low
 
