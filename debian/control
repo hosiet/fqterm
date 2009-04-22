@@ -1,10 +1,10 @@
 Source: fqterm
 Section: x11
 Priority: optional
-Maintainer: LI Daobing <lidaobing@gmail.com>
+Maintainer: LI Daobing <lidaobing@debian.org>
 Build-Depends: cdbs, debhelper (>= 5), libqt4-dev, cmake,
  libglib2.0-dev, libssl-dev
-Standards-Version: 3.8.0
+Standards-Version: 3.8.1
 Homepage: http://code.google.com/p/fqterm
 Vcs-Browser: http://git.debian.org/?p=chinese/fqterm.git
 Vcs-Git: git://git.debian.org/git/chinese/fqterm.git
