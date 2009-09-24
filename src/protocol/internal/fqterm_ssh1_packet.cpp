@@ -92,7 +92,7 @@ void FQTermSSH1PacketReceiver::parseData(FQTermSSHBuffer *input) {
     real_data_len_ = ntohu32(buf);
 
     if (real_data_len_ > SSH_BUFFER_MAX) {
-      emit packetError("parseData: The packet is too big");
+      emit packetError(tr("parseData: The packet is too big"));
       return ;
     }
 
@@ -129,7 +129,7 @@ void FQTermSSH1PacketReceiver::parseData(FQTermSSHBuffer *input) {
     gotcrc = ssh_crc32(buffer_->data(), total_len - 4);
 
     if (mycrc != gotcrc) {
-      emit packetError("parseData: bad CRC32");
+      emit packetError(tr("parseData: bad CRC32"));
       break;
     }
 

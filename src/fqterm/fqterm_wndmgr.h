@@ -23,51 +23,99 @@
 
 #include <QString>
 #include <QList>
-
+#include <map>
+#include <utility>
+#include <QMdiArea>
+#include <QMdiSubWindow>
+#include <QTabBar>
 //class QTab;
 class QIcon;
-
+class QSize;
+class FQTermConfig;
 namespace FQTerm {
 
 class FQTermWindow;
 class FQTermFrame;
 
-class FQTermWndMgr: public QObject {
+class FQTermWndMgr: public QMdiArea {
   Q_OBJECT;
  public:
-  FQTermWndMgr(QObject *parent = 0, const char *name = 0);
+  FQTermWndMgr(QWidget *parent = 0, const char *name = 0);
   ~FQTermWndMgr();
 
-  int addWindow(FQTermWindow *mw, const QString &qtab, QIcon *icon);
+  QTabBar* tabBar() {return tabBar_;}
+  
+  FQTermWindow* newWindow(const FQTermParam &param, FQTermConfig* config, QIcon* icon, int index = -1);
+  bool closeWindow(FQTermWindow *mw);
+  bool closeAllWindow();
 
-  void removeWindow(FQTermWindow *mw);
 
-  void activateTheTab(FQTermWindow *mw);
-
-  void activateTheWindow(const QString &qtab, int n);
-  void blinkTheTab(FQTermWindow *mw, bool bVisible);
-
-  int count();
-
-  bool afterRemove();
 
   FQTermWindow *activeWindow();
+  FQTermWindow *nthWindow(int n);
+  int count();
 
-  void activeNextPrev(bool);
 
-  void refreshAllExcept(FQTermWindow *mw);
 
-  const QList<FQTermWindow *>& termWindowList();
+
+
+  //sub-window position & size
+
+  bool getSubWindowMax() const { return subWindowMax_; }
+  void setSubWindowMax(bool val) { subWindowMax_ = val; }
+  QSize getSubWindowSize() const { return subWindowSize_; }
+  void setSubWindowSize(QSize val) { subWindowSize_ = val; }
+
+ public slots:
+   void onSubWindowClosed(QObject* obj);
+   //record subwindows' size changes
+   void subWindowResized(FQTermWindow *);
+   void activateTheWindow(int n);
+   void activateNextWindow();
+   void activatePrevWindow();
+   void refreshAllExcept(FQTermWindow *mw);
+   void blinkTheTab(FQTermWindow *mw, bool bVisible);
+   void cascade();
+   void tile();
 
  protected:
-  QList<QString> tabCaptions_;
   QList<QIcon *> icons_;
-  QList<FQTermWindow *> termWindows_;
-
   FQTermFrame *termFrame_;
-
-  int activeWindowIndex_;
   bool isAfterRemoved_;
+  QSize subWindowSize_;
+  bool subWindowMax_;
+ QTabBar* tabBar_;
+
+ typedef std::pair<QMdiSubWindow*, int> mdi_info_t;
+ typedef std::map<FQTermWindow*, mdi_info_t> window_map_t;
+ typedef std::map<FQTermWindow*, mdi_info_t>::iterator window_map_iterator_t;
+ window_map_t windowMap_;
+ FQTermWindow* MDIToFQ(QMdiSubWindow* subWindow)
+ {
+   for (window_map_iterator_t it = windowMap_.begin(); it != windowMap_.end(); ++it)
+   {
+     if (it->second.first == subWindow)
+       return it->first;
+   }
+   return NULL;
+ }
+ QMdiSubWindow* FQToMDI(FQTermWindow* window)
+ {
+   window_map_iterator_t it = windowMap_.find(window);
+   if (it != windowMap_.end())
+     return it->second.first;
+   return NULL;
+ }
+ int FQToIndex(FQTermWindow* window)
+ {
+   window_map_iterator_t it = windowMap_.find(window);
+   if (it != windowMap_.end())
+     return it->second.second;
+   return -1;
+ }
+ bool afterRemove();
+ protected slots:
+   void onSubWindowActivated(QMdiSubWindow * subWindow);
 };
 
 }  // namespace FQTerm

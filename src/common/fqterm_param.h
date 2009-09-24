@@ -26,6 +26,52 @@
 
 namespace FQTerm {
 
+
+//The FQTerm Pref also contains global settings.
+//TODO: move all global settings into FQTermPref.
+struct FQTermPref {
+  static FQTermPref* getInstance() 
+  {
+    //Though Singleton, I didn't define a ctor and make it private
+    //Why?
+    //I'm lazy.
+    static FQTermPref* pThis = new FQTermPref();
+    return pThis;
+  }
+  int displayOffset_;
+  int imeEncodingID_; //	0--GBK	1--BIG5
+  int widthToWrapWord_;
+  // bool bSmartWW;
+  bool isWheelSupported_;
+  bool openWarnOnClose_;
+  bool openTabBlinking_;
+  bool replyENQ_;
+  // bool bLogMsg;
+  QString httpBrowser_;
+  int openBeep_;
+  QString beepSoundFileName_;
+  int beepMethodID_;
+  QString beepPlayerName_;
+  bool openUrlCheck_;
+  // bool bAutoCopy;
+  bool openAntiAlias_;
+  bool openMinimizeToTray_;
+  bool needClearZmodemPoolOnClose_;
+  bool useStyleSheet_;
+  QString styleSheetFile_;
+  QString zmodemDir_;
+  QString poolDir_;
+  QString imageViewerName_;
+
+  //global settings
+  bool isBossColor_;
+  QString escapeString_;
+  int clipboardEncodingID_; // 0--GBK 1--BIG5
+  bool isStatusBarShown_;
+  int termScrollBarPosition_; // 0--hide 1--LEFT 2--RIGHT
+};
+
+
 class FQTermParam {
  public:
   FQTermParam();
@@ -57,11 +103,11 @@ class FQTermParam {
   QString password_;
   // Post Login
   QString postLoginCommand_;
+
   // Display
-  // 0--GBK  1--BGI5
+  // {FQTERM_ENCODING_GBK = 0, FQTERM_ENCODING_BIG5 = 1, FQTERM_ENCODING_UTF8 = 2};
   int serverEncodingID_;
-  // 0--GBK 1--BIG5
-  int dispEncodingID_;
+
   // Auto Change Font When Window Resized
   bool isFontAutoFit_;
   // Always Highlight
@@ -74,12 +120,15 @@ class FQTermParam {
   // Font Size
   int englishFontSize_;
   int nonEnglishFontSize_;
+  int charRatio_; //height of english char / width of english char
+  int fontRatio_; //x = width of chinese char, y = width of english char, y = (fontRatio_ / 100.0 + 1.0) * x / 2.0
   // Background Color
   QColor backgroundColor_;
   // Foreground Color
   QColor foregroundColor_;
   // Schema File
   QString schemaFileName_;
+
   // Terminal
   // Terminal Type
   QString virtualTermType_;
@@ -93,6 +142,11 @@ class FQTermParam {
   int cursorType_; // 0--Block 1--Underline 2--I Type
   // the esacpe string
   QString escapeString_;
+
+  //Keyboard
+  int backspaceType_; //0--^H 1--^?(127)
+
+
   // Connection
   // Proxy Type
   int proxyType_; // 0--None 1--Wingate 2--SOCKS4 3--SOCKS5 4--HTTP
@@ -107,7 +161,7 @@ class FQTermParam {
   // Password
   QString proxyPassword_;
   // Protocol
-  int protocolType_; // 0--Telnet 1--SSH1 2--SSH2
+  int protocolType_; // 0--Telnet 1--SSH1 2--SSH2 3--Local
   // User Name
   QString sshUserName_;
   // Password
@@ -118,6 +172,7 @@ class FQTermParam {
   QString replyKeyCombination_;
   // Send When Idle
   QString antiIdleMessage_;
+  bool isAntiIdle_;
   // wether autoreply
   bool isAutoReply_;
   // Auto Reply Messages
@@ -128,16 +183,24 @@ class FQTermParam {
   int reconnectInterval_;
   // Retry times
   int retryTimes_; // -1 -- infinite
+
+  bool isBeep_;
+  bool isBuzz_;
+
   // Mouse
+  bool isSupportMouse_;
   int menuType_; // 0--underline 1--reverse 2--color
   QColor menuColor_;
   // Script
   bool isAutoLoadScript_;
   QString autoLoadedScriptFileName_;
+  // Zmodem
+  bool enableZmodem_;
 
   bool isColorCopy_;
   bool isRectSelect_;
   bool isAutoCopy_;
+  bool isAutoWrap_;
 
   private:
     void copy(const FQTermParam& parm);

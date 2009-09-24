@@ -84,31 +84,30 @@ class FQTermWindow: public QMainWindow {
   void setFont(bool isEnglish);
 
   void runScript(const QString & filename);
-  void externInput(const QByteArray &);
-  void externInput(const QString &);
+  int externInput(const QByteArray &);
+  int externInput(const QString &);
   void getHttpHelper(const QString &, bool);
 
-public:
-  FQTermFrame *frame_;
-  FQTermSession *session_;
-  FQTermScreen *screen_;
 
-  QString allMessages_;
+  FQTermSession * getSession() const { return session_; }
+
+
   QString pythonErrorMessage_;
-  // before calling repaintScreen(), pls
- // fill this rectangle.
-  QRect clientRect_;
-  QPoint urlStartPoint_;
-  QPoint urlEndPoint_;
 
+  QPoint getUrlStartPoint() const { return urlStartPoint_; }
+  QPoint getUrlEndPoint() const { return urlEndPoint_; }
 
 signals:
   void resizeSignal(FQTermWindow*);
+  void refreshOthers(FQTermWindow*);
+  void blinkTheTab(FQTermWindow*, bool);
 
  public slots:
   // ui
   void copy();
   void paste();
+  void openAsUrl();
+  void googleIt();
   void copyArticle();
   void setting();
   void setColor();
@@ -128,7 +127,6 @@ signals:
   void messageAutoReplied();
 
   void pasteHelper(bool);
-  QByteArray unicode2SessionEncoding(const QString &);
 
   QByteArray parseString(const QByteArray &, int *len = 0);
 
@@ -151,7 +149,7 @@ signals:
 
   void TelnetState(int);
   void ZmodemState(int, int, const char *);
-  void showSessionErrorMessage(const char *reason);
+  void showSessionErrorMessage(QString);
 
   void blinkTab();
 
@@ -188,6 +186,16 @@ signals:
   void focusInEvent (QFocusEvent *);
 
  private:
+  FQTermFrame *frame_;
+  FQTermScreen *screen_;
+  FQTermSession *session_;
+  QString allMessages_;
+  // before calling repaintScreen(), pls
+  // fill this rectangle.
+  QRect clientRect_;
+  QPoint urlEndPoint_;
+  QPoint urlStartPoint_;
+
   QMenu *menu_;
   QMenu *urlMenu_;
 
@@ -201,7 +209,6 @@ signals:
   bool isSelecting_;
 
   // address setting
-  bool isAddressChanged_;
   int addressIndex_;
 
   // url rect
@@ -249,7 +256,8 @@ signals:
   //show ip location info if openUrlCheck is set
   void setCursorType(const QPoint& mousePosition);
 
-  void openUrl();
+  void openUrl(QString url);
+  void openUrlImpl(QString url);
   void enterMenuItem();
   void processLClick(const QPoint& cellClicked);
 
@@ -264,6 +272,11 @@ signals:
 
   QScriptEngine *getScriptEngine();
   void clearScriptEngine();
+
+  public slots:
+    //for script
+    int writeString(const QString& str) {return externInput(str);}
+
 };
 
 }  // namespace FQTerm

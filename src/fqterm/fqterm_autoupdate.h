@@ -36,7 +36,7 @@ class FQTermAutoUpdater : public QObject{
   Q_OBJECT;
 
 public:
-  FQTermAutoUpdater(QObject* parent, FQTermConfig* config, QString zmodemPoolDir);
+  FQTermAutoUpdater(QObject* parent, FQTermConfig* config);
   ~FQTermAutoUpdater();
 
   void checkUpdate();
@@ -49,7 +49,6 @@ private:
   QString getNewestVersion();
   void promptUpdate();
 
-  QString zmodemPoolDir_;
   FQTermConfig* config_;
   QHttp * updateChecker_;
   QFile * versionInfoFile_;

@@ -73,6 +73,7 @@ private:
   FQTermSSHChannel *ssh_channel_;
 
   bool is_channel_ok_;
+  bool auth_ok_emitted_;
 
   QByteArray init_user_, init_passwd_;
 
@@ -92,7 +93,7 @@ private slots:
   void channelOK();
   void channelReadyRead(const char *data, int len);
   void socketReadyRead();
-  void handleError(const char *reason);
+  void handleError(QString);
   
 public:
   FQTermSSHSocket(const char *sshuser = NULL, const char *sshpasswd = NULL);
@@ -118,6 +119,7 @@ public:
 
   void flush();
   void close();
+
 };
 
 }  // namespace FQTerm

@@ -22,6 +22,8 @@
 #define FQTERM_SCREEN_H
 
 #include <QWidget>
+#include <QVector>
+#include <QList>
 #include "fqterm_param.h"
 #include "fqterm_convert.h"
 
@@ -61,14 +63,15 @@ private:
 class FQTermScreen: public QWidget {
   Q_OBJECT;
  public:
+
   enum PaintState {
-     System = 0, Repaint = 1, NewData = 2, Blink = 4, Cursor = 8
+     System = 0, Repaint = 1, NewData = 2, Blink = 4, Cursor = 8, Widget = 16
   };
   enum MouseState {
     Enter, Press, Move, Release, Leave
   };
 
-  FQTermScreen(QWidget *parent, FQTermParam *param, FQTermSession *session);
+  FQTermScreen(QWidget *parent, FQTermSession *session);
   ~FQTermScreen();
 
   void setSchema();
@@ -95,10 +98,9 @@ class FQTermScreen: public QWidget {
       paintState_ = None;
   }*/
 
-  QTextCodec * encoding() const{ return encoding_;}
-
  private:
   int paintState_;
+  void updateWidgetRect(QPainter& painter);
   void refreshScreen(QPainter &painter);
   void blinkScreen(QPainter &painter);
   void updateCursor(QPainter &painter);
@@ -116,6 +118,8 @@ class FQTermScreen: public QWidget {
   void bossColor();
   void updateScrollBar();
   void setFontAntiAliasing(bool on = true);
+  void widgetHideAt(const QRect& rect);
+
 
  protected:
   void initFontMetrics();
@@ -156,6 +160,9 @@ class FQTermScreen: public QWidget {
     return yLine *charHeight_;
   }
 
+  //screen size, in pixel.
+  QSize getScreenSize() const;
+
   // Buffer cell coordinate to screen pixel.
   QPoint mapToPixel(const QPoint &);
 
@@ -189,6 +196,7 @@ class FQTermScreen: public QWidget {
 
   QRect clientRectangle_; // the display area
   QRect menuRect_;
+  QRect widgetRect_; //we need to redraw this rect since a widget just disappeared.
 
   int scrollBarWidth_;
 
@@ -212,7 +220,11 @@ class FQTermScreen: public QWidget {
   QFont *englishFont_;
   QFont *nonEnglishFont_;
 
-  int fontAscent_, fontDescent_, charWidth_, charHeight_;
+  double fontAscent_, fontDescent_;
+  double charWidth_, charHeight_;
+  double cnLetterSpacing_;
+  double enLetterSpacing_;
+  double spLetterSpacing_;
   int lineSpacing_; // for future
 
   bool *areLinesBlink_;
@@ -234,13 +246,47 @@ class FQTermScreen: public QWidget {
 
   FQTermConvert encodingConverter_;
 
-  QTextCodec *encoding_;
   PreeditLine *preedit_line_;
   
   QString *tmp_im_query_;
 
+  //TODO: change to bit field
+  enum TextRenderingType{
+    HalfAndAlign, FullAndAlign, FullNotAlign, HalfAndSpace
+  };
+  TextRenderingType charRenderingType(const QChar& c);
+
   friend class FQTermWindow;
   // for test only
+  public slots:
+    //for script.
+    int clientWidth() const {return clientRectangle_.width();}
+    int clientHeight() const {return clientRectangle_.height();}
+    QList<int> mapCharToPixel(int x, int y) 
+    {QList<int> plist; QPoint bt = mapToChar(QPoint(0, 0)); QPoint pt = mapToPixel(QPoint(x , y + bt.y())); plist << pt.x() << pt.y(); return plist;}
+    QList<int> mapPixelToChar(int x, int y) 
+    {QList<int> plist; QPoint bt = mapToChar(QPoint(0, 0)); QPoint pt = mapToChar(QPoint(x, y)); plist << pt.x()  << pt.y() - bt.y(); return plist;}
+signals:
+    //Value in Qt                   Mapped value
+    //Qt::NoModifier                0x00000000
+    //Qt::ShiftModifier             0x02000000
+    //Qt::ControlModifier           0x04000000
+    //Qt::AltModifier               0x08000000
+    //Qt::MetaModifier              0x10000000
+    //Qt::KeypadModifier            0x20000000
+    //Qt::GroupSwitchModifier       0x40000000
+    void keyPressEvent(int modifiers, int key);
+    //QEvent::MouseButtonPress      0
+    //QEvent::MouseButtonRelease    1
+    //QEvent::MouseButtonDblClick   2
+    //QEvent::MouseMove             3
+    //Qt::NoButton                  0x00000000
+    //Qt::LeftButton                0x00000001
+    //Qt::RightButton               0x00000002
+    //Qt::MidButton                 0x00000004
+    //Qt::XButton1                  0x00000008
+    //Qt::XButton2                  0x00000010
+    void mouseEvent(int type, int x, int y, int button, int buttons, int modifiers);
 };
 
 }  // namespace FQTerm

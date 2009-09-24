@@ -5,26 +5,67 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>393</width>
-    <height>339</height>
+    <width>448</width>
+    <height>360</height>
    </rect>
   </property>
   <property name="windowTitle" >
    <string>Site Setting</string>
   </property>
   <layout class="QGridLayout" >
+   <item row="1" column="0" >
+    <spacer>
+     <property name="orientation" >
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0" >
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="1" column="1" >
+    <widget class="QPushButton" name="applyPushButton" >
+     <property name="text" >
+      <string>&amp;OK</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="2" >
+    <widget class="QPushButton" name="closePushButton" >
+     <property name="text" >
+      <string>&amp;Cancel</string>
+     </property>
+     <property name="shortcut" >
+      <string/>
+     </property>
+     <property name="autoDefault" >
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
    <item row="0" column="0" colspan="3" >
     <widget class="QTabWidget" name="tabWidget" >
      <property name="currentIndex" >
       <number>0</number>
      </property>
      <widget class="QWidget" name="Widget2" >
+      <property name="geometry" >
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>424</width>
+        <height>285</height>
+       </rect>
+      </property>
       <attribute name="title" >
        <string>General</string>
       </attribute>
       <layout class="QGridLayout" >
        <item row="0" column="0" >
-        <layout class="QGridLayout" >
+        <layout class="QGridLayout" name="_2" >
          <item row="0" column="0" >
           <widget class="QLabel" name="TextLabel1" >
            <property name="text" >
@@ -218,7 +259,7 @@
               <property name="orientation" >
                <enum>Qt::Vertical</enum>
               </property>
-              <property name="sizeHint" >
+              <property name="sizeHint" stdset="0" >
                <size>
                 <width>20</width>
                 <height>40</height>
@@ -234,10 +275,18 @@
       </layout>
      </widget>
      <widget class="QWidget" name="tab1" >
+      <property name="geometry" >
+       <rect>
+        <x>8</x>
+        <y>28</y>
+        <width>424</width>
+        <height>285</height>
+       </rect>
+      </property>
       <attribute name="title" >
        <string>Display</string>
       </attribute>
-      <layout class="QGridLayout" >
+      <layout class="QGridLayout" name="gridLayout_3" >
        <item row="0" column="0" >
         <widget class="QLabel" name="TextLabel6" >
          <property name="text" >
@@ -257,33 +306,51 @@
            <string>BIG5</string>
           </property>
          </item>
+         <item>
+          <property name="text" >
+           <string>UTF8</string>
+          </property>
+         </item>
         </widget>
        </item>
        <item row="0" column="2" >
-        <widget class="QLabel" name="TextLabel7" >
+        <widget class="QLabel" name="label_3" >
          <property name="text" >
-          <string>Display Code</string>
+          <string>Font ratio</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="3" >
-        <widget class="QComboBox" name="displaycodeComboBox" >
-         <item>
-          <property name="text" >
-           <string>GBK</string>
-          </property>
-         </item>
-         <item>
-          <property name="text" >
-           <string>BIG5</string>
-          </property>
-         </item>
+       <item row="0" column="3" colspan="2" >
+        <widget class="QSlider" name="fontRatioSlider" >
+         <property name="orientation" >
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="tickPosition" >
+          <enum>QSlider::TicksBelow</enum>
+         </property>
         </widget>
        </item>
-       <item row="1" column="0" colspan="4" >
+       <item row="1" column="0" colspan="2" >
         <widget class="QCheckBox" name="autofontCheckBox" >
          <property name="text" >
-          <string>Auto Select Font Size When Resize Window</string>
+          <string>Adjust Font Size When Resize</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2" >
+        <widget class="QLabel" name="label_2" >
+         <property name="text" >
+          <string>Char W/H ratio</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="3" colspan="2" >
+        <widget class="QSlider" name="charRatioSlider" >
+         <property name="orientation" >
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="tickPosition" >
+          <enum>QSlider::TicksBelow</enum>
          </property>
         </widget>
        </item>
@@ -294,14 +361,14 @@
          </property>
         </widget>
        </item>
-       <item row="2" column="2" >
+       <item row="2" column="2" colspan="2" >
         <widget class="QCheckBox" name="ansicolorCheckBox" >
          <property name="text" >
           <string>ANSI Color</string>
          </property>
         </widget>
        </item>
-       <item rowspan="4" row="3" column="0" colspan="3" >
+       <item rowspan="4" row="3" column="0" colspan="4" >
         <widget class="QLabel" name="fontPreviewer" >
          <property name="autoFillBackground" >
           <bool>true</bool>
@@ -317,28 +384,7 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="3" >
-        <widget class="QPushButton" name="fgcolorPushButton" >
-         <property name="text" >
-          <string>Text Color</string>
-         </property>
-        </widget>
-       </item>
-       <item row="5" column="3" >
-        <widget class="QPushButton" name="bgcolorPushButton" >
-         <property name="text" >
-          <string>Background</string>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="3" >
-        <widget class="QPushButton" name="schemaPushButton" >
-         <property name="text" >
-          <string>Schema</string>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="3" >
+       <item row="3" column="4" >
         <widget class="QToolButton" name="fontToolButton" >
          <property name="sizePolicy" >
           <sizepolicy vsizetype="Fixed" hsizetype="Minimum" >
@@ -357,9 +403,38 @@
          </property>
         </widget>
        </item>
+       <item row="4" column="4" >
+        <widget class="QPushButton" name="fgcolorPushButton" >
+         <property name="text" >
+          <string>Text Color</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="4" >
+        <widget class="QPushButton" name="bgcolorPushButton" >
+         <property name="text" >
+          <string>Background</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="4" >
+        <widget class="QPushButton" name="schemaPushButton" >
+         <property name="text" >
+          <string>Schema</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </widget>
      <widget class="QWidget" name="tab2" >
+      <property name="geometry" >
+       <rect>
+        <x>16</x>
+        <y>56</y>
+        <width>424</width>
+        <height>285</height>
+       </rect>
+      </property>
       <attribute name="title" >
        <string>Terminal</string>
       </attribute>
@@ -468,7 +543,66 @@
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="tab7" >
+      <property name="geometry" >
+       <rect>
+        <x>16</x>
+        <y>56</y>
+        <width>424</width>
+        <height>285</height>
+       </rect>
+      </property>
+      <attribute name="title" >
+       <string>Keyboard</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout" >
+       <item>
+        <widget class="QGroupBox" name="BackSpace" >
+         <property name="title" >
+          <string>BackSpace Setting</string>
+         </property>
+         <layout class="QGridLayout" name="_3" >
+          <item row="0" column="0" >
+           <widget class="QRadioButton" name="backspace8" >
+            <property name="text" >
+             <string>Send backspace as ^H</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1" >
+           <widget class="QRadioButton" name="backspace127" >
+            <property name="text" >
+             <string>Send backspace as ^? (127)</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="spacer" >
+         <property name="orientation" >
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0" >
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="tab3" >
+      <property name="geometry" >
+       <rect>
+        <x>16</x>
+        <y>56</y>
+        <width>424</width>
+        <height>285</height>
+       </rect>
+      </property>
       <attribute name="title" >
        <string>Proxy</string>
       </attribute>
@@ -569,7 +703,7 @@
          <property name="orientation" >
           <enum>Qt::Vertical</enum>
          </property>
-         <property name="sizeHint" >
+         <property name="sizeHint" stdset="0" >
           <size>
            <width>20</width>
            <height>40</height>
@@ -580,118 +714,151 @@
       </layout>
      </widget>
      <widget class="QWidget" name="Widget3" >
+      <property name="geometry" >
+       <rect>
+        <x>16</x>
+        <y>56</y>
+        <width>424</width>
+        <height>285</height>
+       </rect>
+      </property>
       <attribute name="title" >
        <string>Misc</string>
       </attribute>
-      <layout class="QGridLayout" >
-       <item row="0" column="0" colspan="2" >
-        <widget class="QLabel" name="TextLabel7_2" >
-         <property name="text" >
-          <string>Anti-idle String</string>
+      <layout class="QGridLayout" name="gridLayout_2" >
+       <item row="0" column="0" colspan="5" >
+        <widget class="QGroupBox" name="antiIdleGroupBox" >
+         <property name="title" >
+          <string>Anti-idle</string>
          </property>
+         <property name="checkable" >
+          <bool>true</bool>
+         </property>
+         <layout class="QGridLayout" name="gridLayout" >
+          <item row="0" column="1" >
+           <widget class="QLineEdit" name="antiLineEdit" />
+          </item>
+          <item row="1" column="0" >
+           <widget class="QLabel" name="TextLabel8" >
+            <property name="text" >
+             <string>Max Idle Time</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1" >
+           <widget class="QLineEdit" name="idletimeLineEdit" />
+          </item>
+          <item row="1" column="2" >
+           <widget class="QLabel" name="TextLabel9" >
+            <property name="text" >
+             <string>s</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0" >
+           <widget class="QLabel" name="label" >
+            <property name="text" >
+             <string>Anti-idle String</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2" >
+           <spacer name="horizontalSpacer" >
+            <property name="orientation" >
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0" >
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
         </widget>
        </item>
-       <item row="0" column="2" colspan="2" >
-        <widget class="QLineEdit" name="antiLineEdit" />
-       </item>
-       <item row="1" column="0" >
-        <widget class="QLabel" name="TextLabel8" >
-         <property name="text" >
-          <string>Max Idle Time</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="2" colspan="2" >
-        <widget class="QLineEdit" name="idletimeLineEdit" />
-       </item>
-       <item row="1" column="4" >
-        <widget class="QLabel" name="TextLabel9" >
-         <property name="text" >
-          <string>s</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0" colspan="2" >
+       <item row="1" column="0" colspan="2" >
         <widget class="QLabel" name="textLabel1_2" >
          <property name="text" >
           <string>Key to reply message</string>
          </property>
         </widget>
        </item>
-       <item row="2" column="2" colspan="2" >
+       <item row="1" column="2" >
         <widget class="QLineEdit" name="replykeyLineEdit" />
        </item>
-       <item row="3" column="0" colspan="2" >
+       <item row="2" column="0" colspan="2" >
         <widget class="QCheckBox" name="replyCheckBox" >
          <property name="text" >
           <string>Autoreply Message</string>
          </property>
         </widget>
        </item>
-       <item row="3" column="2" colspan="5" >
+       <item row="2" column="2" colspan="3" >
         <widget class="QLineEdit" name="replyLineEdit" >
          <property name="enabled" >
           <bool>false</bool>
          </property>
         </widget>
        </item>
-       <item row="4" column="0" colspan="5" >
+       <item row="3" column="0" colspan="3" >
         <widget class="QCheckBox" name="reconnectCheckBox" >
          <property name="text" >
           <string>When disconnected, reconnect every</string>
          </property>
         </widget>
        </item>
-       <item row="4" column="5" >
+       <item row="3" column="3" >
         <widget class="QLineEdit" name="reconnectLineEdit" >
          <property name="enabled" >
           <bool>false</bool>
          </property>
         </widget>
        </item>
-       <item row="4" column="6" >
+       <item row="3" column="4" >
         <widget class="QLabel" name="textLabel2" >
          <property name="text" >
           <string>s</string>
          </property>
         </widget>
        </item>
-       <item row="5" column="0" >
+       <item row="4" column="0" >
         <widget class="QLabel" name="textLabel4" >
          <property name="text" >
           <string>For Maximum</string>
          </property>
         </widget>
        </item>
-       <item row="5" column="1" colspan="2" >
+       <item row="4" column="1" colspan="2" >
         <widget class="QLineEdit" name="retryLineEdit" >
          <property name="enabled" >
           <bool>false</bool>
          </property>
         </widget>
        </item>
-       <item row="5" column="3" colspan="4" >
+       <item row="4" column="3" colspan="2" >
         <widget class="QLabel" name="textLabel5" >
          <property name="text" >
           <string>Times (-1 means infinite)</string>
          </property>
         </widget>
        </item>
-       <item row="6" column="0" colspan="2" >
+       <item row="5" column="0" colspan="2" >
         <widget class="QCheckBox" name="scriptCheckBox" >
          <property name="text" >
           <string>Load Control Script</string>
          </property>
         </widget>
        </item>
-       <item row="7" column="0" colspan="4" >
+       <item row="6" column="0" colspan="3" >
         <widget class="QLineEdit" name="scriptLineEdit" >
          <property name="enabled" >
           <bool>false</bool>
          </property>
         </widget>
        </item>
-       <item row="7" column="4" colspan="3" >
+       <item row="6" column="3" colspan="2" >
         <widget class="QPushButton" name="scriptPushButton" >
          <property name="enabled" >
           <bool>false</bool>
@@ -701,9 +868,38 @@
          </property>
         </widget>
        </item>
+       <item row="7" column="0" >
+        <widget class="QCheckBox" name="zmodemCheck" >
+         <property name="text" >
+          <string>Enable Zmodem</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="3" >
+        <widget class="QCheckBox" name="buzzCheck" >
+         <property name="text" >
+          <string>Enable Buzz</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="2" >
+        <widget class="QCheckBox" name="beepCheck" >
+         <property name="text" >
+          <string>Enable Beep</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </widget>
      <widget class="QWidget" name="tab4" >
+      <property name="geometry" >
+       <rect>
+        <x>16</x>
+        <y>56</y>
+        <width>424</width>
+        <height>285</height>
+       </rect>
+      </property>
       <attribute name="title" >
        <string>Mouse</string>
       </attribute>
@@ -758,12 +954,12 @@
          </layout>
         </widget>
        </item>
-       <item row="1" column="0" >
+       <item row="2" column="0" >
         <spacer>
          <property name="orientation" >
           <enum>Qt::Vertical</enum>
          </property>
-         <property name="sizeHint" >
+         <property name="sizeHint" stdset="0" >
           <size>
            <width>20</width>
            <height>40</height>
@@ -771,47 +967,20 @@
          </property>
         </spacer>
        </item>
+       <item row="1" column="0" >
+        <widget class="QCheckBox" name="mouseCheck" >
+         <property name="text" >
+          <string>Enable Mouse Support</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </widget>
-    </widget>
-   </item>
-   <item row="1" column="0" >
-    <spacer>
-     <property name="orientation" >
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" >
-      <size>
-       <width>40</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="1" column="1" >
-    <widget class="QPushButton" name="applyPushButton" >
-     <property name="text" >
-      <string>&amp;OK</string>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="2" >
-    <widget class="QPushButton" name="closePushButton" >
-     <property name="text" >
-      <string>&amp;Cancel</string>
-     </property>
-     <property name="shortcut" >
-      <string/>
-     </property>
-     <property name="autoDefault" >
-      <bool>true</bool>
-     </property>
     </widget>
    </item>
   </layout>
  </widget>
  <layoutdefault spacing="6" margin="11" />
- <pixmapfunction>qPixmapFromMimeSource</pixmapfunction>
  <tabstops>
   <tabstop>tabWidget</tabstop>
   <tabstop>nameLineEdit</tabstop>
@@ -823,7 +992,6 @@
   <tabstop>passwdLineEdit</tabstop>
   <tabstop>postloginLineEdit</tabstop>
   <tabstop>bbscodeComboBox</tabstop>
-  <tabstop>displaycodeComboBox</tabstop>
   <tabstop>autofontCheckBox</tabstop>
   <tabstop>highlightCheckBox</tabstop>
   <tabstop>ansicolorCheckBox</tabstop>
@@ -837,7 +1005,6 @@
   <tabstop>rowLineEdit</tabstop>
   <tabstop>cursorTypeComboBox</tabstop>
   <tabstop>escapeLineEdit</tabstop>
-  <tabstop>antiLineEdit</tabstop>
   <tabstop>idletimeLineEdit</tabstop>
   <tabstop>replykeyLineEdit</tabstop>
   <tabstop>replyCheckBox</tabstop>
@@ -864,12 +1031,12 @@
    <slot>setDisabled(bool)</slot>
    <hints>
     <hint type="sourcelabel" >
-     <x>152</x>
-     <y>63</y>
+     <x>260</x>
+     <y>79</y>
     </hint>
     <hint type="destinationlabel" >
-     <x>265</x>
-     <y>86</y>
+     <x>392</x>
+     <y>110</y>
     </hint>
    </hints>
   </connection>
@@ -880,12 +1047,12 @@
    <slot>setDisabled(bool)</slot>
    <hints>
     <hint type="sourcelabel" >
-     <x>40</x>
-     <y>63</y>
+     <x>53</x>
+     <y>79</y>
     </hint>
     <hint type="destinationlabel" >
-     <x>291</x>
-     <y>86</y>
+     <x>392</x>
+     <y>110</y>
     </hint>
    </hints>
   </connection>
@@ -896,12 +1063,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel" >
-     <x>289</x>
-     <y>63</y>
+     <x>392</x>
+     <y>79</y>
     </hint>
     <hint type="destinationlabel" >
-     <x>275</x>
-     <y>86</y>
+     <x>392</x>
+     <y>110</y>
     </hint>
    </hints>
   </connection>
@@ -912,12 +1079,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel" >
-     <x>30</x>
-     <y>135</y>
+     <x>23</x>
+     <y>158</y>
     </hint>
     <hint type="destinationlabel" >
-     <x>174</x>
-     <y>133</y>
+     <x>168</x>
+     <y>156</y>
     </hint>
    </hints>
   </connection>
@@ -928,12 +1095,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel" >
-     <x>30</x>
-     <y>165</y>
+     <x>23</x>
+     <y>184</y>
     </hint>
     <hint type="destinationlabel" >
-     <x>276</x>
-     <y>163</y>
+     <x>295</x>
+     <y>182</y>
     </hint>
    </hints>
   </connection>
@@ -944,12 +1111,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel" >
-     <x>30</x>
-     <y>165</y>
+     <x>23</x>
+     <y>184</y>
     </hint>
     <hint type="destinationlabel" >
-     <x>114</x>
-     <y>193</y>
+     <x>147</x>
+     <y>213</y>
     </hint>
    </hints>
   </connection>
@@ -960,12 +1127,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel" >
-     <x>30</x>
-     <y>224</y>
+     <x>26</x>
+     <y>236</y>
     </hint>
     <hint type="destinationlabel" >
-     <x>30</x>
-     <y>254</y>
+     <x>26</x>
+     <y>261</y>
     </hint>
    </hints>
   </connection>
@@ -976,12 +1143,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel" >
-     <x>30</x>
-     <y>224</y>
+     <x>26</x>
+     <y>236</y>
     </hint>
     <hint type="destinationlabel" >
-     <x>250</x>
-     <y>252</y>
+     <x>289</x>
+     <y>260</y>
     </hint>
    </hints>
   </connection>
@@ -998,6 +1165,54 @@
     <hint type="destinationlabel" >
      <x>209</x>
      <y>108</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>antiIdleGroupBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>antiLineEdit</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>89</x>
+     <y>42</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>145</x>
+     <y>67</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>antiIdleGroupBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>idletimeLineEdit</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>114</x>
+     <y>40</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>270</x>
+     <y>110</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>beepCheck</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>buzzCheck</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel" >
+     <x>223</x>
+     <y>301</y>
+    </hint>
+    <hint type="destinationlabel" >
+     <x>298</x>
+     <y>299</y>
     </hint>
    </hints>
   </connection>

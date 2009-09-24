@@ -557,7 +557,7 @@ const char *FQTermZmodem::hdrnames[] =  {
 
 #endif
 
-FQTermZmodem::FQTermZmodem(FQTermConfig *config, FQTermTelnet *netinterface, int type, const QString &zmodemDir, int serverEncoding) {
+FQTermZmodem::FQTermZmodem(FQTermConfig *config, FQTermTelnet *netinterface, int type, int serverEncoding) {
 
   //now set network interface Telnet
 
@@ -606,7 +606,6 @@ FQTermZmodem::FQTermZmodem(FQTermConfig *config, FQTermTelnet *netinterface, int
   ZmodemReset(&info);
   // other init function not complete
 
-  zmodemDir_ = zmodemDir;
 }
 
 FQTermZmodem::~FQTermZmodem(){}
@@ -1193,9 +1192,11 @@ FILE *FQTermZmodem::ZOpenFile(char *name, ulong crc, ZModem *info) {
   //to be complete
   FILE *rval;
   int apnd = 0;
-  QString str = zmodemDir_ + (serverEncodingID?B2U(name):G2U(name));
+  QString strText;
+  strText = encoding2unicode(name, serverEncodingID);
+  QString str = FQTermPref::getInstance()->zmodemDir_ + strText;
 
-  QString zpath = QFileInfo(zmodemDir_).absoluteFilePath();
+  QString zpath = QFileInfo(FQTermPref::getInstance()->zmodemDir_).absoluteFilePath();
   QString path = QFileInfo(str).absoluteFilePath();
 
   lastDownloadedFilename_ = path;

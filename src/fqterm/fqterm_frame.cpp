@@ -70,10 +70,12 @@
 #include "statusBar.h"
 #include "sitemanager.h"
 
+#include "fqterm_mini_server.h"
+
 namespace FQTerm {
 
 const QString FQTermFrame::qmPrefix[FQTermFrame::translatedModule] =
-{"fqterm_", "ui_"};
+{"fqterm_", "ui_", "protocol_"};
 const QString FQTermFrame::qmPostfix = ".qm";
 
 //constructor
@@ -91,13 +93,13 @@ FQTermFrame::FQTermFrame()
   image_ = new FQTermImageOrigin(config_, NULL, Qt::Window);
 #endif
 
-  mdiArea_ = new QMdiArea(this);
 
-  setCentralWidget(mdiArea_);
+  //create the window manager to deal with the window-tab-icon pairs
+  windowManager_ = new FQTermWndMgr(this);
+  //windowManager_->setViewMode(QMdiArea::TabbedView);
+  //windowManager_->setTabPosition(QTabWidget::South);
 
-  windowMapper_ = new QSignalMapper(this);
-  FQ_VERIFY(connect(windowMapper_, SIGNAL(mapped(int)),
-                    this, SLOT(windowsMenuActivated(int))));
+  setCentralWidget(windowManager_);
 
   initTranslator();
 
@@ -128,19 +130,19 @@ FQTermFrame::FQTermFrame()
   hbLayout->setObjectName("tasklayout");
   statusBar()->addWidget(hb);
   //create a tabbar in the hbox
-  tabBar_ = new QTabBar(hb);
-  hbLayout->addWidget(tabBar_);
-  FQ_VERIFY(connect(tabBar_, SIGNAL(currentChanged(int)),
-                    this, SLOT(selectionChanged(int))));
-  tabBar_->setShape(QTabBar::RoundedSouth);
+  hbLayout->addWidget(windowManager_->tabBar());
+
+  windowMapper_ = new QSignalMapper(this);
+  FQ_VERIFY(connect(windowMapper_, SIGNAL(mapped(int)),
+    windowManager_->tabBar(), SLOT(setCurrentIndex(int))));
+
 
   //create a progress bar to notify the download process
   statusBar_ = new FQTerm::StatusBar(statusBar(), "mainStatusBar");
 
   statusBar()->addWidget(statusBar_, 0);
 
-  //create the window manager to deal with the window-tab-icon pairs
-  windowManager_ = new FQTermWndMgr(this);
+
 
 #if defined(__APPLE__)
   QString opt(tr("Ctrl"));
@@ -164,8 +166,9 @@ FQTermFrame::FQTermFrame()
   keySequences.append(QKeySequence::NextChild);
   actionNextWindow_->setShortcuts(keySequences);
 
+  //TODO: wnd mgr should not expose mdiarea apis.
   FQ_VERIFY(connect(actionNextWindow_, SIGNAL(triggered()),
-                    mdiArea_, SLOT(activateNextSubWindow())));
+                    windowManager_, SLOT(activateNextWindow())));
   addAction(actionNextWindow_);
   keySequences.clear();
 
@@ -174,8 +177,9 @@ FQTermFrame::FQTermFrame()
   keySequences.append(opt + tr("+Left"));
   keySequences.append(QKeySequence::PreviousChild);
   actionPrevWindow_->setShortcuts(keySequences);
+  //TODO: wnd mgr should not expose mdiarea apis.
   FQ_VERIFY(connect(actionPrevWindow_, SIGNAL(triggered()),
-                    mdiArea_, SLOT(activatePreviousSubWindow())));
+                    windowManager_, SLOT(activatePrevWindow())));
   addAction(actionPrevWindow_);
 
   //initialize all settings
@@ -184,12 +188,12 @@ FQTermFrame::FQTermFrame()
   installEventFilter(this);
 
   FQTermAutoUpdater* autoUpdater =
-      new FQTermAutoUpdater(this, config_, preference_.zmodemPoolDir_);
+    new FQTermAutoUpdater(this, config_);
   autoUpdater->checkUpdate();  
 
-  if (preference_.useStyleSheet_) {
-    loadStyleSheetFromFile(preference_.styleSheetFile_);
-  }
+
+//  serverThread_ = new FQTermMiniServerThread();
+//  serverThread_->start();
 }
 
 //destructor
@@ -198,6 +202,12 @@ FQTermFrame::~FQTermFrame() {
   delete image_;
   delete config_;
   delete windowManager_;
+
+//  serverThread_->quit();
+//  serverThread_->terminate();
+//  serverThread_->wait();
+//  delete serverThread_;
+
 }
 
 //initialize setting from fqterm.cfg
@@ -235,30 +245,40 @@ void FQTermFrame::iniSetting() {
   //language
   updateLanguageMenu();
 
+  //TODO: 
   actionNoEscape_->setChecked(true);
-  escapeString_ = "";
+  FQTermPref::getInstance()->escapeString_ = config_->getItemValue("global", "escstr");
+  if (FQTermPref::getInstance()->escapeString_ == "") {
+    actionNoEscape_->setChecked(true);
+  } else if (FQTermPref::getInstance()->escapeString_ == "^[^[[") {
+    actionEscEscape_->setChecked(true);
+  } else if (FQTermPref::getInstance()->escapeString_ == "^u[") {
+    actionUEscape_->setChecked(true);
+  } else {
+    actionCustomEscape_->setChecked(true);
+  }
 
   strTmp = config_->getItemValue("global", "clipcodec");
   if (strTmp == "0") {
-    clipboardEncodingID_ = 0;
+    FQTermPref::getInstance()->clipboardEncodingID_ = 0;
     actionGBK_->setChecked(true);
   } else {
-    clipboardEncodingID_ = 1;
+    FQTermPref::getInstance()->clipboardEncodingID_ = 1;
     actionBIG5_->setChecked(true);
   }
 
   strTmp = config_->getItemValue("global", "vscrollpos");
   if (strTmp == "0") {
-    termScrollBarPosition_ = 0;
+    FQTermPref::getInstance()->termScrollBarPosition_ = 0;
   } else if (strTmp == "1") {
-    termScrollBarPosition_ = 1;
+    FQTermPref::getInstance()->termScrollBarPosition_ = 1;
   } else {
-    termScrollBarPosition_ = 2;
+    FQTermPref::getInstance()->termScrollBarPosition_ = 2;
   }
 
   strTmp = config_->getItemValue("global", "statusbar");
-  isStatusBarShown_ = (strTmp != "0");
-  actionStatus_->setChecked(isStatusBarShown_);
+  FQTermPref::getInstance()->isStatusBarShown_ = (strTmp != "0");
+  actionStatus_->setChecked(FQTermPref::getInstance()->isStatusBarShown_);
 
   strTmp = config_->getItemValue("global", "switchbar");
   isTabBarShown_ = (strTmp != "0");
@@ -271,91 +291,96 @@ void FQTermFrame::iniSetting() {
 
   //read sub-window setting.
   strTmp = config_->getItemValue("global", "subwindowmax");
-  if (strTmp == "" || strTmp == "1") {
-    subWindowMax_ = true;
-  } else {
-    subWindowMax_ = false;
-  }
+  windowManager_->setSubWindowMax((strTmp != "0"));
+
 
   strTmp = config_->getItemValue("global", "subwindowsize");
   if (strTmp != "") {
+    //FIXME: In case of sub window size not saved properly.
     int w, h;
     sscanf(strTmp.toLatin1(), "%d %d", &w, &h);
-    subWindowSize_ = QSize(w, h);
+    windowManager_->setSubWindowSize(QSize(w, h));
   } else {
     //Magic Number. Initialize Window Size to Avoid Errors.
-    subWindowSize_ = QSize(640, 480);
+    windowManager_->setSubWindowSize(QSize(640, 480));
   }
 
-  isBossColor_ = false;
+  FQTermPref::getInstance()->isBossColor_ = false;
 
-  loadPref(config_);
+  loadPref();
 
-  setUseDock(preference_.openMinimizeToTray_);
+  setUseDock(FQTermPref::getInstance()->openMinimizeToTray_);
+
+  if (FQTermPref::getInstance()->useStyleSheet_) {
+    loadStyleSheetFromFile(FQTermPref::getInstance()->styleSheetFile_);
+  }
 }
 
-void FQTermFrame::loadPref(FQTermConfig *conf) {
+void FQTermFrame::loadPref() {
   QString strTmp;
-  strTmp = conf->getItemValue("preference", "xim");
-  preference_.serverEncodingID_ = strTmp.toInt();
-  strTmp = conf->getItemValue("preference", "wordwrap");
-  preference_.widthToWrapWord_ = strTmp.toInt();
+  
+  strTmp = config_->getItemValue("preference", "displayoffset");
+  FQTermPref::getInstance()->displayOffset_ = strTmp.toInt();
+  strTmp = config_->getItemValue("preference", "xim");
+  FQTermPref::getInstance()->imeEncodingID_ = strTmp.toInt();
+  strTmp = config_->getItemValue("preference", "wordwrap");
+  FQTermPref::getInstance()->widthToWrapWord_ = strTmp.toInt();
   //  strTmp = conf->getItemValue("preference", "smartww");
   //  m_pref.bSmartWW = (strTmp != "0");
-  strTmp = conf->getItemValue("preference", "wheel");
-  preference_.isWheelSupported_ = (strTmp != "0");
-  strTmp = conf->getItemValue("preference", "url");
-  preference_.openUrlCheck_ = (strTmp != "0");
+  strTmp = config_->getItemValue("preference", "wheel");
+  FQTermPref::getInstance()->isWheelSupported_ = (strTmp != "0");
+  strTmp = config_->getItemValue("preference", "url");
+  FQTermPref::getInstance()->openUrlCheck_ = (strTmp != "0");
   //  strTmp = conf->getItemValue("preference", "logmsg");
   //  m_pref.bLogMsg = (strTmp != "0");
-  strTmp = conf->getItemValue("preference", "blinktab");
-  preference_.openTabBlinking_ = (strTmp != "0");
-  strTmp = conf->getItemValue("preference", "warn");
-  preference_.openWarnOnClose_ = (strTmp != "0");
-  strTmp = conf->getItemValue("preference", "beep");
-  preference_.openBeep_ = strTmp.toInt();
-  preference_.beepSoundFileName_ = conf->getItemValue("preference", "wavefile");
-  strTmp = conf->getItemValue("preference", "http");
-  preference_.httpBrowser_ = strTmp;
+  strTmp = config_->getItemValue("preference", "blinktab");
+  FQTermPref::getInstance()->openTabBlinking_ = (strTmp != "0");
+  strTmp = config_->getItemValue("preference", "warn");
+  FQTermPref::getInstance()->openWarnOnClose_ = (strTmp != "0");
+  strTmp = config_->getItemValue("preference", "beep");
+  FQTermPref::getInstance()->openBeep_ = strTmp.toInt();
+  FQTermPref::getInstance()->beepSoundFileName_ = config_->getItemValue("preference", "wavefile");
+  strTmp = config_->getItemValue("preference", "http");
+  FQTermPref::getInstance()->httpBrowser_ = strTmp;
   //  m_pref.strHttp = strTmp;
-  strTmp = conf->getItemValue("preference", "antialias");
-  preference_.openAntiAlias_ = (strTmp != "0");
-  strTmp = conf->getItemValue("preference", "correctnonmonospace");
-  preference_.correctNonMonospace_ = (strTmp == "1");
-  strTmp = conf->getItemValue("preference", "tray");
+  strTmp = config_->getItemValue("preference", "antialias");
+  FQTermPref::getInstance()->openAntiAlias_ = (strTmp != "0");
+  strTmp = config_->getItemValue("preference", "enq");
+  FQTermPref::getInstance()->replyENQ_ = (strTmp != "0");
+  strTmp = config_->getItemValue("preference", "tray");
   if (strTmp.isEmpty()) {
 #if defined(__APPLE__) || defined(__linux__)
-    preference_.openMinimizeToTray_ = false;
+    FQTermPref::getInstance()->openMinimizeToTray_ = false;
 #else
-    preference_.openMinimizeToTray_ = true;    
+    FQTermPref::getInstance()->openMinimizeToTray_ = true;    
 #endif
   } else {
-    preference_.openMinimizeToTray_ = (strTmp != "0");
+    FQTermPref::getInstance()->openMinimizeToTray_ = (strTmp != "0");
   }
-  strTmp = conf->getItemValue("preference", "playmethod");
-  preference_.beepMethodID_ = strTmp.toInt();
-  strTmp = conf->getItemValue("preference", "externalplayer");
-  preference_.beepPlayerName_ = strTmp;
+  strTmp = config_->getItemValue("preference", "playmethod");
+  FQTermPref::getInstance()->beepMethodID_ = strTmp.toInt();
+  strTmp = config_->getItemValue("preference", "externalplayer");
+  FQTermPref::getInstance()->beepPlayerName_ = strTmp;
 
-  strTmp = conf->getItemValue("preference", "clearpool");
-  preference_.needClearZmodemPoolOnClose_ = (strTmp == "1");
-  strTmp = conf->getItemValue("preference", "pool");
-  preference_.zmodemPoolDir_ = strTmp.isEmpty() ?
+  strTmp = config_->getItemValue("preference", "clearpool");
+  FQTermPref::getInstance()->needClearZmodemPoolOnClose_ = (strTmp == "1");
+  strTmp = config_->getItemValue("preference", "pool");
+  FQTermPref::getInstance()->poolDir_ = strTmp.isEmpty() ?
                                getPath(USER_CONFIG) + "pool/": strTmp;
-  if (preference_.zmodemPoolDir_.right(1) != "/") {
-    preference_.zmodemPoolDir_.append('/');
+  if (FQTermPref::getInstance()->poolDir_.right(1) != "/") {
+    FQTermPref::getInstance()->poolDir_.append('/');
   }
-  strTmp = conf->getItemValue("preference", "zmodem");
-  preference_.zmodemDir_ = strTmp.isEmpty() ?
+  strTmp = config_->getItemValue("preference", "zmodem");
+  FQTermPref::getInstance()->zmodemDir_ = strTmp.isEmpty() ?
                            getPath(USER_CONFIG) + "zmodem/": strTmp;
-  if (preference_.zmodemDir_.right(1) != "/") {
-    preference_.zmodemDir_.append('/');
+  if (FQTermPref::getInstance()->zmodemDir_.right(1) != "/") {
+    FQTermPref::getInstance()->zmodemDir_.append('/');
   }
-  strTmp = conf->getItemValue("preference", "image");
-  preference_.imageViewerName_ = strTmp;
-  strTmp = conf->getItemValue("preference", "qssfile");
-  preference_.styleSheetFile_ = strTmp;
-  preference_.useStyleSheet_ = !strTmp.isEmpty();
+  strTmp = config_->getItemValue("preference", "image");
+  FQTermPref::getInstance()->imageViewerName_ = strTmp;
+  strTmp = config_->getItemValue("preference", "qssfile");
+  FQTermPref::getInstance()->styleSheetFile_ = strTmp;
+  FQTermPref::getInstance()->useStyleSheet_ = !strTmp.isEmpty();
 }
 
 //save current setting to fqterm.cfg
@@ -387,19 +412,21 @@ void FQTermFrame::saveSetting() {
   // cstrTmp.setNum(theme);
   config_->setItemValue("global", "theme", theme_);
 
-  strTmp.setNum(clipboardEncodingID_);
+  strTmp.setNum(FQTermPref::getInstance()->clipboardEncodingID_);
   config_->setItemValue("global", "clipcodec", strTmp);
 
-  strTmp.setNum(termScrollBarPosition_);
+  config_->setItemValue("global", "escstr", FQTermPref::getInstance()->escapeString_);
+
+  strTmp.setNum(FQTermPref::getInstance()->termScrollBarPosition_);
   config_->setItemValue("global", "vscrollpos", strTmp);
 
-  config_->setItemValue("global", "statusbar", isStatusBarShown_ ? "1" : "0");
+  config_->setItemValue("global", "statusbar", FQTermPref::getInstance()->isStatusBarShown_ ? "1" : "0");
   config_->setItemValue("global", "switchbar", isTabBarShown_ ? "1" : "0");
 
   //save subwindow setting
-  config_->setItemValue("global", "subwindowmax", subWindowMax_ ? "1" : "0");
-  int w = subWindowSize_.width();
-  int h = subWindowSize_.height();
+  config_->setItemValue("global", "subwindowmax", windowManager_->getSubWindowMax() ? "1" : "0");
+  int w = windowManager_->getSubWindowSize().width();
+  int h = windowManager_->getSubWindowSize().height();
 
   strTmp = QString("%1 %2").arg(w).arg(h);
   config_->setItemValue("global", "subwindowsize", strTmp);
@@ -423,7 +450,10 @@ void FQTermFrame::addressBook() {
 //quicklogin
 void FQTermFrame::quickLogin() {
   quickDialog quick(config_, this);
-  loadAddress(config_, -1, quick.param_);
+  FQTermConfig *pConf = new FQTermConfig(getPath(USER_CONFIG) + "address.cfg");
+
+  loadAddress(pConf, -1, quick.param_);
+  delete pConf;
 
   if (quick.exec() == 1) {
     newWindow(quick.param_);
@@ -438,53 +468,17 @@ void FQTermFrame::exitFQTerm() {
 }
 
 void FQTermFrame::newWindow(const FQTermParam &param, int index) {
-  FQTermWindow *window = new FQTermWindow(config_, this, param, index, mdiArea_, 0);
-
-  
-  QMdiSubWindow* subWindow = mdiArea_->addSubWindow(window);
-  subWindow->setAttribute(Qt::WA_OpaquePaintEvent);
-
   QIcon *icon = new QIcon(QPixmap(getPath(RESOURCE) + "pic/tabpad.png"));
-  //QTab *qtab=new QTab(*icon,window->caption());
-  QString qtab = window->windowTitle();
 
-  //add window-tab-icon to window manager
-  windowManager_->addWindow(window, qtab, icon);
 
-  //if no this call, the tab wont display untill you resize the window
-  tabBar_->addTab(*icon, qtab);
-  tabBar_->updateGeometry();
-  tabBar_->update();
+  FQTermWindow* window = windowManager_->newWindow(param, config_, icon, index);
 
-  //activte the window-tab
-  windowManager_->activateTheTab(window);
 
-  subWindow->resize(subWindowSize_);
-  if (subWindowMax_) {
-    subWindow->setWindowFlags(Qt::SubWindow | Qt::CustomizeWindowHint
-                              | Qt::WindowMinMaxButtonsHint);
-    subWindow->showMaximized();
-  } else {
-    subWindow->setWindowFlags(Qt::SubWindow | Qt::CustomizeWindowHint
-                              | Qt::WindowMinMaxButtonsHint
-                              | Qt::WindowSystemMenuHint);
-    subWindow->show();
-  }
 
-  FQ_VERIFY(connect(window, SIGNAL(resizeSignal(FQTermWindow*)),
-                    this, SLOT(subWindowResized(FQTermWindow*))));
-  FQ_VERIFY(connect(this, SIGNAL(bossColor()),
-    window->screen_, SLOT(bossColor())));
 
-  FQ_VERIFY(connect(this, SIGNAL(fontAntiAliasing(bool)),
-    window->screen_, SLOT(setFontAntiAliasing(bool))));
+  window->connectHost();
 }
 
-//the tabbar selection changed
-void FQTermFrame::selectionChanged(int n) {
-  QString qtab = tabBar_->tabText(n);
-  windowManager_->activateTheWindow(qtab, n);
-}
 
 void FQTermFrame::aboutFQTerm() {
   aboutDialog about(this);
@@ -494,7 +488,7 @@ void FQTermFrame::aboutFQTerm() {
 //slot Help->Homepage
 void FQTermFrame::homepage() {
 
-  const QString &httpBrowser = preference_.httpBrowser_;
+  const QString &httpBrowser = FQTermPref::getInstance()->httpBrowser_;
   const QString homeUrl = "http://code.google.com/p/fqterm";
 
   if (httpBrowser.isNull() || httpBrowser.isEmpty()) {
@@ -507,10 +501,10 @@ void FQTermFrame::homepage() {
 //slot Windows menu aboutToShow
 void FQTermFrame::windowsMenuAboutToShow() {
   menuWindows_->clear();
-  QAction *cascadeAction = menuWindows_->addAction(tr("Cascade"), this, SLOT
+  QAction *cascadeAction = menuWindows_->addAction(tr("Cascade"), windowManager_, SLOT
                                                    (cascade()));
-  QAction *tileAction = menuWindows_->addAction(tr("Tile"), this, SLOT(tile()));
-  if (mdiArea_->subWindowList().isEmpty()) {
+  QAction *tileAction = menuWindows_->addAction(tr("Tile"), windowManager_, SLOT(tile()));
+  if (windowManager_->count() == 0) {
     cascadeAction->setEnabled(false);
     tileAction->setEnabled(false);
   }
@@ -523,28 +517,12 @@ void FQTermFrame::windowsMenuAboutToShow() {
   }
 #endif
 
-  QList<QMdiSubWindow *> subWins = mdiArea_->subWindowList();
-
-  for (int i = 0; i < int(subWins.count()); ++i) {
-    QAction *idAction = menuWindows_->addAction(subWins.at(i)->windowTitle());
+  for (int i = 0; i < int(windowManager_->count()); ++i) {
+    QAction *idAction = menuWindows_->addAction(windowManager_->subWindowList().at(i)->windowTitle());
     idAction->setCheckable(true);
-    idAction->setChecked(mdiArea_->activeSubWindow() == subWins.at(i));
+    idAction->setChecked(windowManager_->activeWindow() == windowManager_->nthWindow(i));
     connect(idAction, SIGNAL(triggered()), windowMapper_, SLOT(map()));
     windowMapper_->setMapping(idAction, i);
-  }
-}
-
-//slot activate the window correspond with the menu id
-void FQTermFrame::windowsMenuActivated(int id) {
-  if (id < 0 || id >= mdiArea_->subWindowList().size()) {
-    return;
-  }
-  QMdiSubWindow *w = mdiArea_->subWindowList().at(id);
-  if (w) {
-    mdiArea_->setActiveSubWindow(w);
-    if (!w->isMaximized()) {
-      w->showNormal();
-    }
   }
 }
 
@@ -599,31 +577,6 @@ void FQTermFrame::connectMenuActivated() {
   delete pConf;
 }
 
-void FQTermFrame::switchWin(int id) {
-  QList<QMdiSubWindow *> subWins = mdiArea_->subWindowList();
-
-  if (subWins.count() == 0) {
-    return ;
-  }
-
-  if (id == 200) {
-    windowManager_->activeNextPrev(false);
-    return ;
-  }
-  if (id == 201 || id == 202) {
-    windowManager_->activeNextPrev(true);
-    return ;
-  }
-
-  QMdiSubWindow *w = subWins.at(id -1);
-  if (w == mdiArea_->activeSubWindow()) {
-    return ;
-  }
-
-  if (w != NULL) {
-    w->showNormal();
-  }
-}
 
 bool FQTermFrame::eventFilter(QObject *o, QEvent *e) {
   return false;
@@ -635,14 +588,17 @@ void FQTermFrame::paintEvent(QPaintEvent*){
 }
 
 void FQTermFrame::closeEvent(QCloseEvent *clse) {
-  if (preference_.openMinimizeToTray_ &&
+  if (FQTermPref::getInstance()->openMinimizeToTray_ &&
 	windowManager_->count() > 0) {
     trayHide();
     clse->ignore();
     return ;
   }
   if (!clearUp())
+  {
+    clse->ignore();
     return;
+  }
 
   clse->accept();
 
@@ -662,7 +618,7 @@ void FQTermFrame::connectIt() {
     delete pConf;
     newWindow(param);
   } else if (!windowManager_->activeWindow()->isConnected()) {
-    windowManager_->activeWindow()->session_->reconnect();
+    windowManager_->activeWindow()->getSession()->reconnect();
   }
 }
 
@@ -682,19 +638,19 @@ void FQTermFrame::paste() {
 }
 
 void FQTermFrame::copyRect() {
-  windowManager_->activeWindow()->session_->param_.isRectSelect_
-      = !windowManager_->activeWindow()->session_->param_.isRectSelect_;
+  windowManager_->activeWindow()->getSession()->param_.isRectSelect_
+      = !windowManager_->activeWindow()->getSession()->param_.isRectSelect_;
 
   actionRectangleSelect_->setChecked(
-      windowManager_->activeWindow()->session_->param_.isRectSelect_);
+      windowManager_->activeWindow()->getSession()->param_.isRectSelect_);
 }
 
 void FQTermFrame::copyColor() {
-  windowManager_->activeWindow()->session_->param_.isColorCopy_
-      = !windowManager_->activeWindow()->session_->param_.isColorCopy_;
+  windowManager_->activeWindow()->getSession()->param_.isColorCopy_
+      = !windowManager_->activeWindow()->getSession()->param_.isColorCopy_;
 
   actionColorCopy_->setChecked(
-      windowManager_->activeWindow()->session_->param_.isColorCopy_);
+      windowManager_->activeWindow()->getSession()->param_.isColorCopy_);
 }
 
 void FQTermFrame::copyArticle() {
@@ -702,33 +658,33 @@ void FQTermFrame::copyArticle() {
 }
 
 void FQTermFrame::autoCopy() {
-  windowManager_->activeWindow()->session_->param_.isAutoCopy_
-      = !windowManager_->activeWindow()->session_->param_.isAutoCopy_;
+  windowManager_->activeWindow()->getSession()->param_.isAutoCopy_
+      = !windowManager_->activeWindow()->getSession()->param_.isAutoCopy_;
 
   actionAutoCopy_->setChecked(
-      windowManager_->activeWindow()->session_->param_.isAutoCopy_);
+      windowManager_->activeWindow()->getSession()->param_.isAutoCopy_);
 }
 
 void FQTermFrame::wordWrap() {
-  windowManager_->activeWindow()->session_->isWordWrap_
-      = !windowManager_->activeWindow()->session_->isWordWrap_;
+  windowManager_->activeWindow()->getSession()->param_.isAutoWrap_
+      = !windowManager_->activeWindow()->getSession()->param_.isAutoWrap_;
 
   actionWordWrap_->setChecked(
-      windowManager_->activeWindow()->session_->isWordWrap_);
+      windowManager_->activeWindow()->getSession()->param_.isAutoWrap_);
 }
 
 void FQTermFrame::noEsc() {
-  escapeString_ = "";
+  FQTermPref::getInstance()->escapeString_ = "";
   actionNoEscape_->setChecked(true);
 }
 
 void FQTermFrame::escEsc() {
-  escapeString_ = "^[^[[";
+  FQTermPref::getInstance()->escapeString_ = "^[^[[";
   actionEscEscape_->setChecked(true);
 }
 
 void FQTermFrame::uEsc() {
-  escapeString_ = "^u[";
+  FQTermPref::getInstance()->escapeString_ = "^u[";
   actionUEscape_->setChecked(true);
 }
 
@@ -736,20 +692,20 @@ void FQTermFrame::customEsc() {
   bool ok;
   QString strEsc = QInputDialog::getText(this, "define escape",
                                          "scape string *[", QLineEdit::Normal,
-                                         escapeString_, &ok);
+                                         FQTermPref::getInstance()->escapeString_, &ok);
   if (ok) {
-    escapeString_ = strEsc;
+    FQTermPref::getInstance()->escapeString_ = strEsc;
     actionCustomEscape_->setChecked(true);
   }
 }
 
 void FQTermFrame::gbkCodec() {
-  clipboardEncodingID_ = 0;
+  FQTermPref::getInstance()->clipboardEncodingID_ = 0;
   actionGBK_->setChecked(true);
 }
 
 void FQTermFrame::big5Codec() {
-  clipboardEncodingID_ = 1;
+  FQTermPref::getInstance()->clipboardEncodingID_ = 1;
   actionBIG5_->setChecked(true);
 }
 
@@ -767,14 +723,14 @@ void FQTermFrame::uiFont() {
   bool ok;
   QFont font = QFontDialog::getFont(&ok, qApp->font());
 
-  if (preference_.openAntiAlias_) {
+  if (FQTermPref::getInstance()->openAntiAlias_) {
     font.setStyleStrategy(QFont::PreferAntialias);
   }
 
   if (ok == true) {
    qApp->setFont(font);
    //refresh style sheet
-   if (preference_.useStyleSheet_) {
+   if (FQTermPref::getInstance()->useStyleSheet_) {
      refreshStyleSheet();
    }
    image_->adjustItemSize();
@@ -807,11 +763,11 @@ void FQTermFrame::fullscreen() {
 }
 
 void FQTermFrame::bosscolor() {
-  isBossColor_ = !isBossColor_;
+  FQTermPref::getInstance()->isBossColor_ = !FQTermPref::getInstance()->isBossColor_;
 
   emit bossColor();
 
-  actionBossColor_->setChecked(isBossColor_);
+  actionBossColor_->setChecked(FQTermPref::getInstance()->isBossColor_);
 
 }
 
@@ -833,19 +789,19 @@ void FQTermFrame::themesMenuActivated() {
 }
 
 void FQTermFrame::hideScroll() {
-  termScrollBarPosition_ = 0;
+  FQTermPref::getInstance()->termScrollBarPosition_ = 0;
 
   emit updateScroll();
 }
 
 void FQTermFrame::leftScroll() {
-  termScrollBarPosition_ = 1;
+  FQTermPref::getInstance()->termScrollBarPosition_ = 1;
 
   emit updateScroll();
 }
 
 void FQTermFrame::rightScroll() {
-  termScrollBarPosition_ = 2;
+  FQTermPref::getInstance()->termScrollBarPosition_ = 2;
 
   emit updateScroll();
 }
@@ -862,13 +818,14 @@ void FQTermFrame::showSwitchBar() {
 }
 
 void FQTermFrame::showStatusBar() {
-  isStatusBarShown_ = !isStatusBarShown_;
-  actionStatus_->setChecked(isStatusBarShown_);
-  emit updateStatusBar(isStatusBarShown_);
+  FQTermPref::getInstance()->isStatusBarShown_ = !FQTermPref::getInstance()->isStatusBarShown_;
+  actionStatus_->setChecked(FQTermPref::getInstance()->isStatusBarShown_);
+  emit updateStatusBar(FQTermPref::getInstance()->isStatusBarShown_);
 }
 
 void FQTermFrame::setting() {
   windowManager_->activeWindow()->setting();
+  updateMenuToolBar();
 }
 
 void FQTermFrame::defaultSetting() {
@@ -891,20 +848,20 @@ void FQTermFrame::defaultSetting() {
 
 void FQTermFrame::preference() {
   prefDialog pref(config_, this);
-  bool styleSheetUsed = preference_.useStyleSheet_;
+  bool styleSheetUsed = FQTermPref::getInstance()->useStyleSheet_;
 
   if (pref.exec() == 1) {
     //TODO: refactor
-    loadPref(config_);
-    setUseDock(preference_.openMinimizeToTray_);
-    if (preference_.useStyleSheet_) {
-      loadStyleSheetFromFile(preference_.styleSheetFile_);
+    loadPref();
+    setUseDock(FQTermPref::getInstance()->openMinimizeToTray_);
+    if (FQTermPref::getInstance()->useStyleSheet_) {
+      loadStyleSheetFromFile(FQTermPref::getInstance()->styleSheetFile_);
     }
     else if (styleSheetUsed) {
       clearStyleSheet();
     }
   }
-  emit fontAntiAliasing(preference_.openAntiAlias_);
+  emit fontAntiAliasing(FQTermPref::getInstance()->openAntiAlias_);
 }
 
 void FQTermFrame::keySetup() {
@@ -918,13 +875,13 @@ void FQTermFrame::keySetup() {
 void FQTermFrame::antiIdle() {
   windowManager_->activeWindow()->toggleAntiIdle();
   actionAntiIdle_->setChecked(
-      windowManager_->activeWindow()->session_->isAntiIdle_);
+      windowManager_->activeWindow()->getSession()->isAntiIdle());
 }
 
 void FQTermFrame::autoReply() {
   windowManager_->activeWindow()->toggleAutoReply();
   actionAutoReply_->setChecked(
-      windowManager_->activeWindow()->session_->isAutoReply_);
+      windowManager_->activeWindow()->getSession()->isAutoReply());
 }
 
 void FQTermFrame::viewMessages() {
@@ -932,16 +889,16 @@ void FQTermFrame::viewMessages() {
 }
 
 void FQTermFrame::enableMouse() {
-  windowManager_->activeWindow()->session_->isMouseSupported_
-      = !windowManager_->activeWindow()->session_->isMouseSupported_;
+  windowManager_->activeWindow()->getSession()->param_.isSupportMouse_
+      = !windowManager_->activeWindow()->getSession()->param_.isSupportMouse_;
   actionMouse_->setChecked(
-      windowManager_->activeWindow()->session_->isMouseSupported_);
+      windowManager_->activeWindow()->getSession()->param_.isSupportMouse_);
 }
 
 void FQTermFrame::viewImages(QString filename, bool raiseViewer) {
 
   if (filename.isEmpty()) {
-    filename = preference_.zmodemPoolDir_;
+    filename = FQTermPref::getInstance()->poolDir_;
   }
 
   
@@ -961,20 +918,20 @@ void FQTermFrame::viewImages(QString filename, bool raiseViewer) {
 }
 
 void FQTermFrame::viewImages() {
-  viewImages(preference_.zmodemPoolDir_, true);
+  viewImages(FQTermPref::getInstance()->poolDir_, true);
 }
 
 void FQTermFrame::beep() {
-  windowManager_->activeWindow()->session_->isBeep_ =
-      !windowManager_->activeWindow()->session_->isBeep_;
-  actionBeep_->setChecked(windowManager_->activeWindow()->session_->isBeep_);
+  windowManager_->activeWindow()->getSession()->param_.isBeep_ =
+      !windowManager_->activeWindow()->getSession()->param_.isBeep_;
+  actionBeep_->setChecked(windowManager_->activeWindow()->getSession()->param_.isBeep_);
 }
 
 void FQTermFrame::reconnect() {
   FQTermWindow * qtw = windowManager_->activeWindow();
   if (qtw){
-    qtw->session_->isAutoReconnect_ =
-        !windowManager_->activeWindow()->session_->isAutoReconnect_;
+    qtw->getSession()->param_.isAutoReconnect_ =
+        !windowManager_->activeWindow()->getSession()->param_.isAutoReconnect_;
   }
 }
 
@@ -990,7 +947,7 @@ bool FQTermFrame::event(QEvent *e) {
 
   static bool shown = false;
   if (e->type() == QEvent::WindowStateChange 
-    && (dynamic_cast<QWindowStateChangeEvent*>(e)->oldState() & Qt::WindowMinimized)
+    && (((QWindowStateChangeEvent*)(e))->oldState() & Qt::WindowMinimized)
     && !(windowState() & Qt::WindowMinimized)) {
     shown = true;
   }
@@ -1038,7 +995,7 @@ void FQTermFrame::keyClicked(int id) {
   } else if (strTmp[0] == '1') { // script
     windowManager_->activeWindow()->runScript(strTmp.mid(1).toAscii());
   } else if (strTmp[0] == '2') { // program
-    system((strTmp.mid(1) + " &").toLocal8Bit());
+    runProgram(strTmp.mid(1));
   }
 }
 
@@ -1303,7 +1260,7 @@ void FQTermFrame::addMainMenu() {
 
   actionCurrentSession_ = option->addAction(
       QPixmap(getPath(RESOURCE) + "pic/preferences.png"),
-      tr("&Setting for currrent session"),
+      tr("&Setting for current session"),
       this, SLOT(setting()));
   option->addSeparator();
   option->addAction(tr("&Default setting"), this, SLOT(defaultSetting()));
@@ -1364,19 +1321,19 @@ void FQTermFrame::updateMenuToolBar() {
   // update menu
   actionDisconnect_->setEnabled(window->isConnected());
 
-  actionColorCopy_->setChecked(window->session_->param_.isColorCopy_);
-  actionRectangleSelect_->setChecked(window->session_->param_.isRectSelect_);
-  actionAutoCopy_->setChecked(window->session_->param_.isAutoCopy_);
-  actionWordWrap_->setChecked(window->session_->isWordWrap_);
+  actionColorCopy_->setChecked(window->getSession()->param_.isColorCopy_);
+  actionRectangleSelect_->setChecked(window->getSession()->param_.isRectSelect_);
+  actionAutoCopy_->setChecked(window->getSession()->param_.isAutoCopy_);
+  actionWordWrap_->setChecked(window->getSession()->param_.isAutoWrap_);
 
   actionFullScreen_->setChecked(isFullScreen_);
 
-  actionToggleAnsiColor_->setChecked(window->session_->param_.isAnsiColor_);
+  actionToggleAnsiColor_->setChecked(window->getSession()->param_.isAnsiColor_);
 
-  actionAntiIdle_->setChecked(window->session_->isAntiIdle_);
-  actionAutoReply_->setChecked(window->session_->isAutoReply_);
-  actionBeep_->setChecked(window->session_->isBeep_);
-  actionMouse_->setChecked(window->session_->isMouseSupported_);
+  actionAntiIdle_->setChecked(window->getSession()->isAntiIdle());
+  actionAutoReply_->setChecked(window->getSession()->isAutoReply());
+  actionBeep_->setChecked(window->getSession()->param_.isBeep_);
+  actionMouse_->setChecked(window->getSession()->param_.isSupportMouse_);
 }
 
 void FQTermFrame::enableMenuToolBar(bool enable) {
@@ -1583,7 +1540,9 @@ void FQTermFrame::trayHide() {
   }
 }
 
-void FQTermFrame::buzz() {
+void FQTermFrame::buzz(FQTermWindow* window) {
+  if (windowManager_->activeWindow() == window)
+     return;
   int xp = x();
   int yp = y();
   QTime t;
@@ -1603,33 +1562,6 @@ void FQTermFrame::buzz() {
   move(xp, yp);
 }
 
-//---------------------------
-//record subwindows' size 
-//---------------------------
-void
-FQTermFrame::subWindowResized(FQTermWindow *termWindow) {
-  int n = windowManager_->termWindowList().indexOf(termWindow);
-  if (n  == -1) {
-    return;
-  }
-  QMdiSubWindow *subWindow = mdiArea_->subWindowList().at(n);
-  if (!subWindow) {
-    return;
-  }
-  Qt::WindowFlags wfs = subWindow->windowFlags();
-  if (!(subWindowMax_ = subWindow->isMaximized())){
-    subWindowSize_ = subWindow->frameSize();
-    if (!(wfs & Qt::WindowSystemMenuHint)) {
-      subWindow->setWindowFlags(wfs | Qt::WindowSystemMenuHint);
-    }
-  }
-  else {
-    if (wfs & Qt::WindowSystemMenuHint) {
-      subWindow->setWindowFlags(wfs & ~Qt::WindowSystemMenuHint);
-    }
-  }
-
-}
 
 //--------------------------
 //recreate the main menu
@@ -1654,12 +1586,12 @@ FQTermFrame::recreateMenu() {
   addMainTool();
   updateKeyToolBar();
   loadToolBarPosition();
-  if (!mdiArea_->activeSubWindow()) {
+  if (!windowManager_->activeWindow()) {
     enableMenuToolBar(false);
   } else {
     updateMenuToolBar();
   }
-  if (preference_.useStyleSheet_) {
+  if (FQTermPref::getInstance()->useStyleSheet_) {
     refreshStyleSheet();
   }
 }
@@ -1740,19 +1672,6 @@ void FQTermFrame::initTranslator() {
   installTranslator(lang);
 }
 
-void FQTermFrame::cascade() {
-  QSize oldSize = subWindowSize_;
-  mdiArea_->cascadeSubWindows();
-  foreach(QMdiSubWindow* subWindow, mdiArea_->subWindowList()) {
-    if (subWindow) {
-      subWindow->resize(oldSize);
-    }
-  }
-}
-
-void FQTermFrame::tile() {
-  mdiArea_->tileSubWindows();
-}
 
 void FQTermFrame::clearTranslator() {
   foreach(TranslatorInstaller* installer, installerList_){
@@ -1787,7 +1706,7 @@ void FQTermFrame::scrollMenuAboutToShow() {
   actionRightScrollBar_ = scrollMenu_->addAction(
       tr("&Right"), this, SLOT(rightScroll()));
   actionRightScrollBar_->setCheckable(true);
-  switch(termScrollBarPosition_) {
+  switch(FQTermPref::getInstance()->termScrollBarPosition_) {
     case 0:
       actionHideScrollBar_->setChecked(true);
       break;
@@ -1839,27 +1758,23 @@ void FQTermFrame::loadToolBarPosition()
 }
 
 void FQTermFrame::toggleAnsiColor() {
-  windowManager_->activeWindow()->session_->param_.isAnsiColor_
-    = !windowManager_->activeWindow()->session_->param_.isAnsiColor_;
+  windowManager_->activeWindow()->getSession()->param_.isAnsiColor_
+    = !windowManager_->activeWindow()->getSession()->param_.isAnsiColor_;
   actionToggleAnsiColor_->setChecked(
-    windowManager_->activeWindow()->session_->param_.isAnsiColor_);
+    windowManager_->activeWindow()->getSession()->param_.isAnsiColor_);
   refreshScreen();
 }
 
 bool FQTermFrame::clearUp() {
-  while (windowManager_->count() > 0) {
-    bool closed = windowManager_->activeWindow()->close();
-    if (!closed) {
+  if (!windowManager_->closeAllWindow())
       return false;
-    }
-  }
 
   saveSetting();
   // clear zmodem and pool if needed
-  if (preference_.needClearZmodemPoolOnClose_) {
-    clearDir(preference_.zmodemDir_);
-    clearDir(preference_.zmodemPoolDir_);
-    clearDir(preference_.zmodemPoolDir_ + "shadow-cache/");
+  if (FQTermPref::getInstance()->needClearZmodemPoolOnClose_) {
+    clearDir(FQTermPref::getInstance()->zmodemDir_);
+    clearDir(FQTermPref::getInstance()->poolDir_);
+    clearDir(FQTermPref::getInstance()->poolDir_ + "shadow-cache/");
   }
 
   setUseDock(false);

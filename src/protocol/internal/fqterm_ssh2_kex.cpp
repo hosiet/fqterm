@@ -117,7 +117,7 @@ void FQTermSSH2Kex::handlePacket(int type) {
         sendNewKeys();
         kex_state_ = FQTermSSH2Kex::SESSIONKEY_SENT;
       } else {
-        emit kexError("Key exchange failed!");      
+        emit kexError(tr("Key exchange failed!"));      
       }
       break;
     case FQTermSSH2Kex::SESSIONKEY_SENT:
@@ -136,7 +136,7 @@ void FQTermSSH2Kex::negotiateAlgorithms() {
   FQ_FUNC_TRACE("ssh2kex", 10);
   
   if (packet_receiver_->packetType() != SSH2_MSG_KEXINIT) {
-    emit kexError("startKex: First packet is not SSH_MSG_KEXINIT");
+    emit kexError(tr("startKex: First packet is not SSH_MSG_KEXINIT"));
     return ;
   }
 
@@ -207,7 +207,7 @@ static RSA *CreateRSAContext(unsigned char *host_key, int len);
 
 bool FQTermSSH2Kex::verifyKey() {
   if (packet_receiver_->packetType() != SSH2_MSG_KEXDH_REPLY) {
-    emit kexError("Expect a SSH_MSG_KEXDH_REPLY packet");
+    emit kexError(tr("Expect a SSH_MSG_KEXDH_REPLY packet"));
     return false;
   }
 
@@ -295,7 +295,7 @@ void FQTermSSH2Kex::sendNewKeys(){
 
 bool FQTermSSH2Kex::changeKeyAlg() {
   if (packet_receiver_->packetType() != SSH2_MSG_NEWKEYS) {
-    emit kexError("Expect a SSH_MSG_NEWKEYS packet");
+    emit kexError(tr("Expect a SSH_MSG_NEWKEYS packet"));
     return false;
   }
 

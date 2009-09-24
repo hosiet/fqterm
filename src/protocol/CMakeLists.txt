@@ -3,6 +3,8 @@ set(export_SRCS
   fqterm_socket.h
   fqterm_ssh_socket.h
   fqterm_ssh_socket.cpp
+  fqterm_mini_server.h
+  fqterm_mini_server.cpp
 )
 
 set(internal_SRCS

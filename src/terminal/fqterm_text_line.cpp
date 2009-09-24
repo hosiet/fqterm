@@ -28,9 +28,9 @@
 namespace FQTerm {
 
 #ifndef NDEBUG
-#define TEXT_LINE_CHECK
+//#define TEXT_LINE_CHECK
 #else
-#define TEXT_LINE_CHECK
+//#define TEXT_LINE_CHECK
 #endif 
 
 #ifndef TEXT_LINE_CHECK
@@ -300,7 +300,7 @@ void FQTermTextLine::replaceWithWhiteSpace(
 
 void FQTermTextLine::insertText(const UTF16 *str, unsigned count,
                                unsigned cell_begin,
-                               unsigned char color, unsigned char attr, FQTermTextLine::CHARSTATE charstate) {
+                               unsigned char color, unsigned char attr, int charstate) {
   if (count == 0) return;
 
   // Calculate how many cells should be occupied for str.
@@ -309,31 +309,20 @@ void FQTermTextLine::insertText(const UTF16 *str, unsigned count,
 
   if (width == 0) {
 #ifdef TEXT_LINE_CHECK
-    FQ_VERIFY(false);
+    //FQ_VERIFY(false);
+    //TODO: enable utf8 decoding
 #endif
     return;
   }
 
-
-  switch(charstate)
-  {
-  case FQTermTextLine::NORMAL:
-    break;
-  case FQTermTextLine::FIRSTPART:
+  if (charstate & FQTermTextLine::FIRSTPART) {
     stored_color_ = color;
     stored_attr_ = attr;
     width--;
     count--;
-    if (width == 0 || count == 0)
-    {
+    if (width == 0 || count == 0) {
       return;
     }
-    
-    break;
-  case FQTermTextLine::SECONDPART:
-    break;
-  default:
-    break;
   }
 
   breakCell(cell_begin);
@@ -350,18 +339,9 @@ void FQTermTextLine::insertText(const UTF16 *str, unsigned count,
   // Insert attrs.
   cell_attrs_.insert(cell_attrs_.begin() + cell_begin, width, attr);
 
-  switch(charstate)
-  {
-  case FQTermTextLine::NORMAL:
-    break;
-  case FQTermTextLine::FIRSTPART:
-    break;
-  case FQTermTextLine::SECONDPART:
+  if (charstate & FQTermTextLine::SECONDPART){
     cell_colors_[cell_begin] = stored_color_;
     cell_attrs_[cell_begin] = stored_attr_;
-    break;
-  default:
-    break;
   }
   
 
@@ -437,12 +417,8 @@ void FQTermTextLine::deleteAllText() {
 
 void FQTermTextLine::replaceText(const UTF16 *str, unsigned count,
                                 unsigned cell_begin, unsigned cell_end,
-                                unsigned char color, unsigned char attr, FQTermTextLine::CHARSTATE charstate) {
-  switch(charstate)
-  {
-  case FQTermTextLine::NORMAL:
-    break;
-  case FQTermTextLine::FIRSTPART:
+                                unsigned char color, unsigned char attr, int charstate) {
+  if (charstate & FQTermTextLine::FIRSTPART) {
     stored_color_ = color;
     stored_attr_ = attr;
     count--;
@@ -450,12 +426,7 @@ void FQTermTextLine::replaceText(const UTF16 *str, unsigned count,
     {
       return;
     }
-    charstate = FQTermTextLine::NORMAL;
-    break;
-  case FQTermTextLine::SECONDPART:
-    break;
-  default:
-    break;
+    charstate &= ~FQTermTextLine::FIRSTPART;
   }
 
   deleteText(cell_begin, cell_end);

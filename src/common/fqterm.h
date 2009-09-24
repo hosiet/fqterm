@@ -26,15 +26,53 @@
 #endif
 
 #include <QTextCodec>
+#include <QString>
 #include "fqterm_trace.h"
 
 namespace FQTerm {
 
 //code convert
+enum EncodingID {FQTERM_ENCODING_GBK = 0, FQTERM_ENCODING_BIG5 = 1, FQTERM_ENCODING_UTF8 = 2};
 #define G2U(s) ( QTextCodec::codecForName("GBK")->toUnicode(s) )
 #define U2G(s) ( QTextCodec::codecForName("GBK")->fromUnicode(s) )
 #define B2U(s) ( QTextCodec::codecForName("Big5")->toUnicode(s) )
 #define U2B(s) ( QTextCodec::codecForName("Big5")->fromUnicode(s) )
+#define U2U8(s) ( s.toUtf8() )
+#define U82U(s) ( QString::fromUtf8(s) )
+
+inline QByteArray unicode2encoding(const QString &text, int encoding) {
+  switch(encoding)
+  {
+  case FQTERM_ENCODING_GBK:
+    return(U2G(text));
+    break;
+  case FQTERM_ENCODING_BIG5:
+    return(U2B(text));
+    break;
+  case FQTERM_ENCODING_UTF8:
+    return(U2U8(text));
+    break;
+  }
+
+  return "";
+}
+
+inline QString encoding2unicode(const QByteArray &text, int encoding) {
+  switch(encoding)
+  {
+  case FQTERM_ENCODING_GBK:
+    return(G2U(text));
+    break;
+  case FQTERM_ENCODING_BIG5:
+    return(B2U(text));
+    break;
+  case FQTERM_ENCODING_UTF8:
+    return(U82U(text));
+    break;
+  }
+
+  return "";
+}
 
 #define FQTERM_CTRL(c) ((c)&0x1f)
 

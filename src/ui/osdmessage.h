@@ -23,6 +23,7 @@
 
 #include <QPixmap>
 #include <QWidget>
+#include <QHideEvent>
 
 namespace FQTerm {
 
@@ -42,21 +43,25 @@ class PageViewMessage: public QWidget {
   };
   void display(const QString &message, Icon icon = Info, int durationMs = 4000,
                QPoint pos = QPoint(10, 10), Alignment ali = TopLeft);
+  void display(const QString &message, QPoint pos, Icon icon = Info);
   QRect displayCheck(const QString &message, Icon icon = Info);
- public slots:
-  void showText(const QString &);
-
+  public slots:
+    void showText(const QString &message){
+      display(message);
+    }
  protected:
   void paintEvent(QPaintEvent *e);
   void mousePressEvent(QMouseEvent *e);
   QRect displayImpl(const QString &message, Icon icon = Info,
                     bool check = false, int durationMs = 4000,
                     QPoint pos = QPoint(10, 10), Alignment ali = TopLeft);
-
+  void hideEvent(QHideEvent * event);
  private:
   QPixmap pixmap_;
   QTimer *timer_;
   QString message_;
+signals:
+  void hideAt(const QRect& rect);
 };
 
 }  // namespace FQTerm

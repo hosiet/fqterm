@@ -36,7 +36,7 @@ namespace FQTerm {
 // define NO_FQTERM_TRACE_FUNCTION_NAME to avoid function name in trace output.
 // define integer FQTERM_MAX_TRACE_LEVEL to determine the maximize outputed
 // trace level.
-
+//#define NO_FQTERM_TRACE
 #if defined(NDEBUG)
 #define FQTERM_MAX_TRACE_LEVEL 1
 #endif
@@ -304,7 +304,7 @@ class FQTermTimerTrace {
 
 
 #define FQ_ASSERT(expr)                                                 \
-  do {if(!(expr)) {FQ_TRACE("assert", -1) << "assertion failed.";}} while(false)
+  do {if(!(expr)) {FQ_TRACE("assert", -1) << "assertion failed." << #expr;}} while(false)
 
 
 #define FQ_SCOPE_TIMER_PRIVATE(file, line, func, category, trace_level, msg) \

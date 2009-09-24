@@ -102,7 +102,6 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
     : QMainWindow(parent, wflags),
       frame_(frame),
       isSelecting_(false),
-      isAddressChanged_(false),
       addressIndex_(addressIndex),
       sound_(NULL),
       location_(),
@@ -111,10 +110,8 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
       isUrlUnderLined_(false),
       script_engine_(NULL) {
   // isMouseX11_ = false;
-  session_ = new FQTermSession(config, param, (frame_->preference_.openBeep_ != 0),
-                               frame_->preference_.serverEncodingID_,
-                               frame_->preference_.zmodemDir_);
-  screen_ = new FQTermScreen(this, &session_->param_, session_);
+  session_ = new FQTermSession(config, param);
+  screen_ = new FQTermScreen(this, session_);
 
   config_ = config;
   zmodemDialog_ = new zmodemDialog(this);
@@ -136,9 +133,18 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
   setFocusProxy(screen_);
   setCentralWidget(screen_);
   addMenu();
-  pageViewMessage_->display(tr("Not connected"));
   statusBar()->setSizeGripEnabled(false);
-  statusBar()->setVisible(frame_->isStatusBarShown_);
+  statusBar()->setVisible(FQTermPref::getInstance()->isStatusBarShown_);
+
+
+  FQ_VERIFY(connect(pageViewMessage_, SIGNAL(hideAt(const QRect&)),
+     screen_, SLOT(widgetHideAt(const QRect&))));
+
+  FQ_VERIFY(connect(frame_, SIGNAL(bossColor()),
+    screen_, SLOT(bossColor())));
+
+  FQ_VERIFY(connect(frame_, SIGNAL(fontAntiAliasing(bool)),
+    screen_, SLOT(setFontAntiAliasing(bool))));
 
   FQ_VERIFY(connect(frame_, SIGNAL(changeLanguage()),
                     this, SLOT(recreateMenu())));
@@ -176,8 +182,8 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
                     this, SLOT(messageAutoReplied())));
   FQ_VERIFY(connect(session_, SIGNAL(telnetStateChanged(int)),
                     this, SLOT(TelnetState(int))));
-  FQ_VERIFY(connect(session_, SIGNAL(errorMessage(const char *)),
-                    this, SLOT(showSessionErrorMessage(const char *))));
+  FQ_VERIFY(connect(session_, SIGNAL(errorMessage(QString)),
+                    this, SLOT(showSessionErrorMessage(QString))));
 
   FQ_VERIFY(connect(tabBlinkTimer_, SIGNAL(timeout()), this, SLOT(blinkTab())));
 
@@ -206,8 +212,6 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
   cursors_[FQTermSession::kRight] = QCursor(
       QPixmap(resource_dir + "cursor/hand.xpm"));
   cursors_[FQTermSession::kNormal] = Qt::ArrowCursor;
-
-  connectHost();
 
   if  (session_->param_.isAutoLoadScript_
        && !session_->param_.autoLoadedScriptFileName_.isEmpty()) {
@@ -273,6 +277,9 @@ void FQTermWindow::addMenu() {
   menu_->addSeparator();
   menu_->addAction(QPixmap(resource_dir + "pic/preferences.png"), tr("Setting"),
                    this, SLOT(setting()));
+  menu_->addSeparator();
+  menu_->addAction(tr("Open Selected As Url"), this, SLOT(openAsUrl()));
+  menu_->addAction(tr("Google Selected Text!"), this, SLOT(googleIt()));
 }
 
 void FQTermWindow::recreateMenu() {
@@ -283,7 +290,7 @@ void FQTermWindow::recreateMenu() {
 
 //close event received
 void FQTermWindow::closeEvent(QCloseEvent *clse) {
-  if (isConnected() && frame_->preference_.openWarnOnClose_) {
+  if (isConnected() && FQTermPref::getInstance()->openWarnOnClose_) {
     QMessageBox mb(tr("FQTerm"),
                    tr("Still connected, do you really want to exit?"),
                    QMessageBox::Warning, QMessageBox::Yes|QMessageBox::Default,
@@ -296,11 +303,11 @@ void FQTermWindow::closeEvent(QCloseEvent *clse) {
     }
   }
   saveSetting();
-  frame_->windowManager_->removeWindow(this);
+//  frame_->windowManager_->removeWindow(this);
 }
 
 void FQTermWindow::blinkTab() {
-  frame_->windowManager_->blinkTheTab(this, blinkStatus_);
+  emit blinkTheTab(this, blinkStatus_);
   blinkStatus_ = !blinkStatus_;
 }
 
@@ -321,10 +328,10 @@ void FQTermWindow::leaveEvent(QEvent*) {
 
 void FQTermWindow::changeEvent(QEvent *e) {
   if (e->type() == QEvent::WindowStateChange) {
-    QWindowStateChangeEvent *event = dynamic_cast<QWindowStateChangeEvent *>(e);
+    QWindowStateChangeEvent *event = (QWindowStateChangeEvent*)(e);
     Qt::WindowStates oldState = event->oldState();
     if (!isMaximized()) {
-      frame_->windowManager_->refreshAllExcept(this);
+      emit refreshOthers(this);
     }
     if ( (oldState & Qt::WindowMinimized && !isMinimized()) ||
          (!(oldState & Qt::WindowActive) && isActiveWindow())) {
@@ -347,7 +354,7 @@ bool FQTermWindow::event(QEvent *qevent) {
   switch(qevent->type()) {
 #ifdef __linux__ 
     case QEvent::ShortcutOverride:    
-       keyEvent = dynamic_cast<QKeyEvent *>(qevent);   
+       keyEvent = (QKeyEvent *)(qevent);   
        if(keyEvent->key() == Qt::Key_W &&    
           keyEvent->modifiers() == Qt::ControlModifier) {    
          keyEvent->accept();   
@@ -356,7 +363,7 @@ bool FQTermWindow::event(QEvent *qevent) {
        break;
 #endif
     case QEvent::KeyPress:
-      keyEvent = dynamic_cast<QKeyEvent *>(qevent);
+      keyEvent = (QKeyEvent *)(qevent);
       if (keyEvent->key() == Qt::Key_Tab ||
           keyEvent->key() == Qt::Key_Backtab) {
         // Key_Tab and Key_Backtab are special, if we don't process them here,
@@ -465,7 +472,7 @@ void FQTermWindow::mouseMoveEvent(QMouseEvent *mouseevent) {
     onSelecting(position);
   }
 
-  if (!(session_->isMouseSupported_ && isConnected())) {
+  if (!(session_->param_.isSupportMouse_ && isConnected())) {
     return;
   }
 
@@ -524,7 +531,7 @@ void FQTermWindow::mouseReleaseEvent(QMouseEvent *mouseevent) {
   }
   isSelecting_ = false;
 
-  if (!session_->isMouseSupported_ || !isConnected()) {
+  if (!session_->param_.isSupportMouse_ || !isConnected()) {
     return ;
   }
 
@@ -534,7 +541,7 @@ void FQTermWindow::mouseReleaseEvent(QMouseEvent *mouseevent) {
     if (isSupportedImage(url)) {
       previewLink();      
     } else {
-      openUrl();
+      openUrl(url);
     }
     return ;
   }
@@ -545,7 +552,7 @@ void FQTermWindow::mouseReleaseEvent(QMouseEvent *mouseevent) {
 void FQTermWindow::wheelEvent(QWheelEvent *wheelevent) {
   int j = wheelevent->delta() > 0 ? 4 : 5;
   if (!(wheelevent->modifiers())) {
-    if (frame_->preference_.isWheelSupported_ && isConnected()) {
+    if (FQTermPref::getInstance()->isWheelSupported_ && isConnected()) {
       session_->write(directions_[j], sizeof(directions_[j]));
     }
     return ;
@@ -580,6 +587,8 @@ void FQTermWindow::keyPressEvent(QKeyEvent *keyevent) {
       "keyEvent", Py_BuildValue("liii", this, 0, state, keyevent->key()));
 #endif
 
+
+
   keyevent->accept();
 
   if (!isConnected()) {
@@ -610,6 +619,7 @@ void FQTermWindow::focusInEvent (QFocusEvent *event) {
 
 //connect slot
 void FQTermWindow::connectHost() {
+  pageViewMessage_->display(tr("Not connected"), screen_->mapToPixel(QPoint(1, 1)));
   session_->setProxy(session_->param_.proxyType_,
                      session_->param_.isAuthentation_,
                      session_->param_.proxyHostName_,
@@ -683,12 +693,7 @@ void FQTermWindow::ZmodemState(int type, int value, const char *status) {
     case FileBegin:
       /* file transfer begins, str=name */
       FQ_TRACE("window", 1) << "Starting file " << status;
-      if (session_->param_.serverEncodingID_ == 0) {
-        zmodemDialog_->setFileInfo(G2U(status), value);
-      } else {
-        zmodemDialog_->setFileInfo(B2U(status), value);
-      }
-      
+      zmodemDialog_->setFileInfo(session_->bbs2unicode(status), value);
       zmodemDialog_->setProgress(0);
       zmodemDialog_->clearErrorLog();
       zmodemDialog_->show();
@@ -710,71 +715,71 @@ void FQTermWindow::ZmodemState(int type, int value, const char *status) {
 void FQTermWindow::TelnetState(int state) {
   switch (state) {
     case TSRESOLVING:
-      pageViewMessage_->display(tr("Resolving host name"));
+      pageViewMessage_->display(tr("Resolving host name"), screen_->mapToPixel(QPoint(1, 1)));
       break;
     case TSHOSTFOUND:
-      pageViewMessage_->display(tr("Host found"));
+      pageViewMessage_->display(tr("Host found"), screen_->mapToPixel(QPoint(1, 1)));
       break;
     case TSHOSTNOTFOUND:
-      pageViewMessage_->display(tr("Host not found"));
+      pageViewMessage_->display(tr("Host not found"), screen_->mapToPixel(QPoint(1, 1)));
       break;
     case TSCONNECTING:
-      pageViewMessage_->display(tr("Connecting..."));
+      pageViewMessage_->display(tr("Connecting..."), screen_->mapToPixel(QPoint(1, 1)));
       break;
     case TSHOSTCONNECTED:
-      pageViewMessage_->display(tr("Connected"));
+      pageViewMessage_->display(tr("Connected"), screen_->mapToPixel(QPoint(1, 1)));
       frame_->updateMenuToolBar();
       break;
     case TSPROXYCONNECTED:
-      pageViewMessage_->display(tr("Connected to proxy"));
+      pageViewMessage_->display(tr("Connected to proxy"), screen_->mapToPixel(QPoint(1, 1)));
       break;
     case TSPROXYAUTH:
-      pageViewMessage_->display(tr("Proxy authentation"));
+      pageViewMessage_->display(tr("Proxy authentation"), screen_->mapToPixel(QPoint(1, 1)));
       break;
     case TSPROXYFAIL:
-      pageViewMessage_->display(tr("Proxy failed"));
+      pageViewMessage_->display(tr("Proxy failed"), screen_->mapToPixel(QPoint(1, 1)));
       break;
     case TSREFUSED:
-      pageViewMessage_->display(tr("Connection refused"));
+      pageViewMessage_->display(tr("Connection refused"), screen_->mapToPixel(QPoint(1, 1)));
       break;
     case TSREADERROR:
-      pageViewMessage_->display(tr("Error when reading from server"),
+      pageViewMessage_->display(tr("Error when reading from server"), screen_->mapToPixel(QPoint(1, 1)), 
                                 PageViewMessage::Error);
       break;
     case TSCLOSED:
-      pageViewMessage_->display(tr("Connection closed"));
+      pageViewMessage_->display(tr("Connection closed"), screen_->mapToPixel(QPoint(1, 1)));
       break;
     case TSCLOSEFINISH:
-      pageViewMessage_->display(tr("Connection close finished"));
+      pageViewMessage_->display(tr("Connection close finished"), screen_->mapToPixel(QPoint(1, 1)));
       break;
     case TSCONNECTVIAPROXY:
-      pageViewMessage_->display(tr("Connect to host via proxy"));
+      pageViewMessage_->display(tr("Connect to host via proxy"), screen_->mapToPixel(QPoint(1, 1)));
       break;
     case TSEGETHOSTBYNAME:
       pageViewMessage_->display(
-          tr("Error in gethostbyname"), PageViewMessage::Error);
+          tr("Error in gethostbyname"), screen_->mapToPixel(QPoint(1, 1)), PageViewMessage::Error);
       break;
     case TSEINIWINSOCK:
       pageViewMessage_->display(
-          tr("Error in startup winsock"), PageViewMessage::Error);
+          tr("Error in startup winsock"), screen_->mapToPixel(QPoint(1, 1)), PageViewMessage::Error);
       break;
     case TSERROR:
       pageViewMessage_->display(
-          tr("Error in connection"), PageViewMessage::Error);
+          tr("Error in connection"), screen_->mapToPixel(QPoint(1, 1)), PageViewMessage::Error);
       break;
     case TSPROXYERROR:
-      pageViewMessage_->display(tr("Error in proxy"), PageViewMessage::Error);
+      pageViewMessage_->display(tr("Error in proxy"), screen_->mapToPixel(QPoint(1, 1)), PageViewMessage::Error);
       break;
     case TSWRITED:
       break;
   }
 }
 
-void FQTermWindow::showSessionErrorMessage(const char *reason) {
-  if (QString(reason) == tr("User Cancel")) {
+void FQTermWindow::showSessionErrorMessage(QString reason) {
+  if (reason == tr("User Cancel")) {
     return;
   }
-  QMessageBox::critical(this, tr("Session error"), tr(reason));
+  QMessageBox::critical(this, tr("Session error"), reason);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -799,6 +804,25 @@ void FQTermWindow::copy() {
 
 void FQTermWindow::paste() {
   pasteHelper(true);
+}
+
+void FQTermWindow::openAsUrl() {
+  QString selected_text = session_->getBuffer()->getTextSelected(
+    session_->param_.isRectSelect_,
+    session_->param_.isColorCopy_,
+    parseString((const char*)session_->param_.escapeString_.toLatin1()));
+  openUrl(selected_text);
+}
+
+void FQTermWindow::googleIt()
+{
+	QString selected_text = session_->getBuffer()->getTextSelected(
+		session_->param_.isRectSelect_,
+		session_->param_.isColorCopy_,
+		parseString((const char*)session_->param_.escapeString_.toLatin1()));
+	QString googleUrl = "http://www.google.com/search?client=fqterm&rls=en&q=" + selected_text + "&sourceid=fqterm";
+	QByteArray url = QUrl(googleUrl).toEncoded();
+	openUrlImpl(url);
 }
 
 void FQTermWindow::pasteHelper(bool clip) {
@@ -848,37 +872,26 @@ void FQTermWindow::pasteHelper(bool clip) {
     clipStr = clipboard->text(QClipboard::Selection);
   }
 
-  if (session_->param_.serverEncodingID_ == 0) {
-    cstrText = U2G(clipStr);
-  } else  if (session_->param_.serverEncodingID_ == 1) {
-    cstrText = U2B(clipStr);
-  } else {
-    FQ_VERIFY(false);
-  }
+  cstrText = session_->unicode2bbs(clipStr);
 
   // TODO_UTF16: avoid this replacement.
-  if (!frame_->escapeString_.isEmpty()) {
+  if (!FQTermPref::getInstance()->escapeString_.isEmpty()) {
     cstrText.replace(
-        parseString(frame_->escapeString_.toLatin1()),
+        parseString(FQTermPref::getInstance()->escapeString_.toLatin1()),
         parseString((const char*)session_->param_.escapeString_.toLatin1()));
   }
 
-  if (session_->isWordWrap_) {
+  if (session_->param_.isAutoWrap_) {
     // convert to unicode for word wrap
     QString strText;
-    if (session_->param_.serverEncodingID_ == 0) {
-      strText = G2U(cstrText);
-    } else {
-      strText = B2U(cstrText);
-    }
-
+    strText = session_->bbs2unicode(cstrText);
     // insert '\n' as needed
     for (uint i = 0; (long)i < strText.length(); i++) {
       uint j = i;
       uint k = 0, l = 0;
-      while (strText.at(j) != QChar('\n') && (long)j < strText.length()) {
-        if (frame_->preference_.widthToWrapWord_ - (l - k) >= 0
-            && frame_->preference_.widthToWrapWord_ - (l - k) < 2) {
+      while ((long)j < strText.length() && strText.at(j) != QChar('\n')) {
+        if (FQTermPref::getInstance()->widthToWrapWord_ - (l - k) >= 0
+            && FQTermPref::getInstance()->widthToWrapWord_ - (l - k) < 2) {
           strText.insert(j, QChar('\n'));
           k = l;
           j++;
@@ -895,11 +908,7 @@ void FQTermWindow::pasteHelper(bool clip) {
       i = j;
     }
 
-    if (session_->param_.serverEncodingID_ == 0) {
-      cstrText = U2G(strText);
-    } else {
-      cstrText = U2B(strText);
-    }
+    cstrText = session_->unicode2bbs(strText);
   }
 
   session_->write(cstrText, cstrText.length());
@@ -956,9 +965,11 @@ void FQTermWindow::showIP(bool show) {
                       - pageViewMessage_->size().height());
     }
 
+    QString displayText = encoding2unicode((country + city).toLatin1(), FQTERM_ENCODING_GBK);
+
     QRect messageSize(
         pageViewMessage_->displayCheck(
-        session_->param_.serverEncodingID_?B2U((country + city).toLatin1()):G2U((country + city).toLatin1()),
+        displayText,
         PageViewMessage::Info));
     PageViewMessage::Alignment ali;
     if (messageSize.width() + globalIPRectangle.left() >= screenRect.right()) {
@@ -971,7 +982,7 @@ void FQTermWindow::showIP(bool show) {
     }
 
     pageViewMessage_->display(
-        session_->param_.serverEncodingID_?B2U((country + city).toLatin1()):G2U((country + city).toLatin1()),
+        displayText,
         PageViewMessage::Info,
         0, messagePos, ali);
   }
@@ -999,6 +1010,8 @@ void FQTermWindow::runScript() {
 }
 
 void FQTermWindow::stopScript() {
+  getScriptEngine()->abortEvaluation();
+  clearScriptEngine();
 }
 
 void FQTermWindow::viewMessages() {
@@ -1045,7 +1058,7 @@ void FQTermWindow::toggleAutoReply() {
 void FQTermWindow::connectionClosed() {
   stopBlink();
 
-  pageViewMessage_->display(tr("Connection closed"));
+  pageViewMessage_->display(tr("Connection closed"), screen_->mapToPixel(QPoint(1, 1)));
 
   frame_->updateMenuToolBar();
 
@@ -1160,15 +1173,14 @@ void FQTermWindow::saveSetting() {
   FQTermConfig pConf(getPath(USER_CONFIG) + "address.cfg");
   FQTermParam param;
   loadAddress(&pConf, addressIndex_, param);
-  session_->param_.isAutoCopy_ = session_->param_.isAutoCopy_;
-  session_->param_.isRectSelect_ = session_->param_.isRectSelect_;
   param.isAutoCopy_ = session_->param_.isAutoCopy_;
-  param.isColorCopy_ = session_->param_.isColorCopy_;
+  param.isAutoWrap_ = session_->param_.isAutoWrap_;
   param.isRectSelect_ = session_->param_.isRectSelect_;
+  param.isColorCopy_ = session_->param_.isColorCopy_;
   saveAddress(&pConf, addressIndex_, param);
   pConf.save(getPath(USER_CONFIG) + "address.cfg");
 
-  if (!isAddressChanged_) {
+  if (param == session_->param_) {
     return;
   }
   
@@ -1181,38 +1193,13 @@ void FQTermWindow::saveSetting() {
   }
 }
 
-void FQTermWindow::externInput(const QByteArray &cstrText) {
+int FQTermWindow::externInput(const QByteArray &cstrText) {
   QByteArray cstrParsed = parseString(cstrText);
-  session_->write(cstrParsed, cstrParsed.length());
+  return session_->write(cstrParsed, cstrParsed.length());
 }
 
-void FQTermWindow::externInput(const QString &cstrText) {
-  if (screen_->encoding()) {
-    externInput(screen_->encoding()->fromUnicode(cstrText));
-  } else {
-    externInput(cstrText.toAscii());
-  }
-}
-QByteArray FQTermWindow::unicode2SessionEncoding(const QString &text) {
-  QByteArray strTmp;
-
-  if (frame_->preference_.serverEncodingID_ == 0) {
-    strTmp = U2G(text);
-    if (session_->param_.serverEncodingID_ == 1) {
-      char *str = encodingConverter_.G2B(strTmp, strTmp.length());
-      strTmp = str;
-      delete [] str;
-    }
-  } else {
-    strTmp = U2B(text);
-    if (session_->param_.serverEncodingID_ == 0) {
-      char *str = encodingConverter_.B2G(strTmp, strTmp.length());
-      strTmp = str;
-      delete [] str;
-    }
-  }
-
-  return strTmp;
+int FQTermWindow::externInput(const QString &cstrText) {
+  return externInput(session_->unicode2bbs_smart(cstrText));
 }
 
 void FQTermWindow::sendParsedString(const char *str) {
@@ -1310,16 +1297,7 @@ void FQTermWindow::pythonMouseEvent(
 void FQTermWindow::openLink() {
   QString url = session_->getUrl();
   if (!url.isEmpty()) {
-    const QString &httpBrowser = frame_->preference_.httpBrowser_;
-	if (httpBrowser.isNull() || httpBrowser.isEmpty()) {
-#if QT_VERSION >= 0x040400
-    QDesktopServices::openUrl(QUrl::fromEncoded(url.toLocal8Bit()));
-#else
-    QDesktopServices::openUrl(url);
-#endif
-    } else {
-	  runProgram(httpBrowser, url);
-	}
+	openUrlImpl(url);
   }
 }
 
@@ -1329,10 +1307,10 @@ void FQTermWindow::saveLink() {
     getHttpHelper(url, false);
 }
 
-void FQTermWindow::openUrl()
+void FQTermWindow::openUrl(QString url)
 {
   QString caption = tr("URL Dialog");
-  QString strUrl = session_->getUrl();
+  QString strUrl = url;
   QTextEdit *textEdit = new QTextEdit();
   textEdit->setPlainText(strUrl);
   //textEdit->setFocus();
@@ -1366,19 +1344,25 @@ void FQTermWindow::openUrl()
   textEdit->clearFocus();
   okButton->setFocus(Qt::TabFocusReason);
   if (dlg.exec()) {
-    const QString &httpBrowser = frame_->preference_.httpBrowser_;
-    if (httpBrowser.isNull() || httpBrowser.isEmpty()) {
-#if QT_VERSION >= 0x040400
-	    QDesktopServices::openUrl(QUrl::fromEncoded(textEdit->toPlainText().toLocal8Bit()));
-#else
-      QDesktopServices::openUrl(textEdit->toPlainText());
-#endif
-    } else {
-	    runProgram(httpBrowser, textEdit->toPlainText());
-    }
-    
+	  openUrlImpl(textEdit->toPlainText());
   }
 }
+
+
+void FQTermWindow::openUrlImpl(QString url)
+{
+    const QString &httpBrowser = FQTermPref::getInstance()->httpBrowser_;
+    if (httpBrowser.isNull() || httpBrowser.isEmpty()) {
+#if QT_VERSION >= 0x040400
+	    QDesktopServices::openUrl(QUrl::fromEncoded(url.toLocal8Bit()));
+#else
+      QDesktopServices::openUrl(url);
+#endif
+    } else {
+	    runProgram(httpBrowser, url);
+    }
+}
+
 
 void FQTermWindow::previewLink() {
   getHttpHelper(session_->getUrl(), true);
@@ -1386,11 +1370,7 @@ void FQTermWindow::previewLink() {
 
 void FQTermWindow::copyLink() {
   QString strUrl;
-  if (session_->param_.serverEncodingID_ == 0) {
-    strUrl = G2U(session_->getUrl().toLatin1());
-  } else {
-    strUrl = B2U(session_->getUrl().toLatin1());
-  }
+  strUrl = session_->bbs2unicode(session_->getUrl().toLatin1());
 
   QClipboard *clipboard = QApplication::clipboard();
 
@@ -1400,9 +1380,9 @@ void FQTermWindow::copyLink() {
 
 void FQTermWindow::getHttpHelper(const QString &url, bool preview) {
 
-  const QString &strPool = frame_->preference_.zmodemPoolDir_;
+  const QString &strPool = FQTermPref::getInstance()->poolDir_;
 
-  FQTermHttp *http = new FQTermHttp(config_, this, strPool, session_->serverEncodingID_);
+  FQTermHttp *http = new FQTermHttp(config_, this, strPool, session_->param_.serverEncodingID_);
   FQTerm::StatusBar::instance()->newProgressOperation(http).setDescription(tr("Waiting header...")).setAbortSlot(http, SLOT(cancel())).setMaximum(100);
   FQTerm::StatusBar::instance()->resetMainText();
   FQTerm::StatusBar::instance()->setProgress(http, 0);
@@ -1461,23 +1441,26 @@ void FQTermWindow::previewImage(const QString &filename, bool raiseViewer) {
 }
 
 void FQTermWindow::beep() {
-  if (session_->isBeep_) {
-    if (frame_->preference_.beepSoundFileName_.isEmpty() ||
-      frame_->preference_.openBeep_ == 3) {
+  if (session_->param_.isBeep_) {
+    if (session_->param_.isBuzz_) {
+      frame_->buzz(this);
+    }
+    if (FQTermPref::getInstance()->beepSoundFileName_.isEmpty() ||
+      FQTermPref::getInstance()->openBeep_ == 3) {
       qApp->beep();
     }
     else {
       sound_ = NULL;
 
-      switch (frame_->preference_.beepMethodID_) {
+      switch (FQTermPref::getInstance()->beepMethodID_) {
         case 0:
           sound_ =
-              new FQTermSystemSound(frame_->preference_.beepSoundFileName_);
+              new FQTermSystemSound(FQTermPref::getInstance()->beepSoundFileName_);
           break;
         case 1:
           sound_ =
-              new FQTermExternalSound(frame_->preference_.beepPlayerName_,
-                frame_->preference_.beepSoundFileName_);
+              new FQTermExternalSound(FQTermPref::getInstance()->beepPlayerName_,
+                FQTermPref::getInstance()->beepSoundFileName_);
           break;
       }
 
@@ -1493,14 +1476,10 @@ void FQTermWindow::beep() {
   }
 
   session_->isSendingMessage_ = true;
-
-  if (!isActiveWindow() || frame_->windowManager_->activeWindow() != this) {
-    frame_->buzz();
-  }
 }
 
 void FQTermWindow::startBlink() {
-  if (frame_->preference_.openTabBlinking_) {
+  if (FQTermPref::getInstance()->openTabBlinking_) {
     if (!tabBlinkTimer_->isActive()) {
       tabBlinkTimer_->start(500);
     }
@@ -1510,14 +1489,14 @@ void FQTermWindow::startBlink() {
 void FQTermWindow::stopBlink() {
   if (tabBlinkTimer_->isActive()) {
     tabBlinkTimer_->stop();
-    frame_->windowManager_->blinkTheTab(this, TRUE);
+    emit blinkTheTab(this, TRUE);
   }
 }
 
 void FQTermWindow::setCursorType(const QPoint& mousePosition) {
   QRect rcOld;
   bool isUrl = false;
-  if (frame_->preference_.openUrlCheck_) {
+  if (FQTermPref::getInstance()->openUrlCheck_) {
     showIP(isIpDataFileExisting_ && session_->isIP(ipRectangle_, rcOld));
     if (session_->isUrl(urlRectangle_, rcOld)) {
       setCursor(Qt::PointingHandCursor);
@@ -1924,14 +1903,20 @@ void FQTermWindow::sendKey(const int keyCode, const Qt::KeyboardModifiers modifi
       if (shift_on) {
         session_->writeStr("\x1b[3~");
       } else {
-        session_->writeStr("\x08");
+        if (session_->param_.backspaceType_ ==  0)
+          session_->writeStr("\x08");
+        else
+          session_->writeStr("\x7f");
       }
       return;
     }
     
     if (key == Qt::Key_Delete) {
       if (shift_on) {
-        session_->writeStr("\x08");
+        if (session_->param_.backspaceType_ ==  0)
+          session_->writeStr("\x08");
+        else
+          session_->writeStr("\x7f");
       } else {
         session_->writeStr("\x1b[3~");
       }
@@ -1947,7 +1932,7 @@ void FQTermWindow::sendKey(const int keyCode, const Qt::KeyboardModifiers modifi
       return;
     }
     
-    QByteArray cstrTmp = unicode2SessionEncoding(text);
+    QByteArray cstrTmp = session_->unicode2bbs_smart(text);
     session_->write(cstrTmp, cstrTmp.length());
   }
   return;
@@ -1961,7 +1946,6 @@ void FQTermWindow::forcedRepaintScreen() {
 void FQTermWindow::updateSetting(const FQTermParam& param) {
   session_->param_ = param;
   session_->setAntiIdle(session_->isAntiIdle());
-  isAddressChanged_ = true;
   screen_->setTermFont(true,
                        QFont(param.englishFontName_,
                              param.englishFontSize_));
@@ -1969,7 +1953,6 @@ void FQTermWindow::updateSetting(const FQTermParam& param) {
                        QFont(param.nonEnglishFontName_,
                              param.nonEnglishFontSize_));
   screen_->setSchema();
-  isAddressChanged_ = true;
   forcedRepaintScreen();
 }
 
@@ -1987,13 +1970,12 @@ void FQTermWindow::setFont(bool isEnglish) {
   QFont font(fontName, fontSize);
   font = QFontDialog::getFont(&ok, font);
   if (ok == true) {
-    if (frame_->preference_.openAntiAlias_) {
+    if (FQTermPref::getInstance()->openAntiAlias_) {
       font.setStyleStrategy(QFont::PreferAntialias);
     }
     screen_->setTermFont(isEnglish, font);
     fontName = font.family();
     fontSize = font.pointSize();
-    isAddressChanged_ = true;
     forcedRepaintScreen();
   }
 }
@@ -2045,10 +2027,13 @@ QScriptEngine *FQTermWindow::getScriptEngine() {
   if (script_engine_ == NULL) {
     script_engine_ = new QScriptEngine();
     script_engine_->globalObject().setProperty(
-        "session", script_engine_->newQObject(session_));
+        "fq_session", script_engine_->newQObject(session_));
     script_engine_->globalObject().setProperty(
-        "sessionWindow", script_engine_->newQObject(this));
-
+        "fq_window", script_engine_->newQObject(this));
+    script_engine_->globalObject().setProperty(
+        "fq_buffer", script_engine_->newQObject(session_->getBuffer()));
+    script_engine_->globalObject().setProperty(
+        "fq_screen", script_engine_->newQObject(screen_));
     // qScriptRegisterQObjectMetaType<QString *>(script_engine_);
   }
 

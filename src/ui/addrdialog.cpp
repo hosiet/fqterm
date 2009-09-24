@@ -74,7 +74,6 @@ void addrDialog::setParamFromUI() {
   param_.password_ = ui_.passwdLineEdit->text();
   param_.postLoginCommand_ = ui_.postloginLineEdit->text();
   param_.serverEncodingID_ = ui_.bbscodeComboBox->currentIndex();
-  param_.dispEncodingID_ = ui_.displaycodeComboBox->currentIndex();
   param_.isFontAutoFit_ = ui_.autofontCheckBox->isChecked();
   param_.isAlwaysHighlight_ = ui_.highlightCheckBox->isChecked();
   param_.isAnsiColor_ = ui_.ansicolorCheckBox->isChecked();
@@ -83,6 +82,7 @@ void addrDialog::setParamFromUI() {
   param_.schemaFileName_ = schemaFileName_;
   param_.virtualTermType_ = ui_.termtypeLineEdit->text();
   param_.keyboardType_ = ui_.keytypeComboBox->currentIndex();
+  param_.backspaceType_ = ui_.backspace8->isChecked()?0:1;
   param_.numColumns_ = ui_.columnLineEdit->text().toInt();
   param_.numRows_ = ui_.rowLineEdit->text().toInt();
   param_.numScrollLines_ = ui_.scrollLineEdit->text().toInt();
@@ -106,6 +106,7 @@ void addrDialog::setParamFromUI() {
   case 1:
   case 2:
     param_.isAutoLogin_ = ui_.sshAutoLoginGroup->isChecked();
+  case 100:
     break;
   }
   param_.sshUserName_ = ui_.sshuserLineEdit->text();
@@ -116,15 +117,22 @@ void addrDialog::setParamFromUI() {
     FQ_TRACE("addrdialog", 0) << "Key combination for reply is NULL.";
   }
   param_.antiIdleMessage_ = ui_.antiLineEdit->text();
+  param_.isAntiIdle_ = ui_.antiIdleGroupBox->isChecked();
   param_.isAutoReply_ = ui_.replyCheckBox->isChecked();
   param_.autoReplyMessage_ = ui_.replyLineEdit->text();
   param_.isAutoReconnect_ = ui_.reconnectCheckBox->isChecked();
   param_.reconnectInterval_ = ui_.reconnectLineEdit->text().toInt();
   param_.retryTimes_ = ui_.retryLineEdit->text().toInt();
   param_.isAutoLoadScript_ = ui_.scriptCheckBox->isChecked();
+  param_.enableZmodem_ = ui_.zmodemCheck->isChecked();
+  param_.isBeep_ = ui_.beepCheck->isChecked();
+  param_.isBuzz_ = ui_.buzzCheck->isChecked();
+  param_.isSupportMouse_ = ui_.mouseCheck->isChecked();
   param_.autoLoadedScriptFileName_ = ui_.scriptLineEdit->text();
   param_.menuType_ = menuButtonGroup_.checkedId();
   param_.menuColor_ = ui_.menuLabel->palette().color(QPalette::Background);
+  param_.charRatio_ = ui_.charRatioSlider->sliderPosition();
+  param_.fontRatio_ = ui_.fontRatioSlider->sliderPosition();
 }
 
 void addrDialog::setUIFromParam() {
@@ -139,12 +147,13 @@ void addrDialog::setUIFromParam() {
   ui_.passwdLineEdit->setText(param_.password_);
   ui_.postloginLineEdit->setText(param_.postLoginCommand_);
   ui_.bbscodeComboBox->setCurrentIndex(param_.serverEncodingID_);
-  ui_.displaycodeComboBox->setCurrentIndex(param_.dispEncodingID_);
   ui_.autofontCheckBox->setChecked(param_.isFontAutoFit_);
   ui_.highlightCheckBox->setChecked(param_.isAlwaysHighlight_);
   ui_.ansicolorCheckBox->setChecked(param_.isAnsiColor_);
   ui_.termtypeLineEdit->setText(param_.virtualTermType_);
   ui_.keytypeComboBox->setCurrentIndex(param_.keyboardType_);
+  ui_.backspace8->setChecked(param_.backspaceType_ == 0);
+  ui_.backspace127->setChecked(param_.backspaceType_ == 1);
   strTmp.setNum(param_.numColumns_);
   ui_.columnLineEdit->setText(strTmp);
   strTmp.setNum(param_.numRows_);
@@ -171,18 +180,25 @@ void addrDialog::setUIFromParam() {
   ui_.idletimeLineEdit->setText(strTmp);
   ui_.replykeyLineEdit->setText(param_.replyKeyCombination_);
   ui_.antiLineEdit->setText(param_.antiIdleMessage_);
+  ui_.antiIdleGroupBox->setChecked(param_.isAntiIdle_);
   ui_.replyCheckBox->setChecked(param_.isAutoReply_);
   ui_.replyLineEdit->setEnabled(param_.isAutoReply_);
   ui_.replyLineEdit->setText(param_.autoReplyMessage_);
   ui_.reconnectCheckBox->setChecked(param_.isAutoReconnect_);
   ui_.reconnectLineEdit->setEnabled(param_.isAutoReconnect_);
   ui_.retryLineEdit->setEnabled(param_.isAutoReconnect_);
+  ui_.charRatioSlider->setSliderPosition(param_.charRatio_);
+  ui_.fontRatioSlider->setSliderPosition(param_.fontRatio_);
   strTmp.setNum(param_.reconnectInterval_);
   ui_.reconnectLineEdit->setText(strTmp);
   strTmp.setNum(param_.retryTimes_);
   ui_.retryLineEdit->setText(strTmp);
   ui_.scriptCheckBox->setChecked(param_.isAutoLoadScript_);
   ui_.scriptLineEdit->setText(param_.autoLoadedScriptFileName_);
+  ui_.zmodemCheck->setChecked(param_.enableZmodem_);
+  ui_.beepCheck->setChecked(param_.isBeep_);
+  ui_.buzzCheck->setChecked(param_.isBuzz_);
+  ui_.mouseCheck->setChecked(param_.isSupportMouse_);
   //ui.menuGroup->setButton(param_.m_nMenuType);
   QRadioButton *rbMenu = qobject_cast < QRadioButton * > (menuButtonGroup_.button
     (param_.menuType_));

@@ -55,7 +55,7 @@ public slots:
 signals:
   void channelOK();
   void channelReadyRead(const char *data, int len);
-  void channelError(const char *reason);
+  void channelError(QString);
 };
 
 class FQTermSSH1Channel: public FQTermSSHChannel {

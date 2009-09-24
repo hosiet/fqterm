@@ -96,7 +96,7 @@ class siteDialog: public QDialog {
 
   Ui::siteManager ui_;
 
-  static int ports[3]; //telnet, ssh1, ssh2
+  static int ports[]; //telnet, ssh1, ssh2
 };
 
 }  //FQTerm namespace

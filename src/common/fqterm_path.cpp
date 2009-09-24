@@ -221,8 +221,6 @@ bool loadAddress(FQTermConfig *pConf, int n, FQTermParam &param) {
 
   strTmp = pConf->getItemValue(strSection, "bbscode");
   param.serverEncodingID_ = strTmp.toInt();
-  strTmp = pConf->getItemValue(strSection, "displaycode");
-  param.dispEncodingID_ = strTmp.toInt();
   strTmp = pConf->getItemValue(strSection, "autofont");
   param.isFontAutoFit_ = (strTmp != "0");
   strTmp = pConf->getItemValue(strSection, "alwayshighlight");
@@ -257,6 +255,8 @@ bool loadAddress(FQTermConfig *pConf, int n, FQTermParam &param) {
   param.virtualTermType_ = pConf->getItemValue(strSection, "termtype");
   strTmp = pConf->getItemValue(strSection, "keytype");
   param.keyboardType_ = strTmp.toInt();
+  strTmp = pConf->getItemValue(strSection, "backspacetype");
+  param.backspaceType_ = strTmp.toInt();
   strTmp = pConf->getItemValue(strSection, "column");
   param.numColumns_ = strTmp.toInt();
   strTmp = pConf->getItemValue(strSection, "row");
@@ -289,6 +289,8 @@ bool loadAddress(FQTermConfig *pConf, int n, FQTermParam &param) {
   }
 
   param.antiIdleMessage_ = pConf->getItemValue(strSection, "antiidlestring");
+  strTmp = pConf->getItemValue(strSection, "isantiidle");
+  param.isAntiIdle_ = (strTmp != "0");
   param.autoReplyMessage_ = pConf->getItemValue(strSection, "autoreply");
   strTmp = pConf->getItemValue(strSection, "bautoreply");
   param.isAutoReply_ = (strTmp != "0");
@@ -300,9 +302,27 @@ bool loadAddress(FQTermConfig *pConf, int n, FQTermParam &param) {
   strTmp = pConf->getItemValue(strSection, "retrytimes");
   param.retryTimes_ = strTmp.toInt();
 
+  strTmp = pConf->getItemValue(strSection, "charratio");
+  param.charRatio_ = strTmp.toInt();
+
+  strTmp = pConf->getItemValue(strSection, "fontratio");
+  param.fontRatio_ = strTmp.toInt();
+
   strTmp = pConf->getItemValue(strSection, "loadscript");
   param.isAutoLoadScript_ = (strTmp != "0");
   param.autoLoadedScriptFileName_ = pConf->getItemValue(strSection, "scriptfile");
+
+  strTmp = pConf->getItemValue(strSection, "enablezmodem");
+  param.enableZmodem_ = (strTmp != "0");
+
+  strTmp = pConf->getItemValue(strSection, "isbeep");
+  param.isBeep_ = (strTmp != "0");
+
+  strTmp = pConf->getItemValue(strSection, "isbuzz");
+  param.isBuzz_ = (strTmp != "0");
+
+  strTmp = pConf->getItemValue(strSection, "ismouse");
+  param.isSupportMouse_ = (strTmp != "0");
 
   strTmp = pConf->getItemValue(strSection, "menutype");
   param.menuType_ = strTmp.toInt();
@@ -311,6 +331,7 @@ bool loadAddress(FQTermConfig *pConf, int n, FQTermParam &param) {
   param.isColorCopy_ = (pConf->getItemValue(strSection, "colorcopy") != "0");
   param.isAutoCopy_ = (pConf->getItemValue(strSection, "autocopy") != "0");
   param.isRectSelect_ = (pConf->getItemValue(strSection, "rectselect") != "0");
+  param.isAutoWrap_ = (pConf->getItemValue(strSection, "autowrap" ) == "1");
 
   return true;
 }
@@ -337,8 +358,6 @@ void saveAddress(FQTermConfig *pConf, int n, const FQTermParam &param) {
 
   strTmp.setNum(param.serverEncodingID_);
   pConf->setItemValue(strSection, "bbscode", strTmp);
-  strTmp.setNum(param.dispEncodingID_);
-  pConf->setItemValue(strSection, "displaycode", strTmp);
   pConf->setItemValue(strSection, "autofont", param.isFontAutoFit_? "1" : "0");
   pConf->setItemValue(strSection, "alwayshighlight", param.isAlwaysHighlight_ ?
                       "1" : "0");
@@ -352,6 +371,9 @@ void saveAddress(FQTermConfig *pConf, int n, const FQTermParam &param) {
   strTmp.setNum(param.nonEnglishFontSize_);
   pConf->setItemValue(strSection, FQTermParam::getLanguageName(false) + "fontsize", strTmp);
 
+  pConf->setItemValue(strSection, "fontratio", strTmp.setNum(param.fontRatio_));
+  pConf->setItemValue(strSection, "charratio", strTmp.setNum(param.charRatio_));
+
   pConf->setItemValue(strSection, "bgcolor", param.backgroundColor_.name());
   pConf->setItemValue(strSection, "fgcolor", param.foregroundColor_.name());
 
@@ -360,6 +382,8 @@ void saveAddress(FQTermConfig *pConf, int n, const FQTermParam &param) {
   pConf->setItemValue(strSection, "termtype", param.virtualTermType_);
   strTmp.setNum(param.keyboardType_);
   pConf->setItemValue(strSection, "keytype", strTmp);
+  strTmp.setNum(param.backspaceType_);
+  pConf->setItemValue(strSection, "backspacetype", strTmp);
   strTmp.setNum(param.numColumns_);
   pConf->setItemValue(strSection, "column", strTmp);
   strTmp.setNum(param.numRows_);
@@ -387,9 +411,9 @@ void saveAddress(FQTermConfig *pConf, int n, const FQTermParam &param) {
   pConf->setItemValue(strSection, "maxidle", strTmp);
   pConf->setItemValue(strSection, "replykey", param.replyKeyCombination_);
   pConf->setItemValue(strSection, "antiidlestring", param.antiIdleMessage_);
+  pConf->setItemValue(strSection, "isantiidle", param.isAntiIdle_?"1" : "0");
   pConf->setItemValue(strSection, "bautoreply", param.isAutoReply_ ? "1" : "0");
-  pConf->setItemValue(strSection, "autoreply", param.autoReplyMessage_
-                      );
+  pConf->setItemValue(strSection, "autoreply", param.autoReplyMessage_);
   pConf->setItemValue(strSection, "reconnect", param.isAutoReconnect_? "1" : "0");
   strTmp.setNum(param.reconnectInterval_);
   pConf->setItemValue(strSection, "interval", strTmp);
@@ -399,6 +423,12 @@ void saveAddress(FQTermConfig *pConf, int n, const FQTermParam &param) {
   pConf->setItemValue(strSection, "loadscript", param.isAutoLoadScript_ ? "1" : "0");
   pConf->setItemValue(strSection, "scriptfile", param.autoLoadedScriptFileName_);
 
+  pConf->setItemValue(strSection, "enablezmodem", param.enableZmodem_? "1" : "0");
+
+  pConf->setItemValue(strSection, "isbeep", param.isBeep_? "1" : "0");
+  pConf->setItemValue(strSection, "isbuzz", param.isBuzz_? "1" : "0");
+  pConf->setItemValue(strSection, "ismouse", param.isSupportMouse_? "1" : "0");
+
   strTmp.setNum(param.menuType_);
   pConf->setItemValue(strSection, "menutype", strTmp);
   pConf->setItemValue(strSection, "menucolor", param.menuColor_.name());
@@ -406,6 +436,7 @@ void saveAddress(FQTermConfig *pConf, int n, const FQTermParam &param) {
   pConf->setItemValue(strSection, "colorcopy", param.isColorCopy_? "1" : "0");
   pConf->setItemValue(strSection, "autocopy", param.isAutoCopy_? "1" : "0");
   pConf->setItemValue(strSection, "rectselect", param.isRectSelect_? "1" : "0");
+  pConf->setItemValue(strSection, "autowrap", param.isAutoWrap_?"1":"0");
 
 }
 

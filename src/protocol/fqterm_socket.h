@@ -47,10 +47,11 @@
 #endif
 
 #include <QAbstractSocket>
+#include <QString>
 #include <QStringList>
+#include <QProcess>
 
 class QTcpSocket;
-
 namespace FQTerm {
 /*
  * Socket with proxy support. 
@@ -132,13 +133,14 @@ class FQTermSocket: public QObject {
   virtual unsigned long bytesAvailable() = 0;
   virtual bool readyForInput() {return true;}
  signals:
+  void sshAuthOK();
   void connected();
   void hostFound();
   void connectionClosed();
   void delayedCloseFinished();
   void readyRead();
   void error(QAbstractSocket::SocketError);
-  void errorMessage(const char *reason);
+  void errorMessage(QString);
   void socketState(int);
   void requestUserPwd(QString *user, QString *pwd, bool *isOK);
 };
@@ -162,6 +164,31 @@ class FQTermTelnetSocket: public FQTermSocket {
   long writeBlock(const QByteArray &data);
   unsigned long bytesAvailable();
 };
+
+class FQTermLocalSocket: public FQTermSocket {
+    Q_OBJECT;
+private:
+  QString shell_bin_;
+  QProcess* shell_process_;
+public:
+  FQTermLocalSocket(const QString& shell_bin);
+  ~FQTermLocalSocket();
+  void flush(){}
+  void setProxy(int nProxyType, bool bAuth, const QString &strProxyHost,
+  quint16 uProxyPort, const QString &strProxyUsr,
+  const QString &strProxyPwd){}
+  void connectToHost(const QString &host, quint16 port);
+  void close();
+  QByteArray readBlock(unsigned long maxlen);
+  long writeBlock(const QByteArray &data);
+  unsigned long bytesAvailable();
+
+public slots:
+  void stateChanged(QProcess::ProcessState newState);
+  void finished (int exitCode, QProcess::ExitStatus exitStatus);
+};
+
+
 
 }  // namespace FQTerm
 

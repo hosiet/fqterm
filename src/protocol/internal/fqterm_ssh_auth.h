@@ -53,7 +53,7 @@ public slots:
 signals:
   void requestUserPwd(QString *user, QString *pwd, bool *isOK);
   void authOK();
-  void authError(const char *reason);
+  void authError(QString);
 };
 
 class FQTermSSHPasswdAuth: public FQTermSSHAuth {

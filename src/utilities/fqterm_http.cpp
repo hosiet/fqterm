@@ -151,12 +151,19 @@ void FQTermHttp::httpResponse(const QHttpResponseHeader &hrh) {
   if (hrh.statusCode() == 302) {
     //FIXME: according to RC, this code still could not work
     //if the server send the relative location.
-//    QString realLocation = '/' + hrh.value("Location");
-	QString realLocation = '/' + hrh.value("Location");
+    QString realLocation = hrh.value("Location");
+    QUrl u = QUrl::fromEncoded(realLocation.toLatin1());
     http_.close();
-    http_.get(realLocation);
+    if (u.isRelative() /*|| !realLocation.startsWith("http://")*/) {
+         http_.get('/' + realLocation);
+     } else {
+           cacheFileName_ = QFileInfo(u.path()).fileName(); // update filename
+           http_.setHost(u.host(), u.port(80));
+           http_.get(u.encodedPath() + "?" + u.encodedQuery());
+       }
     return;
   }
+
   if (hrh.statusCode() != 200) {
     return;
   }
@@ -180,8 +187,8 @@ void FQTermHttp::httpResponse(const QHttpResponseHeader &hrh) {
   if (pos != -1) {
     cacheFileName_ = ValueString.mid(pos + 9, re.matchedLength() - 10);
   }
-
-  filename = cacheFileName_ = (serverEncodingID_?B2U(cacheFileName_.toLatin1()):G2U(cacheFileName_.toLatin1()));
+  cacheFileName_ = encoding2unicode(cacheFileName_.toLatin1(), serverEncodingID_);
+  filename = cacheFileName_;
 
   if (isPreview_) {
     cacheFileName_ = poolDir_ + cacheFileName_;

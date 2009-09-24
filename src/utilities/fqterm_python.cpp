@@ -141,12 +141,12 @@ static PyObject *fqterm_copyArticle(PyObject *, PyObject *args) {
     // check it there is duplicated string
     // it starts from the end in the range of one screen height
     // so this is a non-greedy match
-    QString strTemp = stripWhitespace(termWindow_->session_->termBuffer_->screen(0)->getText())
+    QString strTemp = stripWhitespace(termWindow_->getSession()->termBuffer_->screen(0)->getText())
                       ;
     int i = 0;
     int start = 0;
     for (QStringList::Iterator it = strList.end();
-         it != strList.begin() &&  i < termWindow_->session_->termBuffer_->numRows() - 1;  // not exceeeding the last screen
+         it != strList.begin() &&  i < termWindow_->getSession()->termBuffer_->numRows() - 1;  // not exceeeding the last screen
 		 --it, i++) {
       if (*it != strTemp) {
         continue;
@@ -155,7 +155,7 @@ static PyObject *fqterm_copyArticle(PyObject *, PyObject *args) {
       bool dup = true;
       // match more to see if its duplicated
       for (int j = 0; j <= i; j++, it2++) {
-        QString str1 = termWindow_->stripWhitespace(termWindow_->session_->termBuffer_->screen(j)->getText());
+        QString str1 = termWindow_->stripWhitespace(termWindow_->getSession()->termBuffer_->screen(j)->getText());
         if (*it2 != str1) {
           dup = false;
           break;
@@ -168,17 +168,17 @@ static PyObject *fqterm_copyArticle(PyObject *, PyObject *args) {
       }
     }
     // add new lines
-    for (i = start; i < termWindow_->session_->termBuffer_->numRows() - 1; i++) {
-      strList += stripWhitespace(termWindow_->session_->termBuffer_->screen(i)->getText());
+    for (i = start; i < termWindow_->getSession()->termBuffer_->numRows() - 1; i++) {
+      strList += stripWhitespace(termWindow_->getSession()->termBuffer_->screen(i)->getText());
     }
 
     // the end of article
-    if (termWindow_->session_->termBuffer_->screen(termWindow_->session_->termBuffer_->numRows() - 1)->getText().indexOf("%")
+    if (termWindow_->getSession()->termBuffer_->screen(termWindow_->getSession()->termBuffer_->numRows() - 1)->getText().indexOf("%")
         == -1) {
       break;
     }
     // continue
-    termWindow_->session_->telnet_->write(" ", 1);
+    termWindow_->getSession()->telnet_->write(" ", 1);
 
     // TODO: fixme
     //if (!termWindow_->bbs_->waitCondition_.wait(10000)) {
@@ -215,12 +215,12 @@ static PyObject *fqterm_getArticle(PyObject *, PyObject *args) {
     // check it there is duplicated string
     // it starts from the end in the range of one screen height
     // so this is a non-greedy match
-    QString strTemp = stripWhitespace(termWindow_->session_->termBuffer_->screen(0)->getText())
+    QString strTemp = stripWhitespace(termWindow_->getSession()->termBuffer_->screen(0)->getText())
                       ;
     int i = 0;
     int start = 0;
     for (QStringList::Iterator it = strList.end();
-         it != strList.begin() && i < termWindow_->session_->termBuffer_->numRows() - 1;  // not exceeeding the last screen
+         it != strList.begin() && i < termWindow_->getSession()->termBuffer_->numRows() - 1;  // not exceeeding the last screen
          --it, i++) {
       if (*it != strTemp) {
         continue;
@@ -229,7 +229,7 @@ static PyObject *fqterm_getArticle(PyObject *, PyObject *args) {
       bool dup = true;
       // match more to see if its duplicated
       for (int j = 0; j <= i; j++, it2++) {
-        QString str1 = stripWhitespace(termWindow_->session_->termBuffer_->screen(j)->getText());
+        QString str1 = stripWhitespace(termWindow_->getSession()->termBuffer_->screen(j)->getText());
         if (*it2 != str1) {
           dup = false;
           break;
@@ -242,17 +242,17 @@ static PyObject *fqterm_getArticle(PyObject *, PyObject *args) {
       }
     }
     // add new lines
-    for (i = start; i < termWindow_->session_->termBuffer_->numRows() - 1; i++) {
-      strList += stripWhitespace(termWindow_->session_->termBuffer_->screen(i)->getText());
+    for (i = start; i < termWindow_->getSession()->termBuffer_->numRows() - 1; i++) {
+      strList += stripWhitespace(termWindow_->getSession()->termBuffer_->screen(i)->getText());
     }
 
     // the end of article
-    if (termWindow_->session_->termBuffer_->screen(termWindow_->session_->termBuffer_->numRows() - 1)->getText().indexOf("%")
+    if (termWindow_->getSession()->termBuffer_->screen(termWindow_->getSession()->termBuffer_->numRows() - 1)->getText().indexOf("%")
         == -1) {
       break;
     }
     // continue
-    termWindow_->session_->telnet_->write(" ", 1);
+    termWindow_->getSession()->telnet_->write(" ", 1);
 
     // TODO: fixme
     //if (!termWindow_->bbs_->waitCondition_.wait(timeout *1000))
@@ -319,7 +319,7 @@ static PyObject *fqterm_caretX(PyObject *, PyObject *args) {
   if (!PyArg_ParseTuple(args, "l", &lp)) {
     return NULL;
   }
-  int x = ((FQTermWindow*)lp)->session_->termBuffer_->getCaretColumn();
+  int x = ((FQTermWindow*)lp)->getSession()->termBuffer_->getCaretColumn();
   PyObject *py_x = Py_BuildValue("i", x);
   Py_INCREF(py_x);
   return py_x;
@@ -331,7 +331,7 @@ static PyObject *fqterm_caretY(PyObject *, PyObject *args) {
   if (!PyArg_ParseTuple(args, "l", &lp)) {
     return NULL;
   }
-  int y = ((FQTermWindow*)lp)->session_->termBuffer_->getCaretRow();
+  int y = ((FQTermWindow*)lp)->getSession()->termBuffer_->getCaretRow();
   PyObject *py_y = Py_BuildValue("i", y);
   Py_INCREF(py_y);
   return py_y;
@@ -345,7 +345,7 @@ static PyObject *fqterm_columns(PyObject *, PyObject *args) {
     return NULL;
   }
 
-  int numColumns = ((FQTermWindow*)lp)->session_->termBuffer_->numColumns();
+  int numColumns = ((FQTermWindow*)lp)->getSession()->termBuffer_->numColumns();
   PyObject *py_columns = Py_BuildValue("i", numColumns);
 
   Py_INCREF(py_columns);
@@ -360,7 +360,7 @@ static PyObject *fqterm_rows(PyObject *, PyObject *args) {
     return NULL;
   }
 
-  int rows = ((FQTermWindow*)lp)->session_->termBuffer_->numRows();
+  int rows = ((FQTermWindow*)lp)->getSession()->termBuffer_->numRows();
   PyObject *py_rows = Py_BuildValue("i", rows);
 
   Py_INCREF(py_rows);
@@ -379,7 +379,7 @@ static PyObject *fqterm_sendString(PyObject *, PyObject *args) {
 
   len = strlen(pstr);
 
-  ((FQTermWindow*)lp)->session_->telnet_->write(pstr, len);
+  ((FQTermWindow*)lp)->getSession()->telnet_->write(pstr, len);
 
   Py_INCREF(Py_None);
   return Py_None;
@@ -409,7 +409,7 @@ static PyObject *fqterm_getText(PyObject *, PyObject *args) {
   if (!PyArg_ParseTuple(args, "li", &lp, &numRows)) {
     return NULL;
   }
-  QByteArray cstr = ((FQTermWindow*)lp)->session_->termBuffer_->screen(numRows)->getText();
+  QByteArray cstr = ((FQTermWindow*)lp)->getSession()->termBuffer_->screen(numRows)->getText();
 
   PyObject *py_text = PyString_FromString(cstr);
 
@@ -425,7 +425,7 @@ static PyObject *fqterm_getAttrText(PyObject *, PyObject *args) {
     return NULL;
   }
 
-  QByteArray cstr = ((FQTermWindow*)lp)->session_->termBuffer_->screen(numRows)->getAttrText();
+  QByteArray cstr = ((FQTermWindow*)lp)->getSession()->termBuffer_->screen(numRows)->getAttrText();
 
   PyObject *py_text = PyString_FromString(cstr);
 
@@ -467,7 +467,7 @@ static PyObject *fqterm_reconnect(PyObject *, PyObject *args) {
     return NULL;
   }
 
-  ((FQTermWindow*)lp)->session_->reconnect();
+  ((FQTermWindow*)lp)->getSession()->reconnect();
 
   Py_INCREF(Py_None);
   return Py_None;
@@ -481,7 +481,7 @@ static PyObject *fqterm_getBBSCodec(PyObject *, PyObject *args) {
   }
 
   PyObject *py_codec = PyString_FromString(((FQTermWindow*)lp)
-                                           ->session_->param_.serverEncodingID_ == 0 ? "GBK" : "Big5");
+                                           ->getSession()->param_.serverEncodingID_ == 0 ? "GBK" : "Big5");
   Py_INCREF(py_codec);
 
   return py_codec;
@@ -495,7 +495,7 @@ static PyObject *fqterm_getAddress(PyObject *, PyObject *args) {
   }
 
   PyObject *py_addr = PyString_FromString(((FQTermWindow*)lp)
-                                          ->session_->param_.hostAddress_.toLocal8Bit());
+                                          ->getSession()->param_.hostAddress_.toLocal8Bit());
   Py_INCREF(py_addr);
   return py_addr;
 }
@@ -507,7 +507,7 @@ static PyObject *fqterm_getPort(PyObject *, PyObject *args) {
     return NULL;
   }
 
-  PyObject *py_port = Py_BuildValue("i", ((FQTermWindow*)lp)->session_->param_.port_);
+  PyObject *py_port = Py_BuildValue("i", ((FQTermWindow*)lp)->getSession()->param_.port_);
   Py_INCREF(py_port);
   return py_port;
 }
@@ -520,7 +520,7 @@ static PyObject *fqterm_getProtocol(PyObject *, PyObject *args) {
   }
 
   PyObject *py_port = Py_BuildValue("i", ((FQTermWindow*)lp)
-                                    ->session_->param_.protocolType_);
+                                    ->getSession()->param_.protocolType_);
   Py_INCREF(py_port);
   return py_port;
 }
@@ -533,7 +533,7 @@ static PyObject *fqterm_getReplyKey(PyObject *, PyObject *args) {
   }
 
   PyObject *py_key = PyString_FromString(((FQTermWindow*)lp)
-                                         ->session_->param_.replyKeyCombination_.toLocal8Bit());
+                                         ->getSession()->param_.replyKeyCombination_.toLocal8Bit());
   Py_INCREF(py_key);
   return py_key;
 }
@@ -545,7 +545,7 @@ static PyObject *fqterm_getURL(PyObject *, PyObject *args) {
     return NULL;
   }
 
-  PyObject *py_url = PyString_FromString(((FQTermWindow*)lp)->session_->getUrl().toUtf8().constData());
+  PyObject *py_url = PyString_FromString(((FQTermWindow*)lp)->getSession()->getUrl().toUtf8().constData());
   Py_INCREF(py_url);
   return py_url;
 }

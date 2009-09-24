@@ -185,7 +185,7 @@ void FQTermSSH2PacketReceiver::parseData(FQTermSSHBuffer *input) {
     int packet_len = ntohu32(input->data());
 
     if (packet_len > SSH_BUFFER_MAX) {
-      emit packetError("parseData: packet too big");
+      emit packetError(tr("parseData: packet too big"));
       return ;
     }
 

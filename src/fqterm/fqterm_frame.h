@@ -44,32 +44,7 @@ class FQTermWindow;
 class StatusBar;
 class FQTermTimeLabel;
 class TranslatorInstaller;
-
-struct FQTermPref {
-  int serverEncodingID_; //	0--GBK	1--BIG5
-  int widthToWrapWord_;
-  // bool bSmartWW;
-  bool isWheelSupported_;
-  bool openWarnOnClose_;
-  bool openTabBlinking_;
-  // bool bLogMsg;
-  QString httpBrowser_;
-  int openBeep_;
-  QString beepSoundFileName_;
-  int beepMethodID_;
-  QString beepPlayerName_;
-  bool openUrlCheck_;
-  // bool bAutoCopy;
-  bool openAntiAlias_;
-  bool correctNonMonospace_;
-  bool openMinimizeToTray_;
-  bool needClearZmodemPoolOnClose_;
-  bool useStyleSheet_;
-  QString styleSheetFile_;
-  QString zmodemDir_;
-  QString zmodemPoolDir_;
-  QString imageViewerName_;
-};
+class FQTermMiniServerThread;
 
 class FQTermFrame: public QMainWindow {
   Q_OBJECT;
@@ -83,11 +58,11 @@ class FQTermFrame: public QMainWindow {
   void popupFocusIn(FQTermWindow*);
 
   void viewImages(QString filename, bool raiseViewer);
-  void buzz();
+  void buzz(FQTermWindow* window = NULL);
   void installTranslator(const QString& lang);
   FQTermConfig * config() const { return config_; }
 
-  static const int translatedModule = 2;
+  static const int translatedModule = 3;
   static const QString qmPrefix[translatedModule];
   static const QString qmPostfix;
 
@@ -112,8 +87,6 @@ class FQTermFrame: public QMainWindow {
   void quickLogin();
   void exitFQTerm();
 
-
-  void selectionChanged(int);
   void aboutFQTerm();
   void langEnglish();
   void defaultSetting();
@@ -123,9 +96,6 @@ class FQTermFrame: public QMainWindow {
   void homepage();
 
   void toggleAnsiColor();
-
-  void cascade();
-  void tile();
 
   // Toolbar
   void keyClicked(int);
@@ -169,7 +139,6 @@ class FQTermFrame: public QMainWindow {
   void themesMenuAboutToShow();
   void themesMenuActivated();
   void windowsMenuAboutToShow();
-  void windowsMenuActivated(int);
   void connectMenuActivated();
   void popupConnectMenu();
   void connectMenuAboutToHide();
@@ -181,41 +150,19 @@ class FQTermFrame: public QMainWindow {
   void trayShow();
   void buildTrayMenu();
 
-  void switchWin(int);
   void paintEvent(QPaintEvent*);
-
-  //record subwindows' size changes
-  void subWindowResized(FQTermWindow *);
 
   void reloadConfig();
  
- public:
-  QTabBar *tabBar_;
-  FQTermWndMgr *windowManager_;
-  FQTermPref preference_;
-
-  bool isBossColor_;
-
-  QString escapeString_;
-
-  int clipboardEncodingID_; // 0--GBK 1--BIG5
-
-  bool isStatusBarShown_;
-
-  int termScrollBarPosition_; // 0--hide 1--LEFT 2--RIGHT
-
-  QMdiArea *mdiArea_;
  private:
 
+  FQTermWndMgr *windowManager_;
   // image viewer
   FQTermImage *image_;
 
   FQTermTimeLabel *labelTime_;
 
   QString theme_;
-  //sub-window position & size
-  bool subWindowMax_;
-  QSize subWindowSize_;
 
   QActionGroup *escapeGroup;
   QActionGroup *codecGroup;
@@ -299,7 +246,7 @@ class FQTermFrame: public QMainWindow {
 
   FQTermConfig * config_;
 
-
+  FQTermMiniServerThread* serverThread_;
 
   //function
   //FQTermWindow * newWindow( const FQTermParam& param, int index=-1 );
@@ -309,7 +256,7 @@ class FQTermFrame: public QMainWindow {
   void closeEvent(QCloseEvent*);
   void selectStyleMenu(int, int);
   void iniSetting();
-  void loadPref(FQTermConfig*);
+  void loadPref();
 
   void saveSetting();
 

@@ -133,7 +133,7 @@ class FQTermBuffer: public QObject {
   // mode of this buffer (is_insert_mode_, is_newline_mode_, and
   // etc.).
 
-  void writeText(const QString &cstr, FQTermTextLine::CHARSTATE charstate = FQTermTextLine::NORMAL);
+  void writeText(const QString &cstr, int charstate = FQTermTextLine::NORMAL);
 
   void fillScreenWith(char c);
 
@@ -209,9 +209,14 @@ class FQTermBuffer: public QObject {
   // is selected.
   QRect getSelectRect(int line_index, bool is_rect_sel) const;
 
+  //Scroll line && adjust caret pos.
+  //Scroll must occur at the line where caret is
+  void scrollTerm(int numRows);
+  
  signals:
   void bufferSizeChanged();
   void termSizeChanged(int column, int row);
+  void onSetTermSize(int col, int row);
   void caretChangeRow();
  private:
   // Scroll lines between startRow and bottom_row_ (see setMargin()).
@@ -285,7 +290,20 @@ class FQTermBuffer: public QObject {
 
   // whether this buffer is used for a bbs session.
   bool is_bbs_;
-};
+
+  public slots:
+    //APIs for script.
+    int caretX() const {return getCaretColumn();}
+    int caretY() const {return getCaretRow();}
+    int termWidth() const {return getNumColumns();}
+    int termHeight() const {return getNumRows();}
+    QString allPlainTextAt(int index) const;
+    QString plainTextAt(int index, int begin, int end) const;
+    const unsigned char *colorsAt(int index) const;
+    const unsigned char *attributesAt(int index) const;
+    QString allAnsiTextAt(int index, const char* escape = "\x1b\x1b[") const;
+    QString ansiTextAt(int index, int begin, int end, const char* escape = "\x1b\x1b[") const;
+}; 
 
 }  // namespace FQTerm
 

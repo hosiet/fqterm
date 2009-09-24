@@ -129,6 +129,8 @@ void FQTermBuffer::setTermSize(int col, int row) {
     return;
   }
 
+  clearSelect();
+
   if (num_rows_ < row) {
     for (int i = 0; i < row - num_rows_; i++) {
       text_lines_.append(new FQTermTextLine(col));
@@ -149,15 +151,16 @@ void FQTermBuffer::setTermSize(int col, int row) {
   // TODO: why make last saved equal to current position?
   last_saved_caret_.row_ = caret_.row_ = qMin(caret_.row_, row - 1);
 
-  clearSelect();
-
   for (int i = 0; i < text_lines_.size(); ++i) {
     text_lines_.at(i)->setMaxCellCount(num_columns_);
   }
 
-  this->clearArea(0, 0, num_columns_, num_rows_, 0, 0);
-  this->moveCaretTo(0, 0);
+//  this->clearArea(0, 0, num_columns_, num_rows_, 0, 0);
+  //  this->moveCaretTo(0, 0);
 
+  moveCaretTo(qMin(caret_.column_, col - 1), qMin(caret_.row_, row - 1));
+  
+  emit onSetTermSize(col, row);
   emit termSizeChanged(num_columns_, num_rows_);
 }
 
@@ -186,7 +189,7 @@ void FQTermBuffer::setCurrentAttr(unsigned char color, unsigned char attr) {
   caret_.attr_ = attr;
 }
 
-void FQTermBuffer::writeText(const QString &str, FQTermTextLine::CHARSTATE charstate) {
+void FQTermBuffer::writeText(const QString &str, int charstate) {
   
   QString cstr = str;
 
@@ -215,7 +218,7 @@ void FQTermBuffer::writeText(const QString &str, FQTermTextLine::CHARSTATE chars
       return ;
     }
 
-    if (charstate == FQTermTextLine::SECONDPART) {
+    if (charstate & FQTermTextLine::SECONDPART) {
       moveCaretOffset(-1, 0);
     } 
 
@@ -263,11 +266,12 @@ void FQTermBuffer::writeText(const QString &str, FQTermTextLine::CHARSTATE chars
 
 void FQTermBuffer::lineFeed() {
   FQ_TRACE("term", 8) << "add a new line";
-      
+  if (caret_.row_ == bottom_row_)
+    scrollLinesInTerm(top_row_, 1);
   if (is_newline_mode_) {
-    moveCaretOffset(-caret_.column_, 1, true);
+    moveCaretOffset(-caret_.column_, 1);
   } else {
-    moveCaretOffset(0, 1, true);
+    moveCaretOffset(0, 1);
   }
 }
 
@@ -962,6 +966,45 @@ QRect FQTermBuffer::getSelectRect(int line_index, bool is_rect_sel) const {
     return QRect(0, line_index, num_columns_, 1);
   }
 }
+
+void FQTermBuffer::scrollTerm(int numRows) {
+  scrollLinesInTerm(caret_.row_, numRows);
+  moveCaretOffset(0, numRows);
+}
+
+QString FQTermBuffer::allPlainTextAt(int index) const {
+  QString result;
+  getTextLineInTerm(index)->getAllPlainText(result);
+  return result;
+}
+
+QString FQTermBuffer::plainTextAt(int index, int begin, int end) const {
+  QString result;
+  getTextLineInTerm(index)->getPlainText(begin, end, result);
+  return result;
+}
+
+const unsigned char *FQTermBuffer::colorsAt(int index) const {
+  return getTextLineInTerm(index)->getColors();
+}
+
+const unsigned char *FQTermBuffer::attributesAt(int index) const {
+  return getTextLineInTerm(index)->getAttributes();
+}
+
+QString FQTermBuffer::allAnsiTextAt(int index, const char* escape) const {
+  QString result;
+  getTextLineInTerm(index)->getAllAnsiText(result, escape);
+  return result;
+}
+
+
+QString FQTermBuffer::ansiTextAt(int index, int begin, int end, const char* escape) const {
+  QString result;
+  getTextLineInTerm(index)->getAnsiText(begin, end, result, escape);
+  return result;
+}
+
 }  // namespace FQTerm
 
 #include "fqterm_buffer.moc"

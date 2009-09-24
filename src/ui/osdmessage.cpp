@@ -50,16 +50,16 @@ PageViewMessage::PageViewMessage(QWidget *parent_)
   hide();
 }
 
-//slot warp for display, ugly.
-void PageViewMessage::showText(const QString &message) {
-  display(message);
-}
-
 // give to Caesar what Caesar owns: code taken from Amarok's osd.h/.cpp
 // "redde (reddite, pl.) cesari quae sunt cesaris", just btw. ;)
 void PageViewMessage::display(const QString &message, Icon icon, int durationMs, QPoint pos, PageViewMessage::Alignment ali)
 {
   displayImpl(message, icon, false, durationMs, pos, ali);
+}
+
+void PageViewMessage::display(const QString &message, QPoint pos, Icon icon)
+{
+  displayImpl(message, icon, false, 4000, pos, TopLeft);
 }
 
 QRect PageViewMessage::displayCheck(const QString &message, Icon icon)
@@ -198,6 +198,11 @@ void PageViewMessage::mousePressEvent(QMouseEvent * /*e*/) {
     timer_->stop();
   }
   hide();
+}
+
+void PageViewMessage::hideEvent( QHideEvent * event ) {
+  emit hideAt(geometry ());
+  QWidget::hideEvent(event);
 }
 
 }  // namespace FQTerm
