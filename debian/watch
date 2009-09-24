@@ -1,4 +1,3 @@
 version=3
-opts="uversionmangle=s/_/./g" \
 http://code.google.com/p/fqterm/downloads/list \
-http://fqterm.googlecode.com/files/fqterm_([\d_]+)_r\d+\.zip
+http://fqterm.googlecode.com/files/fqterm-([\d.]+)\.tar\.gz
