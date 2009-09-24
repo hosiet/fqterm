@@ -69,7 +69,7 @@ void FQTermSSH1Kex::handlePacket(int type) {
       break;
     case FQTermSSH1Kex::SESSIONKEY_SENT:
       if (type != SSH1_SMSG_SUCCESS) {
-        emit kexError("Kex exchange failed!");
+        emit kexError(tr("Kex exchange failed!"));
         break;
       }
       emit kexOK();
@@ -88,7 +88,7 @@ void FQTermSSH1Kex::makeSessionKey() {
   int rbits;
 
   if (packet_receiver_->packetType() != SSH1_SMSG_PUBLIC_KEY) {
-    emit kexError("startKex: First packet is not public key");
+    emit kexError(tr("startKex: First packet is not public key"));
     return ;
   }
   packet_receiver_->getRawData((char*)cookie_, 8);

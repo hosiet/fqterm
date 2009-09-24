@@ -78,8 +78,7 @@ class FQTermSession: public QObject {
     kNormal = 8
   };
 
-  FQTermSession(FQTermConfig *, FQTermParam, bool isBeep, int serverEncodingID,
-               const QString &zmodemDir);
+  FQTermSession(FQTermConfig *, FQTermParam);
   ~FQTermSession();
 
   enum PageState {
@@ -112,6 +111,7 @@ class FQTermSession: public QObject {
   static const QString protocolPrefix[];
   void detectPageState();
   PageState getPageState();
+
 
   // Set current cursor postion to pt,
   // return whether the selection rectangle is changed.
@@ -184,30 +184,14 @@ class FQTermSession: public QObject {
  public:
   FQTermParam param_;
 
-  // menu and toolbar state
-//  bool isColorCopy_;
-//  bool isRectangleCopy_;
-//  bool isAutoCopy_;
-  bool isWordWrap_;
-  bool isAntiIdle_;
-  bool isAutoReply_;
-
-  bool isBeep_;
-  bool isMouseSupported_;
-  bool isAutoReconnect_;
-
   bool isConnected_;
-  bool isLogining_;
-  bool isIdling_;
-  bool isMouseX11_;
+
 
   bool isSendingMessage_;
 
   QPoint urlStartPoint_;
   QPoint urlEndPoint_;
 
-  // TODO: sync this value with termFrame_->preference_.serverEncodingID
-  int serverEncodingID_;
 
 #ifdef HAVE_PYTHON
   PyObject *pythonModule_,  *pythonDict_;
@@ -226,6 +210,15 @@ class FQTermSession: public QObject {
 
   void doAutoLogin();
 
+  QString bbs2unicode(const QByteArray &text);
+  QByteArray unicode2bbs(const QString &text);
+
+  //this function will do
+  //1. convert unicode to bbs encoding
+  //2. if there are some chars express same meaning in simplify/traditional
+  //Chinese, auto covert them by considering ime/bbs encoding.
+  QByteArray unicode2bbs_smart(const QString &);
+
   // Write data raw data
   int write(const char *data, int len);
   int writeStr(const char *str);
@@ -235,7 +228,6 @@ class FQTermSession: public QObject {
   void setProxy(int type, bool needAuth,
                 const QString &hostname, quint16 portNumber,
                 const QString &username, const QString &password);
-  void connectHost(const QString &hostname, quint16 portnumber);
   // User close the connection
   void close();
 
@@ -246,8 +238,8 @@ class FQTermSession: public QObject {
   QByteArray stripWhitespace(const QByteArray &cstr);
 
  public slots:
-  const FQTermBuffer *getBuffer() const;
-
+  FQTermBuffer *getBuffer() const;
+  void connectHost(const QString &hostname, quint16 portnumber);
   void reconnect();
   void disconnect();
 
@@ -274,22 +266,29 @@ class FQTermSession: public QObject {
   void telnetStateChanged(int state);
   void zmodemStateChanged(int type, int value, const char *status);
 
-  void errorMessage(const char *reason);
+  void errorMessage(QString);
 
  private slots:
   void readReady(int size, int raw_size);
   void onIdle();
   void onAutoReply();
+  void onEnqReceived();
+  void onSSHAuthOK();
 
  private:
   QString expandUrl(const QPoint& pt, QPair<int, int>& range);
 
   QByteArray parseString(const QByteArray &cstr, int *len = 0);
-  QByteArray unicode2bbs(const QString &);
+
 
   void finalizeConnection();
-
   FQTermConvert encodingConverter_;
+
+  bool isTelnetLogining_;
+  bool isSSHLogining_;
+
+  bool isIdling_;
+  bool isMouseX11_;
 };
 
 class ArticleCopyThread: public QThread {

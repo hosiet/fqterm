@@ -121,6 +121,7 @@ INSTALL(
               GROUP_READ
               WORLD_READ
   PATTERN "*.svn*" EXCLUDE
+  PATTERN "fqterm.desktop" EXCLUDE
 )
 
 INSTALL(
@@ -131,3 +132,9 @@ INSTALL(
       GROUP_READ
       WORLD_READ
 )
+
+INSTALL(
+  FILES res/fqterm.desktop
+  DESTINATION share/applications
+)
+# vim:ft=cmake:

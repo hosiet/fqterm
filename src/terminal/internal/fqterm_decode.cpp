@@ -57,7 +57,7 @@ StateOption FQTermDecode::VT100StateMachine::normal_state_[] =  {
   }, {
     CHAR_CAN, 0, normal_state_ // should be ignored
   }, {
-    CHAR_DEL, 0, normal_state_ // should be ignored
+    CHAR_DEL, &FQTermDecode::del, normal_state_ 
   }, {
     CHAR_NUL, 0, normal_state_ // should be ignored
   }, {
@@ -305,11 +305,9 @@ const char *FQTermDecode::getStateName(const StateOption *state) {
 }
 
 
-FQTermDecode::FQTermDecode(FQTermBuffer *buffer, FQTermTelnet *telnet,
-                           int server_encoding) {
-  brokenChar_ = '\0';
+FQTermDecode::FQTermDecode(FQTermBuffer *buffer, int server_encoding) {
+  leftToDecode_.clear();
   termBuffer_ = buffer;
-  telnet_ = telnet;
 
   interrupt_decode_ = false;
   
@@ -404,16 +402,149 @@ int FQTermDecode::decode(const char *cstr, int length) {
 
 
 QString FQTermDecode::bbs2unicode(const QByteArray &text) {
-  QString strTmp;
+  return encoding2unicode(text, server_encoding_);
+}
 
-  // TODO_UTF16: performance and other encodings!
-  if (server_encoding_ == 0) {
-    strTmp = G2U(text);
-  } else {
-    strTmp = B2U(text);
+///////////////////////////////////
+//helper function to decode utf8//
+//////////////////////////////////
+static int utf8_expected_byte_count(char first_byte)
+{
+  char expected = 0;
+  if (!(first_byte & 0x80)) 
+    return 0; //1 byte ascii
+  else
+    expected++;
+  if (!(first_byte & 0x40))
+  {
+    return -1;  //not a leading byte.
+  }
+  if (!(first_byte & 0x20))
+    return expected;
+  else
+    expected++;
+  if (!(first_byte & 0x10))
+    return expected;
+  else
+    expected++;
+  if (!(first_byte & 0x08))
+    return expected;
+  return -1;
+}
+
+///////////////////////////////////
+//helper function to decode utf8//
+//////////////////////////////////
+static int gdbnbig5_expected_byte_count(char first_byte)
+{
+  char expected = 0;
+  if (!(first_byte & 0x80)) 
+    return 0; //1 byte ascii
+  else
+    expected++;
+  return expected;
+}
+
+int FQTermDecode::processInput(QByteArray& result)
+{
+  int charstate = FQTermTextLine::NORMAL;
+  int expect_bytes = 0;
+  if (leftToDecode_.size())
+  {
+    switch(server_encoding_)
+    {
+    case FQTERM_ENCODING_GBK:
+    case FQTERM_ENCODING_BIG5:
+      expect_bytes = gdbnbig5_expected_byte_count(leftToDecode_[0]);
+      break;
+    case FQTERM_ENCODING_UTF8:
+      expect_bytes = utf8_expected_byte_count(leftToDecode_[0]);
+      break;
+    }
   }
 
-  return strTmp;
+  //TODO: error.
+  if (expect_bytes < 0) {
+    expect_bytes = 0;
+  }
+  
+
+  int n = 0;
+  int last_char_index = n;
+  while (((dataIndex_ + n) < inputLength_) && (signed(inputData_[dataIndex_ + n]) >= 0x20
+    || signed(inputData_[dataIndex_ + n]) < 0x00)) {
+
+      if (expect_bytes != 0) {
+        expect_bytes--;
+      } else {
+        last_char_index = n;
+        switch(server_encoding_)
+        {
+        case FQTERM_ENCODING_GBK:
+        case FQTERM_ENCODING_BIG5:
+          expect_bytes = gdbnbig5_expected_byte_count(inputData_[dataIndex_ + n]);
+          break;
+        case FQTERM_ENCODING_UTF8:
+          expect_bytes = utf8_expected_byte_count(inputData_[dataIndex_ + n]);
+          break;
+        }
+        //TODO: error.
+        if (expect_bytes < 0) {
+          expect_bytes = 0;
+        }
+
+        
+      }
+
+      n++;
+  }
+
+  if (expect_bytes) {
+    if(dataIndex_ + n == inputLength_) {
+      interrupt_decode_ = true;
+    } 
+  }
+
+  result.clear();
+  result.reserve(n + 1);
+  if (leftToDecode_.size()) {
+    result += leftToDecode_;
+    switch(server_encoding_)
+    {
+    case FQTERM_ENCODING_GBK:
+    case FQTERM_ENCODING_BIG5:
+      charstate |= FQTermTextLine::SECONDPART;
+      break;
+    case FQTERM_ENCODING_UTF8:
+      break;
+    }
+    leftToDecode_.clear();
+  }
+  int real_n = n;
+  if (expect_bytes) {
+    real_n = last_char_index;
+    leftToDecode_ = QByteArray(inputData_ + dataIndex_ + last_char_index, n - last_char_index);
+  }
+
+  result.push_back(QByteArray(inputData_ + dataIndex_, real_n));
+  if (expect_bytes) {
+    switch(server_encoding_)
+    {
+    case FQTERM_ENCODING_GBK:
+    case FQTERM_ENCODING_BIG5:
+      result.push_back('?');  //make sure the attr is recorded,
+      //since last -1 operation can make cstr to be empty
+      charstate |= FQTermTextLine::FIRSTPART;
+      break;
+    case FQTERM_ENCODING_UTF8:
+      break;
+    }
+  }
+
+  n--;
+  dataIndex_ += n;
+
+  return charstate;
 }
 
 
@@ -422,7 +553,6 @@ QString FQTermDecode::bbs2unicode(const QByteArray &text) {
 //       1. input should be ascii-compitable encoding.
 void FQTermDecode::normalInput() {
 
-  FQTermTextLine::CHARSTATE charstate = FQTermTextLine::NORMAL;
   FQ_FUNC_TRACE("ansi", 8);
 
   // TODO_UTF16: check ascii-incompitable encoding.
@@ -430,68 +560,17 @@ void FQTermDecode::normalInput() {
 	// not print char
     return ;
   }
-
-  // TODO_UTF16: check ascii-incompitable encoding.
-  int n = 0;
-  bool last_char_cant_be_end = brokenChar_?true:false;
-
-  while (((dataIndex_ + n) < inputLength_) && (signed(inputData_[dataIndex_ + n]) >= 0x20
-    || signed(inputData_[dataIndex_ + n]) < 0x00)) {
-    
-    if (signed(inputData_[dataIndex_ + n]) < 0x00) {
-      if (last_char_cant_be_end) {
-        last_char_cant_be_end = false;
-      } else {
-        last_char_cant_be_end = true;
-      }
-      
-    } else {
-      last_char_cant_be_end = false;
-    }
-    n++;
-  }
- 
-  // TODO_UTF16: only GBK or Big5, etc use two bytes to encode
-  // a non-ascii characters. How about other encodings?
-  if (last_char_cant_be_end) {
-    if(dataIndex_ + n == inputLength_) {
-      // if it's the last byte can't decoded, then leave it to next time. 
-      //--n;
-      interrupt_decode_ = true;
-    } 
-  }
-
   
   QByteArray cstr;
-  cstr.reserve(n + 1);
-  if (brokenChar_) {
-    cstr.push_back(brokenChar_);
-    charstate = FQTermTextLine::SECONDPART;
-    brokenChar_ = '\0';
-  }
-  int real_n = n;
-  if (last_char_cant_be_end) {
-    real_n = n - 1;
-    brokenChar_ = inputData_[dataIndex_ + n - 1];
-  }
+  int charstate = processInput(cstr);
   
-  cstr.push_back(QByteArray(inputData_ + dataIndex_, real_n));
-  if (last_char_cant_be_end) {
-    cstr.push_back('?');  //make sure the attr is recorded,
-                          //since last -1 operation can make cstr to be empty
-    charstate = FQTermTextLine::FIRSTPART;
-  }
 
-  
-  // 	Q3CString cstr( inputData + dataIndex, n + 1 );
+
   QString str = bbs2unicode(cstr);
   FQ_TRACE("normal_input", 9) << "hex: " << dumpHexString
                                << str.toLocal8Bit().constData() ;  
   FQ_TRACE("normal_input", 9) << "text: " << str;
   termBuffer_->writeText(str, charstate);
-
-  n--;
-  dataIndex_ += n;
 
 }
 
@@ -531,7 +610,8 @@ void FQTermDecode::bell() {
 
 void FQTermDecode::del() {
   FQ_FUNC_TRACE("ansi", 8);
-  termBuffer_->deleteText(1);
+  termBuffer_->moveCaretOffset(-1, 0);
+  //termBuffer_->deleteText(1);
 }
 
 void FQTermDecode::g0() {
@@ -545,7 +625,7 @@ void FQTermDecode::g1() {
 }
 
 void FQTermDecode::enq() {
-  telnet_->write(ANSWERBACK_MESSAGE, sizeof(ANSWERBACK_MESSAGE));
+  emit enqReceived();
 }
 
 void FQTermDecode::addTabStop() {
@@ -680,12 +760,12 @@ void FQTermDecode::cursorDown() {
 
 void FQTermDecode::moveCursorUp() {
   FQ_FUNC_TRACE("ansi", 8);
-  termBuffer_->moveCaretOffset(0, -1, true);
+  termBuffer_->scrollTerm(-1);//moveCaretOffset(0, -1, true);
 }
 
 void FQTermDecode::moveCursorDown() {
   FQ_FUNC_TRACE("ansi", 8);
-  termBuffer_->moveCaretOffset(0, 1, true);
+  termBuffer_->scrollTerm(1);//moveCaretOffset(0, 1, true);
 }
 
 void FQTermDecode::nextLine() {
@@ -941,6 +1021,7 @@ void FQTermDecode::setMode() {
 }
 
 void FQTermDecode::resetMode() {
+  //TODO: more modes here.
   FQ_FUNC_TRACE("ansi", 8);
   logParam();
   
@@ -973,7 +1054,7 @@ void FQTermDecode::setDecPrivateMode() {
         termBuffer_->setMode(FQTermBuffer::ANSI_MODE);
         break;
       case 3:
-        termBuffer_->setTermSize(132, 24);
+	  termBuffer_->setTermSize(132, 24);
         break;
       case 4:
         // smooth scrolling mode
@@ -1110,7 +1191,7 @@ void FQTermDecode::test() {
 
 void FQTermDecode::logParam() const {
   if (isParamAvailable_) {
-    for (int i = 0; i <= paramIndex_; ++i) {
+    for (int i = 8; i <= paramIndex_; ++i) {
       FQ_TRACE("ansi", 8) << "Parameter[" << i << "] = " << param_[i];
     }
   } else {
@@ -1119,9 +1200,7 @@ void FQTermDecode::logParam() const {
 }
 
 void FQTermDecode::onCaretChangeRow() {
-  if (brokenChar_) {
-    brokenChar_ = '\0';
-  }
+  leftToDecode_.clear();
 }
 
 }  // namespace FQTerm

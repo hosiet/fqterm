@@ -180,7 +180,7 @@ struct fsm_trans FQTermTelnet::substab[] =  {
  *------------------------------------------------------------------------
  */
 FQTermTelnet::FQTermTelnet(const QString &strTermType, int rows, int columns,
-                           bool isSSH, const char *sshuser, const char *sshpasswd)
+                           int protocolType, const char *sshuser, const char *sshpasswd)
     : from_socket(),
       to_ansi(),
       from_ansi(),
@@ -195,7 +195,7 @@ FQTermTelnet::FQTermTelnet(const QString &strTermType, int rows, int columns,
 
   wx = columns;
   wy = rows;
-
+  wsize = 0;
   done_naws = 0;
   synching = 0;
   doecho = 0;
@@ -204,14 +204,16 @@ FQTermTelnet::FQTermTelnet(const QString &strTermType, int rows, int columns,
   noga = 0;
   termtype = 0;
   naws = 0;
-
+  server_sent_do_naws = 0;
   raw_size = 0;
 
-  // create socket
-  d_isSSH = isSSH;
 #ifndef _NO_SSH_COMPILED
-  if (d_isSSH) {
+  if (protocolType == 1 || protocolType == 2) {
     socket = new FQTermSSHSocket(sshuser, sshpasswd);
+    FQ_VERIFY(connect(socket, SIGNAL(sshAuthOK()),
+		      this, SIGNAL(onSSHAuthOK())));
+  } else if (protocolType == 3) {
+    socket = new FQTermLocalSocket("");
   } else {
     socket = new FQTermTelnetSocket();
   }
@@ -232,7 +234,7 @@ FQTermTelnet::FQTermTelnet(const QString &strTermType, int rows, int columns,
   FQ_VERIFY(connect(socket, SIGNAL(requestUserPwd(QString *, QString *, bool *)), 
                     this, SIGNAL(requestUserPwd(QString *, QString *, bool *))));
 
-  FQ_VERIFY(connect(socket, SIGNAL(errorMessage(const char *)), this, SIGNAL(errorMessage(const char *))));
+  FQ_VERIFY(connect(socket, SIGNAL(errorMessage(QString)), this, SIGNAL(errorMessage(QString))));
 
   // Init telnet, mainly the FSMs
   init_telnet();
@@ -332,23 +334,33 @@ void FQTermTelnet::connectHost(const QString &hostname, quint16 portnumber) {
 }
 
 void FQTermTelnet::windowSizeChanged(int x, int y) {
+//    fprintf(stderr, " FQTermTelnet::windowsizechanged 1\n");
   wx = x;
   wy = y;
   if (bConnected) {
-    naws = 0;
-
-    QByteArray cmd(10, 0);
-    cmd[0] = (char)TCIAC;
-    cmd[1] = (char)TCSB;
-    cmd[2] = (char)TONAWS;
-    cmd[3] = (char)(short(wx) >> 8);
-    cmd[4] = (char)(short(wx) &0xff);
-    cmd[5] = (char)(short(wy) >> 8);
-    cmd[6] = (char)(short(wy) &0xff);
-    cmd[7] = (char)TCIAC;
-    cmd[8] = (char)TCSE;
-    socket->writeBlock(cmd);
-
+    if (server_sent_do_naws || naws) {
+      QByteArray cmd(9, ' ');
+      cmd[0] = TCIAC;
+      cmd[1] = TCSB;
+      cmd[2] = TONAWS;
+      cmd[3] = ((char)((unsigned short)(wx) >> 8));
+      cmd[4] = ((char)((unsigned short)(wx) &0xff));
+      cmd[5] = ((char)((unsigned short)(wy) >> 8));
+      cmd[6] = ((char)((unsigned short)(wy) &0xff));
+      cmd[7] = TCIAC;
+      cmd[8] = TCSE;
+      socket->writeBlock(cmd);
+      //fprintf(stderr, " FQTermTelnet::windowsizechanged 2\n");
+      naws = 0;
+    } else if (!naws) {
+      naws = 1;
+      QByteArray cmd(3, ' ');
+      cmd[0] = TCIAC;
+      cmd[1] = TCWILL;
+      cmd[2] = TONAWS;
+      socket->writeBlock(cmd);
+      //fprintf(stderr, " FQTermTelnet::windowsizechanged 3\n");
+    }
   }
 }
 
@@ -461,7 +473,7 @@ void FQTermTelnet::socketReadyRead() {
   nread = from_socket.size();
   //do some checks
   if (nread <= 0) {
-    FQ_TRACE("telnet", 0) << "Failed to read socket: " << nread << " <= 0.";
+    FQ_TRACE("telnet", 8) << "Failed to read socket: " << nread << " <= 0.";
     return ;
   }
   if (nread > nbytes) {
@@ -549,7 +561,7 @@ int FQTermTelnet::read(char *data, uint maxlen) {
   //do it, memcpy( destination, source, size)
   memcpy(data, to_ansi.data(), rsize);
 
-  FQ_TRACE("telnet", 3) << "read " << rsize << " bytes:\n"
+  FQ_TRACE("telnet", 8) << "read " << rsize << " bytes:\n"
                         << dumpHexString << std::string(data, rsize);
 
   return rsize;
@@ -646,6 +658,7 @@ int FQTermTelnet::recopt(int c) {
 int FQTermTelnet::no_op(int) {
   return 0;
 }
+
 
 /*------------------------------------------------------------------------
  * do_echo - handle TELNET WILL/WON'T ECHO option
@@ -838,24 +851,26 @@ int FQTermTelnet::will_termtype(int c) {
 }
 
 int FQTermTelnet::will_naws(int c) {
+  if (option_cmd == TCDO) {
+    server_sent_do_naws = 1;
+  }
+  //fprintf(stderr, " FQTermTelnet::will_naws 1\n");
   if (naws) {
-    if (option_cmd == TCDO) {
+    if (option_cmd != TCDO) {
       return 0;
     }
   } else if (option_cmd == TCDONT) {
     return 0;
   }
 
-  naws = !naws;
-
-  putc_down(TCIAC);
-  if (naws) {
+  if (!naws)
+  {
+      //fprintf(stderr, " FQTermTelnet::will_naws 2\n");
+    putc_down(TCIAC);
     putc_down(TCWILL);
-  } else {
-    putc_down(TCWONT);
+    putc_down((char)c);
   }
-  putc_down((char)c);
-
+  //fprintf(stderr, " FQTermTelnet::will_naws \n");
   putc_down(TCIAC);
   putc_down(TCSB);
   putc_down(TONAWS);
@@ -865,7 +880,9 @@ int FQTermTelnet::will_naws(int c) {
   putc_down((char)(short(wy) &0xff));
   putc_down(((char)TCIAC));
   putc_down((char)TCSE);
+  putc_down((char)c);
 
+  naws = 0;
   return 0;
 }
 
@@ -1024,6 +1041,8 @@ bool FQTermTelnet::readyForInput()
 {
   return socket->readyForInput();
 }
+
+
 
 }  // namespace FQTerm
 

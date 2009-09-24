@@ -66,7 +66,9 @@
         <string/>
        </property>
        <property name="icon" >
-        <iconset/>
+        <iconset>
+         <normaloff/>
+        </iconset>
        </property>
       </widget>
      </item>
@@ -93,7 +95,7 @@
        <property name="orientation" >
         <enum>Qt::Horizontal</enum>
        </property>
-       <property name="sizeHint" >
+       <property name="sizeHint" stdset="0" >
         <size>
          <width>40</width>
          <height>20</height>
@@ -179,7 +181,6 @@
   </layout>
  </widget>
  <layoutdefault spacing="6" margin="11" />
- <pixmapfunction>qPixmapFromMimeSource</pixmapfunction>
  <tabstops>
   <tabstop>historyComboBox</tabstop>
   <tabstop>deletePushButton</tabstop>

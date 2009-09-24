@@ -1,6 +1,6 @@
 project(fqterm)
 
-set(FQTERM_VERSION "0.9.3")
+set(FQTERM_VERSION "0.9.4")
 
 cmake_minimum_required( VERSION 2.4.2 FATAL_ERROR )
 
@@ -20,6 +20,7 @@ include(${QT_USE_FILE})
 qt4_add_translation(fqterm_qm_files
   ${CMAKE_SOURCE_DIR}/res/dict/fqterm_zh_CN.ts
   ${CMAKE_SOURCE_DIR}/res/dict/ui_zh_CN.ts
+  ${CMAKE_SOURCE_DIR}/res/dict/protocol_zh_CN.ts
 )
 
 add_custom_target(fqterm_qm_target

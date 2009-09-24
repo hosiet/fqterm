@@ -5,27 +5,87 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>577</width>
-    <height>575</height>
+    <width>619</width>
+    <height>584</height>
    </rect>
   </property>
   <property name="windowTitle" >
    <string>Preference</string>
   </property>
-  <layout class="QGridLayout" >
-   <property name="margin" >
-    <number>9</number>
-   </property>
-   <property name="spacing" >
-    <number>6</number>
-   </property>
-   <item row="1" column="0" >
-    <layout class="QVBoxLayout" >
-     <property name="margin" >
-      <number>0</number>
-     </property>
+  <layout class="QGridLayout" name="gridLayout" >
+   <item row="0" column="0" colspan="3" >
+    <layout class="QHBoxLayout" >
      <property name="spacing" >
       <number>6</number>
+     </property>
+     <property name="margin" >
+      <number>11</number>
+     </property>
+     <item>
+      <widget class="QLabel" name="TextLabel1_2" >
+       <property name="text" >
+        <string>Paste Word-Wrap At</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer>
+       <property name="orientation" >
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0" >
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="wordLineEdit3" />
+     </item>
+     <item>
+      <widget class="QCheckBox" name="smartCheckBox" >
+       <property name="text" >
+        <string>Enable Smart Word-Wrap</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer>
+       <property name="orientation" >
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0" >
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <spacer>
+       <property name="orientation" >
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0" >
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+   <item rowspan="2" row="1" column="0" >
+    <layout class="QVBoxLayout" >
+     <property name="spacing" >
+      <number>6</number>
+     </property>
+     <property name="margin" >
+      <number>0</number>
      </property>
      <item>
       <widget class="QCheckBox" name="wheelCheckBox" >
@@ -70,13 +130,6 @@
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="mscheckBox" >
-       <property name="text" >
-        <string>Correct non Mono Space Font (May Extremely Slow)</string>
-       </property>
-      </widget>
-     </item>
-     <item>
       <widget class="QCheckBox" name="trayCheckBox" >
        <property name="text" >
         <string>Show As Tray When Close</string>
@@ -90,191 +143,24 @@
        </property>
       </widget>
      </item>
-    </layout>
-   </item>
-   <item row="4" column="0" colspan="3" >
-    <layout class="QHBoxLayout" >
-     <property name="margin" >
-      <number>11</number>
-     </property>
-     <property name="spacing" >
-      <number>6</number>
-     </property>
      <item>
-      <spacer>
-       <property name="orientation" >
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" >
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <widget class="QPushButton" name="okPushButton" >
+      <widget class="QCheckBox" name="enqCheckBox" >
        <property name="text" >
-        <string>OK</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="cancelPushButton" >
-       <property name="text" >
-        <string>Cancel</string>
+        <string>Reply when ENQ received</string>
        </property>
       </widget>
      </item>
     </layout>
    </item>
-   <item row="3" column="0" colspan="3" >
-    <widget class="Line" name="Line1" >
-     <property name="frameShape" >
-      <enum>QFrame::HLine</enum>
-     </property>
-     <property name="frameShadow" >
-      <enum>QFrame::Sunken</enum>
-     </property>
+   <item rowspan="2" row="1" column="1" colspan="2" >
+    <widget class="Line" name="line" >
      <property name="orientation" >
-      <enum>Qt::Horizontal</enum>
+      <enum>Qt::Vertical</enum>
      </property>
     </widget>
    </item>
-   <item row="2" column="0" colspan="3" >
-    <layout class="QHBoxLayout" >
-     <property name="margin" >
-      <number>11</number>
-     </property>
-     <property name="spacing" >
-      <number>6</number>
-     </property>
-     <item>
-      <layout class="QVBoxLayout" >
-       <property name="margin" >
-        <number>11</number>
-       </property>
-       <property name="spacing" >
-        <number>6</number>
-       </property>
-       <item>
-        <widget class="QLabel" name="textLabel1" >
-         <property name="text" >
-          <string>Zmodem Directory</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="textLabel1_3" >
-         <property name="text" >
-          <string>HTTP Directory</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="textLabel9" >
-         <property name="text" >
-          <string>StyleSheet File</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="TextLabel3" >
-         <property name="text" >
-          <string>HTTP Browser</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="textLabel1_2" >
-         <property name="text" >
-          <string>Image Viewer</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QVBoxLayout" >
-       <property name="margin" >
-        <number>11</number>
-       </property>
-       <property name="spacing" >
-        <number>6</number>
-       </property>
-       <item>
-        <widget class="QLineEdit" name="zmodemLineEdit" />
-       </item>
-       <item>
-        <widget class="QLineEdit" name="poolLineEdit" />
-       </item>
-       <item>
-        <widget class="QLineEdit" name="styleSheetLineEdit" />
-       </item>
-       <item>
-        <widget class="QLineEdit" name="httpLineEdit" />
-       </item>
-       <item>
-        <widget class="QLineEdit" name="imageLineEdit" />
-       </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QVBoxLayout" >
-       <property name="margin" >
-        <number>11</number>
-       </property>
-       <property name="spacing" >
-        <number>6</number>
-       </property>
-       <item>
-        <widget class="QPushButton" name="browsePushButton" >
-         <property name="text" >
-          <string>Browse</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="poolPushButton" >
-         <property name="text" >
-          <string>Browse</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="styleSheetPushButton" >
-         <property name="text" >
-          <string>Browse</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="choosehttpPushButton" >
-         <property name="text" >
-          <string>Choose</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="imagePushButton" >
-         <property name="text" >
-          <string>Choose</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-    </layout>
-   </item>
-   <item row="1" column="2" >
-    <layout class="QVBoxLayout" >
-     <property name="margin" >
-      <number>11</number>
-     </property>
-     <property name="spacing" >
-      <number>6</number>
-     </property>
+   <item row="2" column="2" >
+    <layout class="QVBoxLayout" name="verticalLayout" >
      <item>
       <widget class="QGroupBox" name="groupBox" >
        <property name="title" >
@@ -323,11 +209,11 @@
      </item>
      <item>
       <layout class="QHBoxLayout" >
-       <property name="margin" >
-        <number>11</number>
-       </property>
        <property name="spacing" >
         <number>6</number>
+       </property>
+       <property name="margin" >
+        <number>11</number>
        </property>
        <item>
         <widget class="QLabel" name="TextLabel1" >
@@ -353,6 +239,30 @@
       </layout>
      </item>
      <item>
+      <layout class="QHBoxLayout" name="horizontalLayout" >
+       <item>
+        <widget class="QLabel" name="label" >
+         <property name="text" >
+          <string>Display Offset</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSlider" name="displayOffsetSlider" >
+         <property name="orientation" >
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="tickPosition" >
+          <enum>QSlider::TicksBelow</enum>
+         </property>
+         <property name="tickInterval" >
+          <number>5</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
       <spacer>
        <property name="orientation" >
         <enum>Qt::Vertical</enum>
@@ -360,93 +270,194 @@
        <property name="sizeType" >
         <enum>QSizePolicy::MinimumExpanding</enum>
        </property>
-       <property name="sizeHint" >
+       <property name="sizeHint" stdset="0" >
         <size>
-         <width>20</width>
-         <height>40</height>
+         <width>287</width>
+         <height>58</height>
         </size>
        </property>
       </spacer>
      </item>
     </layout>
    </item>
-   <item row="1" column="1" >
-    <widget class="Line" name="line" >
-     <property name="orientation" >
-      <enum>Qt::Vertical</enum>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="0" colspan="3" >
+   <item row="3" column="0" colspan="3" >
     <layout class="QHBoxLayout" >
-     <property name="margin" >
-      <number>11</number>
-     </property>
      <property name="spacing" >
       <number>6</number>
      </property>
+     <property name="margin" >
+      <number>11</number>
+     </property>
      <item>
-      <widget class="QLabel" name="TextLabel1_2" >
+      <layout class="QVBoxLayout" >
+       <property name="spacing" >
+        <number>6</number>
+       </property>
+       <property name="margin" >
+        <number>11</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="textLabel1" >
+         <property name="text" >
+          <string>Zmodem Directory</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="textLabel1_3" >
+         <property name="text" >
+          <string>HTTP Directory</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="textLabel9" >
+         <property name="text" >
+          <string>StyleSheet File</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="TextLabel3" >
+         <property name="text" >
+          <string>HTTP Browser</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="textLabel1_2" >
+         <property name="text" >
+          <string>Image Viewer</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" >
+       <property name="spacing" >
+        <number>6</number>
+       </property>
+       <property name="margin" >
+        <number>11</number>
+       </property>
+       <item>
+        <widget class="QLineEdit" name="zmodemLineEdit" />
+       </item>
+       <item>
+        <widget class="QLineEdit" name="poolLineEdit" />
+       </item>
+       <item>
+        <widget class="QLineEdit" name="styleSheetLineEdit" />
+       </item>
+       <item>
+        <widget class="QLineEdit" name="httpLineEdit" />
+       </item>
+       <item>
+        <widget class="QLineEdit" name="imageLineEdit" />
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" >
+       <property name="spacing" >
+        <number>6</number>
+       </property>
+       <property name="margin" >
+        <number>11</number>
+       </property>
+       <item>
+        <widget class="QPushButton" name="browsePushButton" >
+         <property name="text" >
+          <string>Browse</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="poolPushButton" >
+         <property name="text" >
+          <string>Browse</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="styleSheetPushButton" >
+         <property name="text" >
+          <string>Browse</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="choosehttpPushButton" >
+         <property name="text" >
+          <string>Choose</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="imagePushButton" >
+         <property name="text" >
+          <string>Choose</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item row="4" column="0" colspan="3" >
+    <widget class="Line" name="Line1" >
+     <property name="frameShape" >
+      <enum>QFrame::HLine</enum>
+     </property>
+     <property name="frameShadow" >
+      <enum>QFrame::Sunken</enum>
+     </property>
+     <property name="orientation" >
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0" colspan="3" >
+    <layout class="QHBoxLayout" >
+     <property name="spacing" >
+      <number>6</number>
+     </property>
+     <property name="margin" >
+      <number>11</number>
+     </property>
+     <item>
+      <spacer>
+       <property name="orientation" >
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0" >
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="okPushButton" >
        <property name="text" >
-        <string>Paste Word-Wrap At</string>
+        <string>OK</string>
        </property>
       </widget>
      </item>
      <item>
-      <spacer>
-       <property name="orientation" >
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" >
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <widget class="QLineEdit" name="wordLineEdit3" />
-     </item>
-     <item>
-      <widget class="QCheckBox" name="smartCheckBox" >
+      <widget class="QPushButton" name="cancelPushButton" >
        <property name="text" >
-        <string>Enable Smart Word-Wrap</string>
+        <string>Cancel</string>
        </property>
       </widget>
-     </item>
-     <item>
-      <spacer>
-       <property name="orientation" >
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" >
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <spacer>
-       <property name="orientation" >
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" >
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
      </item>
     </layout>
    </item>
   </layout>
  </widget>
  <layoutdefault spacing="6" margin="11" />
- <pixmapfunction>qPixmapFromMimeSource</pixmapfunction>
  <tabstops>
   <tabstop>wordLineEdit3</tabstop>
   <tabstop>smartCheckBox</tabstop>

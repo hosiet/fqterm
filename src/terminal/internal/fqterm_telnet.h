@@ -61,7 +61,7 @@ class FQTermSocket;
 class FQTermTelnet: public QObject {
   Q_OBJECT;
  public:
-  FQTermTelnet(const QString &termtype, int rows, int numColumns, bool isSSH, const
+  FQTermTelnet(const QString &termtype, int rows, int numColumns, int protocolType, const
               char *sshuser = NULL, const char *sshpasswd = NULL);
   ~FQTermTelnet();
 
@@ -89,7 +89,7 @@ class FQTermTelnet: public QObject {
   void readyRead(int, int); // There are datas to be read out
   void TelnetState(int); // The  state telnet, defined as TSXXXX in fqterm.h
   void requestUserPwd(QString *user, QString *pwd, bool *isOK);
-  void errorMessage(const char *reason);
+  void errorMessage(QString);
 
  public slots:
   void windowSizeChanged(int, int);
@@ -134,12 +134,16 @@ class FQTermTelnet: public QObject {
   int xputs_up(char*);
   void putc_down(u_char);
 
+signals:
+  
+  void onSSHAuthOK();
 
  private:
   // Boolean Flags
   char synching, doecho, sndbinary, rcvbinary;
   char noga;
   char naws;
+  char server_sent_do_naws;
   u_char option_cmd; // has value WILL, WONT, DO, or DONT
 
   char termtype; // non-zero if received "DO TERMTYPE"
@@ -180,7 +184,6 @@ class FQTermTelnet: public QObject {
   // for test
   int wx, wy;
   int done_naws;
-  bool d_isSSH;
   bool bConnected;
   int raw_size;
 };

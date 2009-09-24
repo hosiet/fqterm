@@ -72,8 +72,7 @@ const QString  FQTermSession::endOfUrl[] = {
   "yu","za","zm","zw"
 };
 
-FQTermSession::FQTermSession(FQTermConfig *config, FQTermParam param, bool isBeep,
-                             int serverEncodingID, const QString &zmodemDir) {
+FQTermSession::FQTermSession(FQTermConfig *config, FQTermParam param) {
   param_ = param;
   termBuffer_ = new FQTermBuffer(param_.numColumns_,
                                  param_.numRows_,
@@ -82,49 +81,43 @@ FQTermSession::FQTermSession(FQTermConfig *config, FQTermParam param, bool isBee
 
   if (param.protocolType_ == 0) {
     telnet_ = new FQTermTelnet(param_.virtualTermType_.toLatin1(),
-                               param_.numRows_, param_.numColumns_, false);
+                               param_.numRows_, param_.numColumns_, param.protocolType_ );
+  } else if (param.protocolType_ == 3) {
+    telnet_ = new FQTermTelnet(param_.virtualTermType_.toLatin1(),
+      param_.numRows_, param_.numColumns_, param.protocolType_ );
   } else {
 #if defined(_NO_SSH_COMPILED)
     QMessageBox::warning(this, "sorry",
                          "SSH support is not compiled, "
                          "FQTerm can only use Telnet!");
     telnet_ = new FQTermTelnet(param_.virtualTermType_.toUtf8(),
-                               param_.numRows_, param_.numColumns_, false);
+                               param_.numRows_, param_.numColumns_, param.protocolType_ );
 #else
     telnet_ = new FQTermTelnet(param_.virtualTermType_.toUtf8(),
-                               param_.numRows_, param_.numColumns_, true,
+                               param_.numRows_, param_.numColumns_, param.protocolType_ ,
                                param_.sshUserName_.toUtf8(),
                                param_.sshPassword_.toUtf8());
 #endif
   }
 
-  zmodem_ = new FQTermZmodem(config, telnet_, param.protocolType_, zmodemDir, serverEncodingID);
-  decoder_ = new FQTermDecode(termBuffer_, telnet_, param.serverEncodingID_);
+  zmodem_ = new FQTermZmodem(config, telnet_, param.protocolType_, param.serverEncodingID_);
+  decoder_ = new FQTermDecode(termBuffer_, param.serverEncodingID_);
+  FQ_VERIFY(connect(decoder_, SIGNAL(enqReceived()), this, SLOT(onEnqReceived())));
 
-  //  isColorCopy_ = param.isColorCopy_;
-  //  isRectangleCopy_ = param.isRectSelect_;
-  //  isAutoCopy_ = param.isAutoCopy_;
-  isWordWrap_ = false;
-  isAntiIdle_ = true;
-  isAutoReply_ = param_.isAutoReply_;
-  isBeep_ = isBeep;
-  isMouseSupported_ = true;
-  isAutoReconnect_ = param_.isAutoReconnect_;
   isConnected_ = false;
 #ifndef _NO_SSH_COMPILED
   if (param.protocolType_ != 0) {
-  	isLogining_ = true;
+  	isSSHLogining_ = true;
   } else {
-    isLogining_ = false;
+    isSSHLogining_ = false;
   }
 #else
-  isLogining_ = false;
+  isSSHLogining_ = false;
 #endif
+  isTelnetLogining_ = false;
   isIdling_ = false;
   isSendingMessage_ = false;
   isMouseX11_ = false;
-
-  serverEncodingID_ = serverEncodingID;
 
   idleTimer_ = new QTimer;
   autoReplyTimer_ = new QTimer;
@@ -140,12 +133,17 @@ FQTermSession::FQTermSession(FQTermConfig *config, FQTermParam param, bool isBee
                     this, SLOT(readReady(int, int))));
   FQ_VERIFY(connect(telnet_, SIGNAL(TelnetState(int)),
                     this, SLOT(changeTelnetState(int))));
-  FQ_VERIFY(connect(telnet_, SIGNAL(errorMessage(const char *)),
-                    this, SIGNAL(errorMessage(const char *))));
+  FQ_VERIFY(connect(telnet_, SIGNAL(errorMessage(QString)),
+                    this, SIGNAL(errorMessage(QString))));
   FQ_VERIFY(connect(telnet_, SIGNAL(requestUserPwd(QString*, QString*, bool*)),
                     this, SIGNAL(requestUserPwd(QString*, QString*, bool*))));
 
-  FQ_VERIFY(connect(termBuffer_, SIGNAL(termSizeChanged(int, int)),
+  FQ_VERIFY(connect(telnet_, SIGNAL(onSSHAuthOK()),
+                    this, SLOT(onSSHAuthOK())));
+
+
+
+  FQ_VERIFY(connect(termBuffer_, SIGNAL(onSetTermSize(int, int)),
                     telnet_, SLOT(windowSizeChanged(int, int))));
 
   FQ_VERIFY(connect(zmodem_, SIGNAL(ZmodemState(int, int, const char *)),
@@ -158,7 +156,7 @@ FQTermSession::FQTermSession(FQTermConfig *config, FQTermParam param, bool isBee
   FQ_VERIFY(connect(acThread_, SIGNAL(articleCopied(int, const QString)),
                     this, SIGNAL(articleCopied(int, const QString))));
 
-  setAntiIdle(isAntiIdle_);
+  setAntiIdle(param_.isAntiIdle_);
 }
 
 FQTermSession::~FQTermSession() {
@@ -221,6 +219,9 @@ QString FQTermSession::getMessage() {
 void FQTermSession::detectPageState() {
   //for smth type bbs.
   pageState_ = Undefined;
+  if (param_.hostType_ != 0) {
+    return;
+  }
 
   const FQTermTextLine *line[4];
   LineColorInfo colorInfo[4];
@@ -792,19 +793,19 @@ bool FQTermSession::isPageComplete() {
 }
 
 bool FQTermSession::isAntiIdle() {
-  return isAntiIdle_;
+  return param_.isAntiIdle_;
 }
 
 void FQTermSession::setAntiIdle(bool antiIdle) {
-  isAntiIdle_ = antiIdle;
+  param_.isAntiIdle_ = antiIdle;
 
   // disabled
-  if (!isAntiIdle_ && idleTimer_->isActive()) {
+  if (!param_.isAntiIdle_ && idleTimer_->isActive()) {
     idleTimer_->stop();
   }
 
   // enabled
-  if (isAntiIdle_) {
+  if (param_.isAntiIdle_) {
     if (idleTimer_->isActive()) {
       idleTimer_->stop();
     }
@@ -823,12 +824,7 @@ void FQTermSession::autoReplyMessage() {
   QByteArray cstrTmp = param_.replyKeyCombination_.toLocal8Bit();
   QByteArray cstr = parseString(cstrTmp.isEmpty() ? QByteArray("^Z"): cstrTmp);
   //cstr += m_param.m_strAutoReply.toLocal8Bit();
-  if (param_.serverEncodingID_ == 0) {
-    cstr += U2G(param_.autoReplyMessage_);
-  } else {
-    cstr += U2B(param_.autoReplyMessage_);
-  }
-
+  cstr += unicode2bbs(param_.autoReplyMessage_);
   cstr += '\n';
   telnet_->write(cstr, cstr.length());
 
@@ -927,7 +923,7 @@ void FQTermSession::doAutoLogin() {
     QByteArray temp = parseString(param_.postLoginCommand_.toLatin1());
     telnet_->write((const char*)(temp), temp.length());
   }
-  isLogining_ = false;
+  isTelnetLogining_ = false;
 }
 
 //read slot
@@ -939,8 +935,9 @@ void FQTermSession::readReady(int size, int raw_size) {
 
   // read raw buffer
   int zmodem_consumed;
-  zmodem_->ZmodemRcv((uchar*)&raw_data_[0], raw_data_.size(), &(zmodem_->info),
-                     zmodem_consumed);
+  if (param_.enableZmodem_)
+    zmodem_->ZmodemRcv((uchar*)&raw_data_[0], raw_data_.size(), &(zmodem_->info),
+                       zmodem_consumed);
 
   if (zmodem_->transferstate == notransfer) {
     //decode
@@ -953,8 +950,7 @@ void FQTermSession::readReady(int size, int raw_size) {
       telnet_data_.erase(telnet_data_.begin(), telnet_data_.begin() + processed);
     }
 
-    if (isLogining_) {
-      //FIXME: why these codes check those non-sense?
+    if (isTelnetLogining_) {
       int n = termBuffer_->getCaretRow();
       for (int y = n - 5; y < n + 5; y++) {
         y = qMax(0, y);
@@ -1138,8 +1134,9 @@ void FQTermSession::changeTelnetState(int state) {
     case TSHOSTCONNECTED:
       isConnected_ = true;
       if (param_.isAutoLogin_) {
-        isLogining_ = true;
+        isTelnetLogining_ = true;
       }
+
       break;
     case TSPROXYCONNECTED:
       break;
@@ -1156,7 +1153,7 @@ void FQTermSession::changeTelnetState(int state) {
       break;
     case TSCLOSED:
       finalizeConnection();
-      if (param_.isAutoReconnect_ && isAutoReconnect_) {
+      if (param_.isAutoReconnect_) {
         reconnectProcess();
       }
       break;
@@ -1182,7 +1179,7 @@ void FQTermSession::changeTelnetState(int state) {
       if (idleTimer_->isActive()) {
         idleTimer_->stop();
       }
-      if (isAntiIdle_) {
+      if (param_.isAntiIdle_) {
         idleTimer_->start(param_.maxIdleSeconds_ *1000);
       }
       isIdling_ = false;
@@ -1196,28 +1193,55 @@ void FQTermSession::changeTelnetState(int state) {
 
 void FQTermSession::handleInput(const QString &text) {
   if (text.length() > 0) {
-    QByteArray cstrTmp = unicode2bbs(text);
+    QByteArray cstrTmp = unicode2bbs_smart(text);
     telnet_->write(cstrTmp, cstrTmp.length());
   }
 }
 
+QString FQTermSession::bbs2unicode(const QByteArray &text)
+{
+  return encoding2unicode(text, param_.serverEncodingID_);
+}
+
 QByteArray FQTermSession::unicode2bbs(const QString &text) {
+  return unicode2encoding(text, param_.serverEncodingID_);
+}
+
+
+QByteArray FQTermSession::unicode2bbs_smart(const QString &text) {
   QByteArray strTmp;
 
-  if (serverEncodingID_ == 0) {
-    strTmp = U2G(text);
-    if (param_.serverEncodingID_ == 1) {
-      char *str = encodingConverter_.G2B(strTmp, strTmp.length());
-      strTmp = str;
-      delete [] str;
+  switch(param_.serverEncodingID_)
+  {
+  case FQTERM_ENCODING_GBK:
+    if (FQTermPref::getInstance()->imeEncodingID_ == FQTERM_ENCODING_BIG5)
+    {
+      strTmp = U2B(text);
+      char* tmp = encodingConverter_.B2G(strTmp, strTmp.length());
+      strTmp = tmp;
+      delete []tmp;
     }
-  } else {
-    strTmp = U2B(text);
-    if (param_.serverEncodingID_ == 0) {
-      char *str = encodingConverter_.B2G(strTmp, strTmp.length());
-      strTmp = str;
-      delete [] str;
+    else
+    {
+      strTmp = U2G(text);
     }
+    break;
+  case FQTERM_ENCODING_BIG5:
+    if (FQTermPref::getInstance()->imeEncodingID_ == FQTERM_ENCODING_GBK)
+    {
+      strTmp = U2G(text);
+      char* tmp = encodingConverter_.G2B(strTmp, strTmp.length());
+      strTmp = tmp;
+      delete []tmp;
+    }
+    else
+    {
+      strTmp = U2B(text);
+    }
+    break;
+  case FQTERM_ENCODING_UTF8:
+    strTmp = U2U8(text);
+    break;
   }
 
   return strTmp;
@@ -1283,7 +1307,7 @@ bool FQTermSession::pythonCallback(const QString &func, PyObject *pArgs) {
 
 void FQTermSession::onIdle() {
   // do as autoreply when it is enabled
-  if (autoReplyTimer_->isActive() && isAutoReply_) {
+  if (autoReplyTimer_->isActive() && param_.isAutoReply_) {
     autoReplyMessage();
     stopAlert();
     return ;
@@ -1304,7 +1328,7 @@ void FQTermSession::onIdle() {
 
 void FQTermSession::onAutoReply() {
   // if AutoReply still enabled, then autoreply
-  if (isAutoReply_) {
+  if (param_.isAutoReply_) {
     autoReplyMessage();
   } else {
     // else just stop the timer
@@ -1314,12 +1338,12 @@ void FQTermSession::onAutoReply() {
   stopAlert();
 }
 bool FQTermSession::isAutoReply() {
-  return isAutoReply_;
+  return param_.isAutoReply_;
 }
 
 void FQTermSession::setAutoReply(bool on) {
-  isAutoReply_ = on;
-  if (!isAutoReply_ && autoReplyTimer_->isActive()) {
+  param_.isAutoReply_ = on;
+  if (!param_.isAutoReply_ && autoReplyTimer_->isActive()) {
     autoReplyTimer_->stop();
   }
 }
@@ -1364,7 +1388,7 @@ void FQTermSession::setTermSize(int col, int row) {
   param_.numRows_ = row;
 }
 
-const FQTermBuffer *FQTermSession::getBuffer() const {
+FQTermBuffer *FQTermSession::getBuffer() const {
   return termBuffer_;
 }
 
@@ -1385,7 +1409,7 @@ void FQTermSession::leaveIdle() {
     idleTimer_->stop();
   }
 
-  if (isAntiIdle_) {
+  if (param_.isAntiIdle_) {
     idleTimer_->start(param_.maxIdleSeconds_ * 1000);
   }
 }
@@ -1406,7 +1430,7 @@ void FQTermSession::getLineColorInfo(const FQTermTextLine * line,
   colorInfo->uniForegroundColor = true;
   colorInfo->hasForegroundColor = false;
 
-  if (line->getWidth() == 0) {
+  if (!line || line->getWidth() == 0) {
     return;
   }
 
@@ -1441,6 +1465,19 @@ bool FQTermSession::readyForInput()
 {
   return telnet_->readyForInput();
 }
+
+void FQTermSession::onEnqReceived() {
+  if (FQTermPref::getInstance()->replyENQ_)
+    telnet_->write(ANSWERBACK_MESSAGE, sizeof(ANSWERBACK_MESSAGE));
+}
+
+void FQTermSession::onSSHAuthOK() {
+    isSSHLogining_ = false;
+    //setTermSize(80, 24);
+    //setTermSize(param_.numColumns_, param_.numRows_);
+    telnet_->windowSizeChanged(param_.numColumns_, param_.numRows_);
+}
+
 ArticleCopyThread::ArticleCopyThread(
     FQTermSession &bbs, QWaitCondition &waitCondition)
     : session_(bbs),
@@ -1466,6 +1503,7 @@ static void removeTrailSpace(QString &line) {
     }
   }
 }
+
 
 ///////////////////////////////////////
 //analyze last line when copy article

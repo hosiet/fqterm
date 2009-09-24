@@ -1,4 +1,4 @@
-/***************************************************************************
+/****************************************************************************
  *   fqterm, a terminal emulator for both BBS and *nix.                    *
  *   Copyright (C) 2008 fqterm development group.                          *
  *                                                                         *
@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <QApplication>
 #include <QPainter>
@@ -48,13 +49,16 @@ namespace FQTerm {
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
 
-FQTermScreen::FQTermScreen(QWidget *parent, FQTermParam *param, FQTermSession *session)
+FQTermScreen::FQTermScreen(QWidget *parent, FQTermSession *session)
     : QWidget(parent),
       scrollBarWidth_(15),
-      termBuffer_(session->getBuffer()){
+      termBuffer_(session->getBuffer()),
+      cnLetterSpacing_(0.0),
+      spLetterSpacing_(0.0),
+      enLetterSpacing_(0.0){
   termWindow_ = (FQTermWindow*)parent;
   session_ = session;
-  param_ = param;
+  param_ = &session->param_;
   paintState_ = System;
   isCursorShown_ = true;
   is_light_background_mode_ = false;
@@ -109,11 +113,6 @@ FQTermScreen::FQTermScreen(QWidget *parent, FQTermParam *param, FQTermSession *s
   isBlinkScreen_ = false;
   isBlinkCursor_ = true;
 
-  if (param_->dispEncodingID_ == 0) {
-    encoding_ = QTextCodec::codecForName("GBK");
-  } else {
-    encoding_ = QTextCodec::codecForName("Big5");
-  }
 
   preedit_line_ = new PreeditLine(this, colors_);
 
@@ -133,24 +132,66 @@ FQTermScreen::~FQTermScreen() {
 }
 
 bool FQTermScreen::event(QEvent *e) {
-  if (e->type() == QEvent::KeyPress) {
-    // forward all key press events to parant (FQTermWindow).
-    return false;
+  switch(e->type()) {
+    case QEvent::KeyPress:
+    {
+      //for script
+      {
+        QKeyEvent* keyevent = (QKeyEvent*)e;
+        int modifiers = 0;
+        modifiers |= (keyevent->modifiers() & Qt::ShiftModifier)?0x02000000:0x0;
+        modifiers |= (keyevent->modifiers() & Qt::ControlModifier)?0x04000000:0x0;
+        modifiers |= (keyevent->modifiers() & Qt::AltModifier)?0x08000000:0x0;
+        modifiers |= (keyevent->modifiers() & Qt::MetaModifier)?0x10000000:0x0;
+        modifiers |= (keyevent->modifiers() & Qt::KeypadModifier)?0x20000000:0x0;
+        modifiers |= (keyevent->modifiers() & Qt::GroupSwitchModifier)?0x40000000:0x0;
+        emit keyPressEvent(modifiers, keyevent->key());
+      }
+      // forward all key press events to parant (FQTermWindow).
+      return false;
+    }
+    case QEvent::MouseButtonDblClick:
+    case QEvent::MouseButtonPress:
+    case QEvent::MouseButtonRelease:
+    case QEvent::MouseMove:
+      {
+        //for script.
+        QMouseEvent* mouseevent = (QMouseEvent*)e;
+        int modifiers = 0;
+        modifiers |= (mouseevent->modifiers() & Qt::ShiftModifier)?0x02000000:0x0;
+        modifiers |= (mouseevent->modifiers() & Qt::ControlModifier)?0x04000000:0x0;
+        modifiers |= (mouseevent->modifiers() & Qt::AltModifier)?0x08000000:0x0;
+        modifiers |= (mouseevent->modifiers() & Qt::MetaModifier)?0x10000000:0x0;
+        modifiers |= (mouseevent->modifiers() & Qt::KeypadModifier)?0x20000000:0x0;
+        modifiers |= (mouseevent->modifiers() & Qt::GroupSwitchModifier)?0x40000000:0x0;
+        int type = 0;
+        if (mouseevent->type() == QEvent::MouseButtonPress) type = 0;
+        if (mouseevent->type() == QEvent::MouseButtonRelease) type = 1;
+        if (mouseevent->type() == QEvent::MouseButtonDblClick) type = 2;
+        if (mouseevent->type() == QEvent::MouseMove) type = 3;
+        int button = 0;
+        if (mouseevent->button() == Qt::NoButton) button = 0x00000000;
+        if (mouseevent->button() == Qt::LeftButton) button = 0x00000001;
+        if (mouseevent->button() == Qt::RightButton) button = 0x00000002;
+        if (mouseevent->button() == Qt::MidButton) button = 0x00000004;
+        if (mouseevent->button() == Qt::XButton1) button = 0x00000008;
+        if (mouseevent->button() == Qt::XButton2) button = 0x00000010;
+        int buttons = 0;
+        buttons |= (mouseevent->buttons() & Qt::NoButton)?0x00000000:0x0;
+        buttons |= (mouseevent->buttons() & Qt::LeftButton)?0x00000001:0x0;
+        buttons |= (mouseevent->buttons() & Qt::RightButton)?0x00000002:0x0;
+        buttons |= (mouseevent->buttons() & Qt::MidButton)?0x00000004:0x0;
+        buttons |= (mouseevent->buttons() & Qt::XButton1)?0x00000008:0x0;
+        buttons |= (mouseevent->buttons() & Qt::XButton2)?0x00000010:0x0;
+        emit mouseEvent(type, mouseevent->pos().x(), mouseevent->pos().y(), button, buttons, modifiers);
+      }
+      break;
   }
-
   return this->QWidget::event(e);
 }
 
 // focus event received
 void FQTermScreen::focusInEvent(QFocusEvent*) {
-
-  if (termWindow_->isMaximized() &&
-      termWindow_->frame_->windowManager_->afterRemove()) {
-    termWindow_->showNormal();
-    termWindow_->showMaximized();
-  }
-
-  termWindow_->frame_->windowManager_->activateTheTab(termWindow_);
 
   gotoPrevPage_->setEnabled(true);
   gotoNextPage_->setEnabled(true);
@@ -226,7 +267,7 @@ void FQTermScreen::mouseReleaseEvent(QMouseEvent *me) {
 }
 
 void FQTermScreen::wheelEvent(QWheelEvent *we) {
-  if (termWindow_->frame_->preference_.isWheelSupported_) {
+  if (FQTermPref::getInstance()->isWheelSupported_) {
     QApplication::sendEvent(termWindow_, we);
   } else {
     QApplication::sendEvent(scrollBar_, we);
@@ -267,7 +308,7 @@ void FQTermScreen::updateFont() {
   int nIniSize =
       qMax(8, qMin(clientRectangle_.height() / termBuffer_->getNumRows(),
                    clientRectangle_.width() *2 / termBuffer_->getNumColumns()));
-
+    //FIXME: WTF????
   for (nPixelSize = nIniSize - 3; nPixelSize <= nIniSize + 3; nPixelSize++) {
     englishFont_->setPixelSize(nPixelSize);
     nonEnglishFont_->setPixelSize(nPixelSize);
@@ -294,12 +335,12 @@ void FQTermScreen::updateFont() {
   
   englishFont_->setWeight(QFont::Normal);
   nonEnglishFont_->setWeight(QFont::Normal);
-  setFontAntiAliasing(termWindow_->frame_->preference_.openAntiAlias_);
+  setFontAntiAliasing(FQTermPref::getInstance()->openAntiAlias_);
 }
 
 void FQTermScreen::setFontMetrics() {
-  QFontMetrics nonEnglishFM(*nonEnglishFont_);
-  QFontMetrics englishFM(*englishFont_);
+  QFontMetricsF nonEnglishFM(*nonEnglishFont_);
+  QFontMetricsF englishFM(*englishFont_);
 
   // FIXME: find a typical character for the current language.
   float cn = nonEnglishFM.width(QChar(0x4e2D));
@@ -309,18 +350,23 @@ void FQTermScreen::setFontMetrics() {
   while (2 * en > cn && pix_size > 5) {
 	  --pix_size;
 	  englishFont_->setPixelSize(pix_size);
-	  englishFM = QFontMetrics(*englishFont_);
+	  englishFM = QFontMetricsF(*englishFont_);
 	  en = englishFM.width('W');	 
   }
   
-  if (en / cn <= 0.7) {
-	// almost half
-    charWidth_ = qMax(int((cn + 1) / 2), int(en));
-  } else {
-    charWidth_ = (qMax(int(en), int(cn)) + 1) / 2;
+  charWidth_ = qMax(float(cn / 2) , float(en));
+  charHeight_ = ceil(qMax(englishFM.height() + englishFM.leading(), nonEnglishFM.height() + nonEnglishFM.leading()));
+  charWidth_ = ceil(qMax(charWidth_, charHeight_ * param_->charRatio_ / 100));
+
+  cnLetterSpacing_ = qMax(charWidth_ * 2 - cn, 0.0);
+  enLetterSpacing_ = qMax(charWidth_ - en, 0.0);
+  spLetterSpacing_ = qMax(charWidth_ - englishFM.width(' '), 0.0);
+
+  if (!QFontInfo(*englishFont_).fixedPitch()) {
+    englishFont_->setPixelSize((1.0 + param_->fontRatio_ / 100.0) * englishFont_->pixelSize());
   }
 
-  charHeight_ = qMax(englishFM.height(), nonEnglishFM.height());
+
   fontAscent_ = qMax(englishFM.ascent(), nonEnglishFM.ascent());
   fontDescent_ = qMax(englishFM.descent(), nonEnglishFM.descent());
 
@@ -477,10 +523,10 @@ void FQTermScreen::scrollChanged(int value) {
 }
 
 void FQTermScreen::updateScrollBar() {
-  int numLeftPixels = 0; // ×ó±ß¾à
-  int numUpPixels = 0; // ÉÏ±ß¾à
+  int numLeftPixels = 0; // ß¾
+  int numUpPixels = 0; // Ï±ß¾
 
-  switch (termWindow_->frame_->termScrollBarPosition_) {
+  switch (FQTermPref::getInstance()->termScrollBarPosition_) {
     case 0:
       scrollBar_->hide();
       clientRectangle_ = QRect(numLeftPixels, numUpPixels,
@@ -536,7 +582,7 @@ void FQTermScreen::bufferSizeChanged() {
 }
 
 void FQTermScreen::termSizeChanged(int column, int row) {
-  FQ_TRACE("term", 0) << "The term size is changed to " << column << "x" << "row";
+  FQ_TRACE("term", 3) << "The term size is changed to " << column << "x" << row;
   syncBufferAndScreen();
   bufferSizeChanged();
   this->setPaintState(Repaint);
@@ -628,21 +674,25 @@ void FQTermScreen::blinkEvent() {
 }
 
 void FQTermScreen::paintEvent(QPaintEvent *pe) {
+  FQ_TRACE("screen", 8) << "paintEvent " << pe->rect().x() << "," << pe->rect().y() << " " 
+      << pe->rect().width() << "x"  << pe->rect().height();
   QPainter painter(this);
-  painter.setRenderHint(QPainter::Antialiasing, termWindow_->frame_->preference_.openAntiAlias_);
-  painter.setRenderHint(QPainter::TextAntialiasing, termWindow_->frame_->preference_.openAntiAlias_);
+  painter.setRenderHint(QPainter::Antialiasing, FQTermPref::getInstance()->openAntiAlias_);
+  painter.setRenderHint(QPainter::TextAntialiasing, FQTermPref::getInstance()->openAntiAlias_);
   if (paintState_ == System) {
     repaintScreen(pe, painter);
     return;
   }
 
   if (testPaintState(Repaint)) {
+      FQ_TRACE("screen", 8) << "paintEvent " << "repaint";
       repaintScreen(pe, painter);
       clearPaintState(Repaint);
   }
 
   if (testPaintState(NewData)) {
       if (termBuffer_->isLightBackgroundMode() != is_light_background_mode_) {
+            FQ_TRACE("screen", 8) << "paintEvent " << "new data repaint";
         is_light_background_mode_ = termBuffer_->isLightBackgroundMode();
         if (is_light_background_mode_) {
           colors_[0] = param_->foregroundColor_;
@@ -653,6 +703,7 @@ void FQTermScreen::paintEvent(QPaintEvent *pe) {
         }
         repaintScreen(pe, painter);
       } else {      
+            FQ_TRACE("screen", 8) << "paintEvent " << "new data refresh";
         refreshScreen(painter);
       }
 
@@ -660,15 +711,21 @@ void FQTermScreen::paintEvent(QPaintEvent *pe) {
   }
 
   if (testPaintState(Blink)) {
+    FQ_TRACE("screen", 8) << "paintEvent " << "blink";
       blinkScreen(painter);
       clearPaintState(Blink);
   }
 
   if (testPaintState(Cursor)) {
+    FQ_TRACE("screen", 8) << "paintEvent " << "cursor";
       updateCursor(painter);
       clearPaintState(Cursor);
   }
 
+  if (testPaintState(Widget)) {
+      updateWidgetRect(painter);
+      clearPaintState(Widget);
+  }
 }
 
 void FQTermScreen::blinkScreen(QPainter &painter) {
@@ -700,7 +757,7 @@ void FQTermScreen::updateCursor(QPainter &painter) {
   }
 
   bool isCursorShown = isCursorShown_;
-  if (termWindow_->frame_->isBossColor_) {
+  if (FQTermPref::getInstance()->isBossColor_) {
     isCursorShown = true;
   }
 
@@ -817,10 +874,12 @@ void FQTermScreen::refreshScreen(QPainter &painter) {
     int len = -1;
     if ((int)endx != -1) {
       len = endx - startx;
+    } else {
+      len = pTextLine->getMaxCellCount() - startx;
     }
 
     QRect rect = mapToRect(startx, index, len, 1);
-    rect.setBottom(rect.bottom() + 1);
+    //rect.setBottom(rect.bottom() + 1);
     painter.fillRect(rect ,QBrush(colors_[0]));
     
     drawLine(painter, index, startx, endx);
@@ -861,8 +920,8 @@ void FQTermScreen::repaintScreen(QPaintEvent *pe, QPainter &painter) {
   for (int y = tlPoint.y(); y <= brPoint.y(); y++) {
     drawLine(painter, y);
   }
-  if (termWindow_->urlStartPoint_ != termWindow_->urlEndPoint_) {
-    drawUnderLine(painter, termWindow_->urlStartPoint_, termWindow_->urlEndPoint_);
+  if (termWindow_->getUrlStartPoint() != termWindow_->getUrlEndPoint()) {
+    drawUnderLine(painter, termWindow_->getUrlStartPoint(), termWindow_->getUrlEndPoint());
   }
 
 
@@ -870,14 +929,14 @@ void FQTermScreen::repaintScreen(QPaintEvent *pe, QPainter &painter) {
 
 /////////////////////////////////////////////////
 //TODO: change to a more powerful function
-static bool isEnglishChar(const QString& str) {
-  if (str.length() > 1) {
-    return false;
+FQTermScreen::TextRenderingType FQTermScreen::charRenderingType(const QChar& c) {
+  if (c == ' ') return HalfAndSpace;
+  if (c.unicode() > 0x7f && c.unicode() <= 0x2dff) {
+    return FullAndAlign;
+  } else if (c.unicode() > 0x2dff) {
+    return FullNotAlign;
   }
-  else if (str.length() == 1 && str[0].unicode() > 128) {
-    return false;
-  }
-  return true;
+  return HalfAndAlign;
 }
 
 /////////////////////////////////////////////////
@@ -892,7 +951,6 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
   const unsigned char *attr = pTextLine->getAttributes();
 
   uint linelength = pTextLine->getWidth();
-  bool *isEnglishLanguage = new bool[linelength];
   bool isSessionSelected = session_->isSelected(index);
   bool isTransparent = isSessionSelected && param_->menuType_ == 2;
 
@@ -918,8 +976,7 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
 
   bool isMonoSpace = true;
   if (!QFontInfo(*englishFont_).fixedPitch() 
-    || !QFontInfo(*nonEnglishFont_).fixedPitch()
-    /*&& termWindow_->frame_->preference_.correctNonMonospace_*/) {
+    || !QFontInfo(*nonEnglishFont_).fixedPitch()) {
     isMonoSpace = false;
   }
   
@@ -927,105 +984,137 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
     startx = i;
     unsigned char tempcp = color[i];
     unsigned char tempea = attr[i];
+    unsigned cell_begin = pTextLine->getCellBegin(startx);  
+    unsigned cell_end = pTextLine->getCellEnd(cell_begin + 1);
+    TextRenderingType temprt;
+    cstrText.clear();
+    pTextLine->getPlainText(cell_begin, cell_end, cstrText);
+    temprt = charRenderingType(cstrText[0]);
+
     bool bSelected = termBuffer_->isSelected(
-        QPoint(i, index), termWindow_->session_->param_.isRectSelect_);
+        QPoint(i, index), param_->isRectSelect_);
 
     // get str of the same attribute
     while ((long)i < endx && tempcp == color[i] && tempea == attr[i] &&
            bSelected == termBuffer_->isSelected(
-               QPoint(i, index), termWindow_->session_->param_.isRectSelect_)) {
+             QPoint(i, index), param_->isRectSelect_)) {
+      unsigned cellBegin = pTextLine->getCellBegin(i);
+      unsigned cellEnd = pTextLine->getCellEnd(cellBegin + 1);
+      cstrText.clear();
+      pTextLine->getPlainText(cellBegin, cellEnd, cstrText);
+      if (temprt != charRenderingType(cstrText[0])) {
+        break;
+      }
       ++i;
     }
 
-    unsigned cell_begin = pTextLine->getCellBegin(startx);
-    unsigned cell_end = pTextLine->getCellEnd(i);
-    
+
+    cell_end = pTextLine->getCellEnd(i);
     cstrText.clear();
     pTextLine->getPlainText(cell_begin, cell_end, cstrText);
-    for (unsigned k = i; k < cell_end; ++k) {
+
+    unsigned j = i;
+    if (j > 0 &&  pTextLine->getCellBegin(j) == pTextLine->getCellBegin(j - 1) 
+      && *(pTextLine->getColors() + j) != *(pTextLine->getColors() + j - 1)) {
+        j++;
+    } 
+    for (; j < cell_end; ++j) {
       cstrText.append((QChar)URC);
     }
 
-    int text_width;
-
-    unsigned char_begin = pTextLine->getCharBegin(cell_begin);
-    for (unsigned k = cell_begin; k < cell_end; ++k) {
-      unsigned begin = pTextLine->getCellBegin(k);
-      unsigned end = pTextLine->getCellEnd(k + 1);
-      unsigned charBegin = pTextLine->getCharBegin(begin);
-      unsigned charEnd = pTextLine->getCharEnd(end);
-      isEnglishLanguage[k] = isEnglishChar(cstrText.mid(charBegin - char_begin,
-                                            charEnd - charBegin));
-    }
+    int text_width = cell_end - cell_begin;
 
     bool draw_half_begin_char = false;
-#if defined(WIN32)
+
     if (startx > 0 &&  pTextLine->getCellBegin(startx) == pTextLine->getCellBegin(startx - 1) 
       && *(pTextLine->getColors() + startx) != *(pTextLine->getColors() + startx - 1)) {
+//#if defined(WIN32)
       draw_half_begin_char = true;
+//#else
+//	startx++;
+//#endif
     }
-#endif
-    for (unsigned k = cell_begin; k < cell_end; ++k){
-      cstrText.clear();
-      bool languageType = isEnglishLanguage[k];
-      unsigned sameLanguageStart = pTextLine->getCellBegin(k);
-      while (k < cell_end && isEnglishLanguage[k] == languageType) {
-        k++;
-      }
-      unsigned sameLanguageEnd = pTextLine->getCellEnd(k);
 
-      pTextLine->getPlainText(sameLanguageStart, sameLanguageEnd, cstrText);
-      for (unsigned j = k; j < sameLanguageEnd; ++j) {
-        cstrText.append((QChar)URC);
-      }
-
-      k--;
-      text_width = sameLanguageEnd - sameLanguageStart;
-      painter.setFont(languageType?*englishFont_:*nonEnglishFont_);
-
-      if (isMonoSpace) {
-        if (draw_half_begin_char) {
-          text_width--;
-          sameLanguageStart++;
-          draw_half_begin_char = false;
-        }
-        drawStr(painter, cstrText, sameLanguageStart, index, text_width,
-                tempcp, tempea, isTransparent, bSelected);
+    painter.setFont((temprt == HalfAndAlign || temprt == HalfAndSpace)?*englishFont_:*nonEnglishFont_);
+    if (isMonoSpace && temprt != FullAndAlign) {
+      QFont& font = (temprt == HalfAndAlign || temprt == HalfAndSpace)?*englishFont_:*nonEnglishFont_;
+      if (temprt == HalfAndAlign) {
+	  font.setLetterSpacing(QFont::AbsoluteSpacing, enLetterSpacing_);
+      } else if (temprt == HalfAndSpace) {
+	  font.setLetterSpacing(QFont::AbsoluteSpacing, spLetterSpacing_);
       } else {
-        // Draw Characters one by one to fix the variable-width font
-        // display problem.
-        int offset = 0;
-        for (uint j = 0; (long)j < cstrText.length(); ++j) {
-          // TODO_UTF16: wrong character width here.
-          if (cstrText.at(j) < 0x7f) {
-            drawStr(painter, (QString)cstrText.at(j),
-                    sameLanguageStart + offset, index, 1,
-                    tempcp, tempea,
-                    isTransparent, bSelected);
-            offset++;
-          } else {
-            int w = 2;
-            if (draw_half_begin_char) {
-              w--;
-              sameLanguageStart++;
-            }
-            drawStr(painter, (QString)cstrText.at(j),
-                    sameLanguageStart + offset, index, w,
-                    tempcp, tempea,
-                    isTransparent, bSelected);
-            if (draw_half_begin_char) {
-              draw_half_begin_char = false;
-              offset--;
-            }
-            offset += 2;
+	  font.setLetterSpacing(QFont::AbsoluteSpacing, cnLetterSpacing_);
+      }
+      painter.setFont(font);
+      if (draw_half_begin_char) {
+        text_width--;
+        draw_half_begin_char = false;
+      }
+      drawStr(painter, cstrText, startx, index, text_width,
+              tempcp, tempea, isTransparent, bSelected);
+      font.setLetterSpacing(QFont::AbsoluteSpacing, 0.0);
+    } else if (temprt == FullNotAlign) {
+      nonEnglishFont_->setLetterSpacing(QFont::AbsoluteSpacing, cnLetterSpacing_);
+      painter.setFont(*nonEnglishFont_);
+      if (draw_half_begin_char) {
+        text_width--;
+        draw_half_begin_char = false;
+      }
+      drawStr(painter, cstrText, startx, index, text_width,
+        tempcp, tempea, isTransparent, bSelected);
+      nonEnglishFont_->setLetterSpacing(QFont::AbsoluteSpacing, 0.0);
+    } else if (temprt == HalfAndSpace) {
+      englishFont_->setLetterSpacing(QFont::AbsoluteSpacing, spLetterSpacing_);
+      painter.setFont(*englishFont_);
+      if (draw_half_begin_char) {
+        text_width--;
+        draw_half_begin_char = false;
+      }
+      drawStr(painter, cstrText, startx, index, text_width,
+        tempcp, tempea, isTransparent, bSelected);
+      englishFont_->setLetterSpacing(QFont::AbsoluteSpacing, 0.0);
+    }else {
+      englishFont_->setLetterSpacing(QFont::AbsoluteSpacing, enLetterSpacing_);
+      nonEnglishFont_->setLetterSpacing(QFont::AbsoluteSpacing, cnLetterSpacing_);
+      if (temprt == HalfAndAlign)
+        painter.setFont(*englishFont_);
+      else if (temprt == FullAndAlign)
+        painter.setFont(*nonEnglishFont_);
+      // Draw Characters one by one to fix the variable-width font
+      // display problem.
+      int offset = 0;
+      for (uint j = 0; (long)j < cstrText.length(); ++j) {
+        // TODO_UTF16: wrong character width here.
+        if (temprt == HalfAndAlign) {
+          drawStr(painter, (QString)cstrText.at(j),
+                  startx + offset, index, 1,
+                  tempcp, tempea,
+                  isTransparent, bSelected);
+          offset++;
+        } else if (temprt == FullAndAlign){
+          
+
+          int w = 2;
+          if (draw_half_begin_char) {
+            w--;
           }
+          drawStr(painter, (QString)cstrText.at(j),
+                  startx + offset, index, w,
+                  tempcp, tempea,
+                  isTransparent, bSelected);
+          if (draw_half_begin_char) {
+            draw_half_begin_char = false;
+            offset--;
+          }
+          offset += 2;
+          
         }
       }
-      --i;
+      nonEnglishFont_->setLetterSpacing(QFont::AbsoluteSpacing, 0.0);
+      englishFont_->setLetterSpacing(QFont::AbsoluteSpacing, 0.0);
     }
-
+          --i;
   }
-  delete []isEnglishLanguage;
 }
 //
 // draw functions
@@ -1106,7 +1195,7 @@ void FQTermScreen::drawStr(QPainter &painter, const QString &str,
   QBrush brush(colors_[brush_color_index]);
 
   // black on white without attr
-  if (termWindow_->frame_->isBossColor_) {
+  if (FQTermPref::getInstance()->isBossColor_) {
     painter.setPen(Qt::black);
     if (GETBG(cp) != 0 && !transparent) {
       painter.setBackgroundMode(Qt::OpaqueMode);
@@ -1119,7 +1208,7 @@ void FQTermScreen::drawStr(QPainter &painter, const QString &str,
     
   }
 
-  rcErase.setBottom(rcErase.bottom() + 1);
+  //rcErase.setBottom(rcErase.bottom() + 1);
   rcErase.setRight(rcErase.right() + 1);    
   
   if (!menuRect_.intersects(rcErase)){
@@ -1156,11 +1245,11 @@ void FQTermScreen::drawStr(QPainter &painter, const QString &str,
     int offset = (height_gap + 1)/2; 
     int ascent = qm.ascent() + offset; 
 
-#if defined(WIN32)
+//#if defined(WIN32)
     painter.drawText(rcErase, Qt::AlignRight, str);
-#else
-    painter.drawText(pt.x(), pt.y() + ascent, str);
-#endif
+//#else
+//    painter.drawText(pt.x(), pt.y() + ascent, str);
+//#endif
   }
 }
 
@@ -1171,7 +1260,7 @@ void FQTermScreen::eraseRect(QPainter &, int, int, int, int, short){
 
 void FQTermScreen::bossColor() {
   setBackgroundPixmap(backgroundPixmap_, backgroundPixmapType_);
-  if (termWindow_->frame_->isBossColor_) {
+  if (FQTermPref::getInstance()->isBossColor_) {
     colors_[0] = Qt::white;
     colors_[7] = Qt::black;
     QPalette palette;
@@ -1192,9 +1281,9 @@ QRect FQTermScreen::drawMenuSelect(QPainter &painter, int index) {
   QRect rcSelect, rcMenu, rcInter;
   // 	FIXME: what is this for
   if (termBuffer_->isSelected(index)) {
-    bool is_rect_sel = termWindow_->session_->param_.isRectSelect_;
+    bool is_rect_sel = param_->isRectSelect_;
     rcSelect = mapToRect(termBuffer_->getSelectRect(index, is_rect_sel));
-    if (termWindow_->frame_->isBossColor_) {
+    if (FQTermPref::getInstance()->isBossColor_) {
       painter.fillRect(rcSelect, QBrush(colors_[0]));
     } else {
       painter.fillRect(rcSelect, QBrush(colors_[7]));
@@ -1212,7 +1301,7 @@ QRect FQTermScreen::drawMenuSelect(QPainter &painter, int index) {
                          rcMenu.width(), charHeight_ / 11, colors_[7]);
         break;
       case 2:
-        painter.fillRect(rcMenu, QBrush(termWindow_->frame_->isBossColor_?colors_[0]:param_->menuColor_));
+        painter.fillRect(rcMenu, QBrush(FQTermPref::getInstance()->isBossColor_?colors_[0]:param_->menuColor_));
         break;
     }
   }
@@ -1224,8 +1313,17 @@ QRect FQTermScreen::drawMenuSelect(QPainter &painter, int index) {
 /* 	                            Auxilluary	                                */
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
+
+QSize FQTermScreen::getScreenSize() const
+{
+  return QSize(termBuffer_->getNumColumns() * charWidth_, termBuffer_->getNumRows() * charHeight_);
+}
+
 QPoint FQTermScreen::mapToPixel(const QPoint &point) {
+  int dx = (getScreenSize().width() - clientRectangle_.width()) * FQTermPref::getInstance()->displayOffset_ / 100;
+
   QPoint pt = clientRectangle_.topLeft();
+  pt.setX(pt.x() - dx);
 
   QPoint pxlPoint;
 
@@ -1237,12 +1335,15 @@ QPoint FQTermScreen::mapToPixel(const QPoint &point) {
 // mapToChar: get a position in the window and return the
 // corresponding char position
 QPoint FQTermScreen::mapToChar(const QPoint &point) {
+  int dx = (getScreenSize().width() - clientRectangle_.width()) * FQTermPref::getInstance()->displayOffset_ / 100;
+
   QPoint pt = clientRectangle_.topLeft();
+  pt.setX(pt.x() - dx);
 
   QPoint chPoint;
-  chPoint.setX(qMin(qMax(0, (point.x() - pt.x()) / charWidth_),
+  chPoint.setX(qMin(qMax(0, int((point.x() - pt.x()) / charWidth_)),
                     termBuffer_->getNumColumns() - 1));
-  chPoint.setY(qMin(qMax(0, (point.y() - pt.y()) / charHeight_ + bufferStart_),
+  chPoint.setY(qMin(qMax(0, int((point.y() - pt.y()) / charHeight_) + bufferStart_),
                     bufferEnd_));
 
   //FIXME add bound check
@@ -1250,13 +1351,15 @@ QPoint FQTermScreen::mapToChar(const QPoint &point) {
 }
 
 QRect FQTermScreen::mapToRect(int x, int y, int width, int height) {
+  int dx = (getScreenSize().width() - clientRectangle_.width()) * FQTermPref::getInstance()->displayOffset_ / 100;
+
   QPoint pt = mapToPixel(QPoint(x, y));
 
   if (width == -1) {
 	// to the end
-    return QRect(pt.x(), pt.y(), size().width(), charHeight_ *height);
+    return QRect(pt.x() + dx, pt.y(), size().width(), charHeight_ *height);
   } else {
-    return QRect(pt.x(), pt.y(), width *charWidth_, charHeight_ *height);
+    return QRect(pt.x(), pt.y(), width *charWidth_ + 1.0, charHeight_ *height);
   }
 }
 
@@ -1267,7 +1370,7 @@ QRect FQTermScreen::mapToRect(const QRect &rect) {
 // from KImageEffect::fade
 QImage &FQTermScreen::fade(QImage &img, float val, const QColor &color) {
   if (img.width() == 0 || img.height() == 0) {
-    return img;
+    return img; 
   }
 
   // We don't handle bitmaps
@@ -1351,8 +1454,9 @@ void FQTermScreen::inputMethodEvent(QInputMethodEvent *e) {
                      << ", " << e->replacementLength();
 
   if (e->preeditString().size() > 0) {
+    nonEnglishFont_->setLetterSpacing(QFont::AbsoluteSpacing, 0.0);
     preedit_line_->setPreeditText(e, nonEnglishFont_);
-
+    nonEnglishFont_->setLetterSpacing(QFont::AbsoluteSpacing, 0.0);
     QPoint pt = mapToPixel(QPoint(termBuffer_->getCaretColumn(),
                                   termBuffer_->getCaretLine()));
     preedit_line_->move(pt);
@@ -1384,7 +1488,12 @@ QVariant FQTermScreen::inputMethodQuery(Qt::InputMethodQuery property) const {
                 (termBuffer_->getCaretRow()) * charHeight_,
                 charWidth_, charHeight_));
     case Qt::ImFont:
-      return QVariant(*nonEnglishFont_);
+    {
+	nonEnglishFont_->setLetterSpacing(QFont::AbsoluteSpacing, 0.0);
+	QVariant var(*nonEnglishFont_);
+	nonEnglishFont_->setLetterSpacing(QFont::AbsoluteSpacing, 0.0);
+	return var;
+    }
     case Qt::ImCurrentSelection:
       return QVariant(QString());
     case Qt::ImCursorPosition:
@@ -1444,7 +1553,7 @@ void FQTermScreen::drawSingleUnderLine(QPainter &painter, const QPoint& startPoi
   QPoint realStart = mapToPixel(startPoint);
   QPoint realEnd = mapToPixel(endPoint);
   painter.fillRect(realStart.x(), realStart.y() + 10 * charHeight_ / 11,
-    realEnd.x() - realStart.x(), charHeight_ / 11, termWindow_->frame_->isBossColor_?colors_[0]:param_->menuColor_);
+    realEnd.x() - realStart.x(), charHeight_ / 11, FQTermPref::getInstance()->isBossColor_?colors_[0]:param_->menuColor_);
 }
 
 void FQTermScreen::setFontAntiAliasing( bool on /*= true*/ ) {
@@ -1452,6 +1561,35 @@ void FQTermScreen::setFontAntiAliasing( bool on /*= true*/ ) {
   nonEnglishFont_->setStyleStrategy(on?QFont::PreferAntialias:QFont::NoAntialias);
 }
 
+void FQTermScreen::widgetHideAt(const QRect& rect){
+  widgetRect_ = rect;
+  setPaintState(Widget);
+  update();
+}
+
+void FQTermScreen::updateWidgetRect(QPainter& painter) {
+
+  painter.setBackground(QBrush(colors_[0]));
+
+  QRect rect = widgetRect_.intersect(clientRectangle_);
+  if (rect.isEmpty())
+    return;
+  painter.eraseRect(rect);
+
+  QPoint tlPoint = mapToChar(QPoint(rect.left(), rect.top()));
+
+  QPoint brPoint = mapToChar(QPoint(rect.right(), rect.bottom()));
+
+  for (int y = tlPoint.y(); y <= brPoint.y(); y++) {
+    const FQTermTextLine *pTextLine = termBuffer_->getTextLineInBuffer(y);
+    int startx = qMin(tlPoint.x(),int(pTextLine->getWidth()));
+    int endx = qMin(brPoint.x(), int(pTextLine->getWidth()));
+    startx = pTextLine->getCellBegin(startx);
+    endx = pTextLine->getCellEnd(endx);
+    drawLine(painter, y, startx, endx);
+  }
+  widgetRect_ = QRect();
+}
 PreeditLine::PreeditLine(QWidget *parent,const QColor *colors)
     : QWidget(parent),
       pixmap_(new QPixmap()),

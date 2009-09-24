@@ -42,7 +42,7 @@ class addrDialog: public QDialog {
     return param_;
   }
 
-  enum Tabs{General, Display, Terminal, Proxy, Misc, Mouse};
+  enum Tabs{General, Display, Terminal, Keyboard, Proxy, Misc, Mouse};
   void setCurrentTabIndex(Tabs tab) {
     ui_.tabWidget->setCurrentIndex(tab);
   }

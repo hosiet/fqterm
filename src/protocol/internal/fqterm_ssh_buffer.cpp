@@ -83,6 +83,7 @@ void FQTermSSHBuffer::putRawData(const char *data, int len) {
   if (len < 0) {
     FQ_TRACE("sshbuffer", 0) << "Write data error.";
   }
+
   ensure(len);
   memcpy((buffer_ + offset_ + buffer_size_), data, len);
   buffer_size_ += len;

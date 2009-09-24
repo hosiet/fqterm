@@ -62,7 +62,7 @@ typedef struct {
 /* 2008.07.06, ecore.cn@gmail.com, alsa sound for FQTerm ... */
 #ifdef AUDIO_ALSA
 #include <alsa/asoundlib.h>
-
+#include <stdint.h>
 typedef struct tag_FQ_WAVE_FILE_HEADER {
   uint32_t rid;     /* RIFF ID */
   uint32_t rsz;     /* RIFF SIZE */

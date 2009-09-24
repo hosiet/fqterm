@@ -35,7 +35,6 @@ FQTermParam::FQTermParam() {
   postLoginCommand_ = "";
   // Display
   serverEncodingID_ = 0;
-  dispEncodingID_ = 0;
   isFontAutoFit_ = 1;
   isAlwaysHighlight_ = 0;
   isAnsiColor_ = 1;
@@ -45,12 +44,16 @@ FQTermParam::FQTermParam() {
   nonEnglishFontName_ = getDefaultFontFamilyForLanguage(false);
   nonEnglishFontSize_ = 14;
 
+  charRatio_ = 0;
+  fontRatio_ = 0;
+
   backgroundColor_ = QColor(0, 0, 0);
   foregroundColor_ = QColor(198, 195, 198);
   schemaFileName_ = "";
   // Terminal
   virtualTermType_ = "vt102";
   keyboardType_ = 0;
+  backspaceType_ = 0;
   numColumns_ = 80;
   numRows_ = 24;
   numScrollLines_ = 240;
@@ -70,13 +73,20 @@ FQTermParam::FQTermParam() {
   maxIdleSeconds_ = 120;
   replyKeyCombination_ = "^Z";
   antiIdleMessage_ = "^@";
+  isAntiIdle_ = true;
   isAutoReply_ = false;
   autoReplyMessage_ = "(FQTerm) Sorry, I am not around";
   isAutoReconnect_ = false;
   reconnectInterval_ = 3;
   retryTimes_ = 0;
   isAutoLoadScript_ = false;
+  enableZmodem_ = true;
   autoLoadedScriptFileName_ = "";
+  isBeep_ = true;
+  isBuzz_ = false;
+
+  // Mouse
+  isSupportMouse_ = true;
   // Mouse
   menuType_ = 2;
   menuColor_ = QColor(0, 65, 132);
@@ -84,6 +94,7 @@ FQTermParam::FQTermParam() {
   isColorCopy_ = false;
   isRectSelect_ = false;
   isAutoCopy_ = true;
+  isAutoWrap_ = false;
 }
 
 FQTermParam::FQTermParam(const FQTermParam &param) {
@@ -109,7 +120,6 @@ void FQTermParam::copy(const FQTermParam& param) {
   postLoginCommand_ = param.postLoginCommand_;
   // Display
   serverEncodingID_ = param.serverEncodingID_;
-  dispEncodingID_ = param.dispEncodingID_;
   isFontAutoFit_ = param.isFontAutoFit_;
   isAlwaysHighlight_ = param.isAlwaysHighlight_;
   isAnsiColor_ = param.isAnsiColor_;
@@ -117,12 +127,15 @@ void FQTermParam::copy(const FQTermParam& param) {
   englishFontSize_ = param.englishFontSize_;
   nonEnglishFontName_ = param.nonEnglishFontName_;
   nonEnglishFontSize_ = param.nonEnglishFontSize_;
+  charRatio_ = param.charRatio_;
+  fontRatio_ = param.fontRatio_;
   backgroundColor_ = param.backgroundColor_;
   foregroundColor_ = param.foregroundColor_;
   schemaFileName_ = param.schemaFileName_;
   // Terminal
   virtualTermType_ = param.virtualTermType_;
   keyboardType_ = param.keyboardType_;
+  backspaceType_ = param.backspaceType_;
   numColumns_ = param.numColumns_;
   numRows_ = param.numRows_;
   numScrollLines_ = param.numScrollLines_;
@@ -143,13 +156,19 @@ void FQTermParam::copy(const FQTermParam& param) {
   maxIdleSeconds_ = param.maxIdleSeconds_;
   replyKeyCombination_ = param.replyKeyCombination_;
   antiIdleMessage_ = param.antiIdleMessage_;
+  isAntiIdle_ = param.isAntiIdle_;
   isAutoReply_ = param.isAutoReply_;
   autoReplyMessage_ = param.autoReplyMessage_;
   isAutoReconnect_ = param.isAutoReconnect_;
   reconnectInterval_ = param.reconnectInterval_;
   retryTimes_ = param.retryTimes_;
   isAutoLoadScript_ = param.isAutoLoadScript_;
+  enableZmodem_ = param.enableZmodem_;
   autoLoadedScriptFileName_ = param.autoLoadedScriptFileName_;
+  isBeep_ = param.isBeep_;
+  isBuzz_ = param.isBuzz_;
+
+  isSupportMouse_ = param.isSupportMouse_;
   // Mouse
   menuType_ = param.menuType_;
   menuColor_ = param.menuColor_;
@@ -157,6 +176,7 @@ void FQTermParam::copy(const FQTermParam& param) {
   isColorCopy_ = param.isColorCopy_;
   isRectSelect_ = param.isRectSelect_;
   isAutoCopy_ = param.isAutoCopy_;
+  isAutoWrap_ = param.isAutoWrap_;
 }
 
 bool FQTermParam::operator==(const FQTermParam& param)
@@ -171,7 +191,6 @@ bool FQTermParam::operator==(const FQTermParam& param)
   if (password_ != param.password_) return false;
   if (postLoginCommand_ != param.postLoginCommand_) return false;
   if (serverEncodingID_ != param.serverEncodingID_) return false;
-  if (dispEncodingID_ != param.dispEncodingID_) return false;
   if (isFontAutoFit_ != param.isFontAutoFit_) return false;
   if (isAlwaysHighlight_ != param.isAlwaysHighlight_) return false;
   if (isAnsiColor_ != param.isAnsiColor_) return false;
@@ -179,12 +198,14 @@ bool FQTermParam::operator==(const FQTermParam& param)
   if (englishFontSize_ != param.englishFontSize_) return false;
   if (nonEnglishFontName_ != param.nonEnglishFontName_) return false;
   if (nonEnglishFontSize_ != param.nonEnglishFontSize_) return false;
-  
+  if (charRatio_ != param.charRatio_) return false;
+  if (fontRatio_ != param.fontRatio_) return false;
   if (backgroundColor_ != param.backgroundColor_) return false;
   if (foregroundColor_ != param.foregroundColor_) return false;
   if (schemaFileName_ != param.schemaFileName_) return false;
   if (virtualTermType_ != param.virtualTermType_) return false;
   if (keyboardType_ != param.keyboardType_) return false;
+  if (backspaceType_ != param.backspaceType_) return false;
   if (numColumns_ != param.numColumns_) return false;
   if (numRows_ != param.numRows_) return false;
   if (numScrollLines_ != param.numScrollLines_) return false;
@@ -202,17 +223,23 @@ bool FQTermParam::operator==(const FQTermParam& param)
   if (maxIdleSeconds_ != param.maxIdleSeconds_) return false;
   if (replyKeyCombination_ != param.replyKeyCombination_) return false;
   if (antiIdleMessage_ != param.antiIdleMessage_) return false;
+  if (isAntiIdle_ != param.isAntiIdle_) return false;
   if (isAutoReply_ != param.isAutoReply_) return false;
   if (autoReplyMessage_ != param.autoReplyMessage_) return false;
   if (isAutoReconnect_ != param.isAutoReconnect_) return false;
   if (reconnectInterval_ != param.reconnectInterval_) return false;
   if (retryTimes_ != param.retryTimes_) return false;
   if (isAutoLoadScript_ != param.isAutoLoadScript_) return false;
+  if (enableZmodem_ != param.enableZmodem_) return false;
+  if (isBuzz_ != param.isBuzz_) return false;
+  if (isBeep_ != param.isBeep_) return false;
+  if (isSupportMouse_ != param.isSupportMouse_) return false;
   if (autoLoadedScriptFileName_ != param.autoLoadedScriptFileName_) return false;
   if (menuType_ != param.menuType_) return false;
   if (isColorCopy_ != param.isColorCopy_) return false;
   if (isRectSelect_ != param.isRectSelect_) return false;
   if (isAutoCopy_ != param.isAutoCopy_) return false;
+  if (isAutoWrap_ != param.isAutoWrap_) return false;
   return true;
 }
 

@@ -42,7 +42,7 @@ class FQTermTextLine {
   FQTermTextLine(unsigned max_cell_count);
   ~FQTermTextLine();
 
-  enum CHARSTATE{NORMAL, FIRSTPART, SECONDPART};
+  enum CHARSTATE{NORMAL = 0x00, FIRSTPART = 0x01, SECONDPART = 0x02};
   // Get the number of used cells.
   unsigned getWidth() const {return cells_.size();}
 
@@ -82,6 +82,10 @@ class FQTermTextLine {
                    QString &result,
                    const char *escape = "\x1b\x1b") const;
 
+  void getAllAnsiText(QString &result, const char* escape = "\x1b\x1b") const {
+    getAnsiText(0, getWidth(), result, escape);
+  }
+
   void appendWhiteSpace(unsigned count,
                         unsigned char color = NO_COLOR,
                         unsigned char attr = NO_ATTR,
@@ -101,10 +105,10 @@ class FQTermTextLine {
   // insert string at specified cell,
   void insertText(const UTF16 *str, unsigned count,
                   unsigned cell_begin,
-                  unsigned char color, unsigned char attr, FQTermTextLine::CHARSTATE charstate = FQTermTextLine::NORMAL);
+                  unsigned char color, unsigned char attr, int charstate = FQTermTextLine::NORMAL);
   void replaceText(const UTF16 *str, unsigned count,
                    unsigned cell_begin, unsigned cell_end,
-                   unsigned char color, unsigned char attr, FQTermTextLine::CHARSTATE charstate = FQTermTextLine::NORMAL);
+                   unsigned char color, unsigned char attr, int charstate = FQTermTextLine::NORMAL);
   void deleteText(unsigned cell_begin, unsigned cell_end);
   void deleteAllText();
 

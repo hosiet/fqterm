@@ -59,7 +59,7 @@ void FQTermSSH1PasswdAuth::initAuth(FQTermSSHPacketReceiver *packet,
     emit requestUserPwd(&user_name_, &passwd_, &isOK);
     // SSHLoginDialog login(&d_user, &d_passwd);
     if (!isOK) {
-      emit authError("UserCancel");
+      emit authError(tr("UserCancel"));
       return ;
     }
   }
@@ -82,7 +82,7 @@ void FQTermSSH1PasswdAuth::handlePacket(int type) {
         break;
       }
       if (type != SSH1_SMSG_FAILURE) {
-        emit authError("Strange response from server");
+        emit authError(tr("Strange response from server"));
         break;
       }
       if (is_tried_) {
@@ -90,7 +90,7 @@ void FQTermSSH1PasswdAuth::handlePacket(int type) {
         emit requestUserPwd(&user_name_, &passwd_, &isOK);
         // SSHLoginDialog login(&d_user, &d_passwd);
         if (!isOK) {
-          emit authError("User canceled");
+          emit authError(tr("User canceled"));
           break;
         }
         is_tried_ = false;
@@ -163,10 +163,10 @@ bool FQTermSSH2PasswdAuth::check() {
       // TODO: just ignore banner messages.
       break;    
     case SSH2_MSG_USERAUTH_FAILURE:
-      emit authError("Authentication failed!");
+      emit authError(tr("Authentication failed!"));
       break;
     default:
-      emit authError("Unexpected packet");
+      emit authError(tr("Unexpected packet"));
   }
 
   return false;
@@ -174,14 +174,14 @@ bool FQTermSSH2PasswdAuth::check() {
 
 void FQTermSSH2PasswdAuth::sendUserPasswd() {
   if (packet_receiver_->packetType() != SSH2_MSG_SERVICE_ACCEPT) {
-    emit authError("Expect a SSH2_MSG_SERVICE_ACCEPT packet");
+    emit authError(tr("Expect a SSH2_MSG_SERVICE_ACCEPT packet"));
     return;
   }
 
   u_char *service_name = (u_char *)packet_receiver_->getString();
 
   if (std::string((char *)service_name) != std::string("ssh-userauth")) {
-    emit authError("Error when sending username and password.");
+    emit authError(tr("Error when sending username and password."));
     return;
   }
 
@@ -204,7 +204,7 @@ void FQTermSSH2PasswdAuth::sendUserPasswd() {
     bool isOK = false;
     emit requestUserPwd(&user_name_, &passwd_, &isOK);
     if (!isOK) {
-      emit authError("UserCancel");
+      emit authError(tr("UserCancel"));
       return ;
     }
   }

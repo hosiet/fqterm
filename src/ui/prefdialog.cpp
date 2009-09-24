@@ -78,6 +78,9 @@ void prefDialog::loadSetting() {
 
   QString strTmp;
 
+  strTmp = config_->getItemValue("preference", "displayoffset");
+  ui_.displayOffsetSlider->setSliderPosition(strTmp.toInt());
+
   strTmp = config_->getItemValue("preference", "xim");
   ui_.ximComboBox->setCurrentIndex(strTmp.toInt());
 
@@ -105,6 +108,10 @@ void prefDialog::loadSetting() {
   strTmp = config_->getItemValue("preference", "beep");
   qobject_cast < QRadioButton * > (soundButtonGroup_.button(strTmp.toInt()))->setChecked
       (true);
+
+  strTmp = config_->getItemValue("preference", "enq");
+  ui_.enqCheckBox->setChecked(strTmp != "0");
+
   //ButtonGroup1->find(strTmp.toInt()))->setChecked(true);
 
   // 	if(strTmp.toInt()!=2)
@@ -118,9 +125,6 @@ void prefDialog::loadSetting() {
 
   strTmp = config_->getItemValue("preference", "antialias");
   ui_.aacheckBox->setChecked(strTmp != "0");
-
-  strTmp = config_->getItemValue("preference", "correctnonmonospace");
-  ui_.mscheckBox->setChecked(strTmp == "1");
 
 
   strTmp = config_->getItemValue("preference", "tray");
@@ -155,6 +159,9 @@ void prefDialog::saveSetting() {
 
   QString strTmp;
 
+  strTmp.setNum(ui_.displayOffsetSlider->sliderPosition());
+  config_->setItemValue("preference", "displayoffset", strTmp);
+
   strTmp.setNum(ui_.ximComboBox->currentIndex());
   config_->setItemValue("preference", "xim", strTmp);
 
@@ -182,11 +189,11 @@ void prefDialog::saveSetting() {
   strTmp.setNum(ui_.aacheckBox->isChecked() ? 1 : 0);
   config_->setItemValue("preference", "antialias", strTmp);
 
-  strTmp.setNum(ui_.mscheckBox->isChecked() ? 1 : 0);
-  config_->setItemValue("preference", "correctnonmonospace", strTmp);
-
   strTmp.setNum(ui_.trayCheckBox->isChecked() ? 1 : 0);
   config_->setItemValue("preference", "tray", strTmp);
+
+  strTmp.setNum(ui_.enqCheckBox->isChecked() ? 1 : 0);
+  config_->setItemValue("preference", "enq", strTmp);
 
   strTmp.setNum(soundButtonGroup_.checkedId());
   config_->setItemValue("preference", "beep", strTmp);

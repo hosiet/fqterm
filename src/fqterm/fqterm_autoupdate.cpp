@@ -21,6 +21,7 @@
 #include "fqterm_autoupdate.h"
 #include "fqterm_config.h"
 #include "fqterm_trace.h"
+#include "fqterm_param.h"
 
 #include <QDesktopServices>
 #include <QFile>
@@ -61,7 +62,7 @@ static int versionCompare(QString lhs, QString rhs) {
 ///////////////////////////////////////////////
 
 void FQTermAutoUpdater::checkUpdate() {
-  QString fileName = zmodemPoolDir_ + "VersionInfo";
+  QString fileName = FQTermPref::getInstance()->poolDir_ + "VersionInfo";
   if (QFile::exists(fileName)) {
     QFile::remove(fileName);
   }
@@ -92,7 +93,7 @@ QString FQTermAutoUpdater::getNewestVersion() {
 #else
   const QString platform = "Mac";
 #endif
-  FQTermConfig versionInfo(zmodemPoolDir_ + "VersionInfo");
+  FQTermConfig versionInfo(FQTermPref::getInstance()->poolDir_ + "VersionInfo");
   QString ver = versionInfo.getItemValue(platform, "version");
   if (ver.isEmpty()) {
     return FQTERM_VERSION_STRING;
@@ -112,6 +113,7 @@ void FQTermAutoUpdater::promptUpdate() {
    case QMessageBox::Discard:
      break;
    case QMessageBox::Ignore:
+     config_->setItemValue("global", "newestversion", getNewestVersion());
      config_->setItemValue("global", "updateprompt", "0");
      break;
   } 
@@ -158,9 +160,8 @@ void FQTermAutoUpdater::httpDone(bool err)  {
   deleteLater();
 }
 
-FQTermAutoUpdater::FQTermAutoUpdater(QObject* parent, FQTermConfig* config, QString zmodemPoolDir) 
+FQTermAutoUpdater::FQTermAutoUpdater(QObject* parent, FQTermConfig* config) 
 : QObject(parent),
-  zmodemPoolDir_(zmodemPoolDir),
   config_(config),
   versionInfoFile_(0),
   checkDone_(false) {

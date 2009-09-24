@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS><TS version="1.1" language="zh">
-<defaultcodec></defaultcodec>
+<!DOCTYPE TS>
+<TS version="2.0" language="zh">
 <context>
     <name>@default</name>
     <message>
@@ -516,7 +516,7 @@ To continue editing, press Cancel</source>
     </message>
     <message>
         <source>FQTerm
-<byte value="xd"/>
+
 http://code.google.com/p/fqterm</source>
         <translation type="obsolete">FQTerm
 
@@ -535,7 +535,7 @@ devilphoenix@newsmth</translation>
 p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:&apos;SimSun&apos;; font-size:9pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;p, li { white-space: pre-wrap; }&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:&apos;SimSun&apos;; font-size:9pt; font-weight:400; font-style:normal;&quot;&gt;&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+        <translation type="obsolete">&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;p, li { white-space: pre-wrap; }&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:&apos;SimSun&apos;; font-size:9pt; font-weight:400; font-style:normal;&quot;&gt;&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
@@ -543,6 +543,14 @@ p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;FQTerm&lt;br /&gt;&lt;br /&gt;&lt;br /&gt;&lt;a href=&quot;http://code.google.com/p/fqterm&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;http://code.google.com/p/fqterm&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
         <translation>&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;p, li { white-space: pre-wrap; }&lt;/style&gt;&lt;/head&gt;&lt;body&gt;&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;FQTerm&lt;br /&gt;&lt;br /&gt;&lt;br /&gt;&lt;a href=&quot;http://code.google.com/p/fqterm&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;http://code.google.com/p/fqterm&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+        <source>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:&apos;SimSun&apos;; font-size:9pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -633,7 +641,7 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <source>Auto Select Font Size When Resize Window</source>
-        <translation>窗体变化时自动调整字体大小</translation>
+        <translation type="obsolete">窗体变化时自动调整字体大小</translation>
     </message>
     <message>
         <source>BBS Encoding</source>
@@ -649,7 +657,7 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <source>Display Code</source>
-        <translation>显示编码</translation>
+        <translation type="obsolete">显示编码</translation>
     </message>
     <message>
         <source>Font</source>
@@ -862,6 +870,58 @@ p, li { white-space: pre-wrap; }
     <message>
         <source>&amp;Cancel</source>
         <translation>取消(&amp;C)</translation>
+    </message>
+    <message>
+        <source>UTF8</source>
+        <translation>UTF8</translation>
+    </message>
+    <message>
+        <source>Font ratio</source>
+        <translation>中英文比例</translation>
+    </message>
+    <message>
+        <source>Adjust Font Size When Resize</source>
+        <translation>自动调节字体</translation>
+    </message>
+    <message>
+        <source>Char W/H ratio</source>
+        <translation>字符高宽比(影响间距)</translation>
+    </message>
+    <message>
+        <source>Keyboard</source>
+        <translation>键盘</translation>
+    </message>
+    <message>
+        <source>BackSpace Setting</source>
+        <translation>退格键设定</translation>
+    </message>
+    <message>
+        <source>Send backspace as ^H</source>
+        <translation>退格键为^H</translation>
+    </message>
+    <message>
+        <source>Send backspace as ^? (127)</source>
+        <translation>退格键为^?(127)</translation>
+    </message>
+    <message>
+        <source>Anti-idle</source>
+        <translation>防发呆</translation>
+    </message>
+    <message>
+        <source>Enable Zmodem</source>
+        <translation>使用Zmodem</translation>
+    </message>
+    <message>
+        <source>Enable Buzz</source>
+        <translation>使用振动</translation>
+    </message>
+    <message>
+        <source>Enable Beep</source>
+        <translation>使用蜂鸣</translation>
+    </message>
+    <message>
+        <source>Enable Mouse Support</source>
+        <translation>打开鼠标支持</translation>
     </message>
 </context>
 <context>
@@ -1106,6 +1166,14 @@ p, li { white-space: pre-wrap; }
     <message>
         <source>StyleSheet File</source>
         <translation>StyleSheet文件</translation>
+    </message>
+    <message>
+        <source>Reply when ENQ received</source>
+        <translation>收到ENQ时回复</translation>
+    </message>
+    <message>
+        <source>Display Offset</source>
+        <translation>显示(横向)偏移量</translation>
     </message>
 </context>
 <context>

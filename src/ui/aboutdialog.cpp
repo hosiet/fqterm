@@ -22,6 +22,7 @@
 #include <QFile>
 #include <QTextBrowser>
 #include <QTextStream>
+#include <QtGlobal>
 
 #include "fqterm.h"
 #include "fqterm_path.h"
@@ -52,7 +53,7 @@ aboutDialog::aboutDialog(QWidget *parent, Qt::WFlags fl)
     file.close();
   }
 
-  ui_.TextLabel->setText("FQTerm "/* + QString(VERSION) + " (Qt 4.1 based)"*/);
+  ui_.TextLabel->setText("FQTerm "  + QString(FQTERM_VERSION_STRING) + QString("\n Built with Qt") + QT_VERSION_STR + QString("\n Running with Qt ") + qVersion());
 }
 
 /*

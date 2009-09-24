@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS><TS version="1.1" language="zh">
-<defaultcodec></defaultcodec>
+<!DOCTYPE TS>
+<TS version="2.0" language="zh">
 <context>
     <name>FQTerm::FQTermAutoUpdater</name>
     <message>
@@ -221,7 +221,7 @@ please close all windows and restart.</source>
     </message>
     <message>
         <source>&amp;Setting for currrent session</source>
-        <translation>当前连接属性(&amp;S)</translation>
+        <translation type="obsolete">当前连接属性(&amp;S)</translation>
     </message>
     <message>
         <source>&amp;Default setting</source>
@@ -426,6 +426,10 @@ please close all windows and restart.</source>
     <message>
         <source>&amp;Use ANSI Color</source>
         <translation>使用ANSI颜色(&amp;U)</translation>
+    </message>
+    <message>
+        <source>&amp;Setting for current session</source>
+        <translation>当前连接属性(&amp;S)</translation>
     </message>
 </context>
 <context>

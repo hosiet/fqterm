@@ -86,7 +86,7 @@
    </item>
    <item row="2" column="0" colspan="2" >
     <widget class="QGroupBox" name="groupBox_3" >
-     <property name="enabled">
+     <property name="enabled" >
       <bool>false</bool>
      </property>
      <property name="title" >
@@ -140,7 +140,6 @@
   </layout>
  </widget>
  <layoutdefault spacing="6" margin="11" />
- <pixmapfunction>qPixmapFromMimeSource</pixmapfunction>
  <resources/>
  <connections>
   <connection>

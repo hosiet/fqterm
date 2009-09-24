@@ -84,7 +84,7 @@ void FQTermSSH1Channel::handlePacket(int type) {
       break;
     case REQPTY_SENT:
       if (type != SSH1_SMSG_SUCCESS) {
-        emit channelError("Server refused pty allocation!");
+        emit channelError(tr("Server refused pty allocation!"));
       }
       packet_sender_->startPacket(SSH1_CMSG_EXEC_SHELL);
       packet_sender_->write();
@@ -229,12 +229,12 @@ void FQTermSSH2Channel::closeConnection(char *reason) {
 void FQTermSSH2Channel::requestPty() {
   if (packet_receiver_->packetType() == SSH2_MSG_CHANNEL_OPEN_FAILURE) {
     // TODO: Here the error reason in the packet is ignored.
-    emit channelError("Server refuces to open a channel.");
+    emit channelError(tr("Server refuces to open a channel."));
     return;
   }
 
   if (packet_receiver_->packetType() != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
-    emit channelError("Server error when opening a channel.");
+    emit channelError(tr("Server error when opening a channel."));
     return;
   }
 
@@ -277,7 +277,7 @@ void FQTermSSH2Channel::requestPty() {
 
 void FQTermSSH2Channel::requestShell() {
   if (packet_receiver_->packetType() != SSH2_MSG_CHANNEL_SUCCESS) {
-    emit channelError("Server refused pty allocation!");
+    emit channelError(tr("Server refused pty allocation!"));
   }
   FQ_TRACE("ssh2channel", 5) << "Pty allocated. Now try to request a shell.";
   //    byte      SSH_MSG_CHANNEL_REQUEST
@@ -352,7 +352,7 @@ void FQTermSSH2Channel::processChannelPacket() {
       //    byte      SSH_MSG_CHANNEL_EOF
       //    uint32    recipient channel
       // FIXME: this error would cause the connection closed, while only the channel need be closed in ssh2.
-      emit channelError("Channel closed by the server.");
+      emit channelError(tr("Channel closed by the server."));
       break;
     case SSH2_MSG_CHANNEL_REQUEST:
       //    byte      SSH_MSG_CHANNEL_REQUEST
@@ -413,10 +413,10 @@ void FQTermSSH2Channel::handlePacket(int type) {
           //emit a msg to tell window we could process input.
           break;
         case SSH2_MSG_CHANNEL_FAILURE:
-          emit channelError("Can't open a shell.");
+          emit channelError(tr("Can't open a shell."));
           break;
         default:
-          emit channelError("Unsupported packet.");
+          emit channelError(tr("Unsupported packet."));
           break;
       }
       break;

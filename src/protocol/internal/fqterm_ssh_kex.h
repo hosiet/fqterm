@@ -60,7 +60,7 @@ public slots:
 signals:
   void kexOK();
   void reKex();
-  void kexError(const char *reason);
+  void kexError(QString);
 
   void startEncryption(const u_char *sessionkey);
 

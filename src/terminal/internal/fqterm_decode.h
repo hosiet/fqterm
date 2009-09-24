@@ -22,6 +22,7 @@
 #define FQTERM_DECODE_H
 
 #include <QObject>
+#include "fqterm_text_line.h"
 
 namespace FQTerm {
 
@@ -41,7 +42,7 @@ struct StateOption {
 class FQTermDecode: public QObject {
   Q_OBJECT;
  public:
-  FQTermDecode(FQTermBuffer *, FQTermTelnet *, int server_encoding);
+  FQTermDecode(FQTermBuffer *, int server_encoding);
   ~FQTermDecode();
 
 
@@ -57,20 +58,12 @@ class FQTermDecode: public QObject {
     server_encoding_ = encoding;
   }
 
-  bool isBrokenCharStored() {
-    return brokenChar_;
-  }
-
-  char retrieveBrokenChar() {
-    char tmp = brokenChar_;
-    brokenChar_ = '\0';
-    return tmp;
-  }
 
   //signals:
   //	void decodeFinished();
  signals:
   void mouseMode(bool);
+  void enqReceived();
   public slots:
     void onCaretChangeRow();
  private:
@@ -179,13 +172,12 @@ class FQTermDecode: public QObject {
   bool savedMode_[30];
   bool currentMode_[30];
 
-  FQTermTelnet *telnet_;
   FQTermBuffer *termBuffer_;
   int server_encoding_;
 
   QString bbs2unicode(const QByteArray &text);
-  
-  char brokenChar_;
+  int processInput(QByteArray& result);
+  QByteArray leftToDecode_;
 };
 
 }  // namespace FQTerm

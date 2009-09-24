@@ -124,7 +124,7 @@ class FQTermSSHPacketReceiver: public QObject {
 
  signals:
   void packetAvaliable(int type);
-  void packetError(const char *reason);
+  void packetError(QString);
 
  protected:
   bool is_decrypt_;
