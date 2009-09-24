@@ -1,3 +1,9 @@
+fqterm (0.9.4.4-1) unstable; urgency=low
+
+  * New Upstream Version
+
+ -- LI Daobing <lidaobing@debian.org>  Thu, 24 Sep 2009 19:43:30 +0800
+
 fqterm (0.9.3+svn666-1ubuntu1) karmic; urgency=low
 
   * debian/watch: added. 
