@@ -37,6 +37,7 @@ private:
   Ui::SSHLogin ui_;
 private slots:
   void accept();
+  void moveFocus();
 };
 
 }  // namespace FQTerm

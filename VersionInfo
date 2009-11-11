@@ -4,3 +4,9 @@ verison=0.9.3
 version=0.9.3
 [Win]
 version=0.9.3
+[FQMac]
+verison=0.9.5
+[FQLinux]
+version=0.9.5
+[FQWin]
+version=0.9.5

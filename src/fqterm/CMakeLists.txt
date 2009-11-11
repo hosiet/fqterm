@@ -9,6 +9,10 @@ set(fqterm_SRCS
   fqterm_screen.cpp
   fqterm_window.cpp
   fqterm_wndmgr.cpp
+  fqterm_python.h
+  fqterm_python.cpp
+  fqterm_scriptengine.h
+  fqterm_scriptengine.cpp
 )
 
 qt4_automoc(${fqterm_SRCS})

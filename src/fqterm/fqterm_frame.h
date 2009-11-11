@@ -45,6 +45,11 @@ class StatusBar;
 class FQTermTimeLabel;
 class TranslatorInstaller;
 class FQTermMiniServerThread;
+class FQTermShortcutHelper;
+
+#ifdef HAVE_PYTHON
+class FQTermPythonHelper;
+#endif //HAVE_PYTHON
 
 class FQTermFrame: public QMainWindow {
   Q_OBJECT;
@@ -91,8 +96,11 @@ class FQTermFrame: public QMainWindow {
   void langEnglish();
   void defaultSetting();
   void preference();
+  void shortcutSetting();
   void runScript();
+  void delayedRunScript(); // to avoid activate recursion guard
   void stopScript();
+  void runPyScript();
   void homepage();
 
   void toggleAnsiColor();
@@ -104,6 +112,8 @@ class FQTermFrame: public QMainWindow {
   void disconnect();
   void copy();
   void paste();
+  void googleIt();
+  void externalEditor();
   void copyRect();
   void copyColor();
   void copyArticle();
@@ -220,6 +230,9 @@ class FQTermFrame: public QMainWindow {
   QAction *actionNextWindow_;
   QAction *actionPrevWindow_;
 
+  QAction *actionGoogleIt_;
+  QAction *actionExternalEditor_;
+
   QSignalMapper* windowMapper_;
 
   FQTerm::StatusBar *statusBar_;
@@ -245,12 +258,14 @@ class FQTermFrame: public QMainWindow {
   QList<TranslatorInstaller*> installerList_;
 
   FQTermConfig * config_;
+  FQTermShortcutHelper * shortcutHelper_;
+  QString getShortcutText(int shortcut);
 
   FQTermMiniServerThread* serverThread_;
 
   //function
   //FQTermWindow * newWindow( const FQTermParam& param, int index=-1 );
-
+private:
   void newWindow(const FQTermParam &param, int index = -1);
 
   void closeEvent(QCloseEvent*);
@@ -273,6 +288,8 @@ class FQTermFrame: public QMainWindow {
   void insertThemeItem(QString);
   void setUseDock(bool);
 
+  void initAdditionalActions();
+
   void initTranslator();
   void clearTranslator();
   void connector();
@@ -281,6 +298,17 @@ class FQTermFrame: public QMainWindow {
   void loadStyleSheetFromFile(const QString qssFile);
   void refreshStyleSheet();
   void clearStyleSheet();
+
+#ifdef HAVE_PYTHON
+public:
+  FQTermPythonHelper* getPythonHelper() {
+    return pythonHelper_;
+  }
+//protected slots:
+private:
+  FQTermPythonHelper* pythonHelper_;
+  QAction* actionRunPythonScript_;
+#endif //HAVE_PYTHON
 };
 
 class TranslatorInstaller : public QObject

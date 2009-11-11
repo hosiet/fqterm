@@ -31,6 +31,10 @@
 #include <windows.h>
 #endif
 
+#ifdef HAVE_PYTHON
+#include <Python.h>
+#endif //HAVE_PYTHON
+
 #include <QString>
 #include <QTimer>
 #include <QMutex>
@@ -38,6 +42,9 @@
 #include <QtAlgorithms>
 #include <QChar>
 #include <QPair>
+#include <QReadLocker>
+#include <QWriteLocker>
+#include <QReadWriteLock>
 
 #include "fqterm.h"
 #include "common.h"
@@ -73,6 +80,7 @@ const QString  FQTermSession::endOfUrl[] = {
 };
 
 FQTermSession::FQTermSession(FQTermConfig *config, FQTermParam param) {
+  scriptListener_ = NULL;
   param_ = param;
   termBuffer_ = new FQTermBuffer(param_.numColumns_,
                                  param_.numRows_,
@@ -123,7 +131,7 @@ FQTermSession::FQTermSession(FQTermConfig *config, FQTermParam param) {
   autoReplyTimer_ = new QTimer;
   reconnectTimer_ = new QTimer;
 
-  acThread_ = new ArticleCopyThread(*this, waitCondition_);
+  acThread_ = new ArticleCopyThread(*this, waitCondition_, bufferWriteLock_);
 
   FQ_VERIFY(connect(reconnectTimer_, SIGNAL(timeout()),
                     this, SLOT(reconnect())));
@@ -179,11 +187,12 @@ void FQTermSession::setScreenStart(int nStart) {
 }
 
 bool FQTermSession::setCursorPos(const QPoint &pt, QRect &rc) {
-  QRect rectOld = getSelectRect();
+  QRect rectOld = getMenuRect();
 
   cursorPoint_ = pt;
 
-  QRect rectNew = getSelectRect();
+  detectMenuRect();
+  QRect rectNew = getMenuRect();
 
   rc = rectOld | rectNew;
 
@@ -318,7 +327,7 @@ FQTermSession::CursorType FQTermSession::getCursorType(const QPoint &pt) {
     return kNormal;
   }
 
-  QRect rc = getSelectRect();
+  QRect rc = getMenuRect();
   CursorType nCursorType = kNormal;
   switch (pageState_) {
     case Undefined:  // not recognized
@@ -404,9 +413,9 @@ FQTermSession::CursorType FQTermSession::getCursorType(const QPoint &pt) {
   return nCursorType;
 }
 
-bool FQTermSession::isSelected(int line) {
+bool FQTermSession::isSelectedMenu(int line) {
   // TODO: possible performance issue
-  QRect rect = getSelectRect();
+  QRect rect = getMenuRect();
 
   // nothing selected
   if (rect.isNull()) {
@@ -416,9 +425,9 @@ bool FQTermSession::isSelected(int line) {
   return line >= rect.bottom() && line <= rect.top();
 }
 
-bool FQTermSession::isSelected(const QPoint &pt) {
+bool FQTermSession::isSelectedMenu(const QPoint &pt) {
   // TODO: possible performance issue
-  QRect rect = getSelectRect();
+  QRect rect = getMenuRect();
 
   // nothing selected
   if (rect.isNull()) {
@@ -435,10 +444,22 @@ FQTermSession::PageState FQTermSession::getPageState() {
 char FQTermSession::getMenuChar() {
   return menuChar_;
 }
-//getSelectRect:
-QRect FQTermSession::getSelectRect() {
-  QRect rect(0, 0, 0, 0);
 
+void FQTermSession::setMenuRect(int row, int col, int len) {
+  menuRect_ = QRect(col, row, len, 1);
+}
+
+QRect FQTermSession::detectMenuRect() {
+  QRect rect(0, 0, 0, 0);
+  menuRect_ = rect;
+  if (scriptListener_) 
+  {
+    bool res = scriptListener_->postQtScriptCallback(SFN_DETECT_MENU);
+  #ifdef HAVE_PYTHON
+    res = scriptListener_->postPythonCallback(SFN_DETECT_MENU, Py_BuildValue("l", scriptListener_->windowID())) || res;
+  #endif  //HAVE_PYTHON
+    if (res) return menuRect_;
+  }
   // current screen scrolled
   if (screenStartLineNumber_ !=
       (termBuffer_->getNumLines() - termBuffer_->getNumRows())) {
@@ -567,7 +588,7 @@ QRect FQTermSession::getSelectRect() {
     default:
       break;
   }
-
+  menuRect_ = rect;
   return rect;
 }
 
@@ -820,7 +841,14 @@ void FQTermSession::autoReplyMessage() {
   if (pageState_ != Message) {
     return;
   }
-
+  if (scriptListener_) 
+  {
+    bool res = scriptListener_->postQtScriptCallback(SFN_AUTO_REPLY);
+#ifdef HAVE_PYTHON
+    res = scriptListener_->postPythonCallback(SFN_AUTO_REPLY, Py_BuildValue("l", scriptListener_->windowID())) || res;
+#endif  //HAVE_PYTHON
+    if (res) return;
+  }
   QByteArray cstrTmp = param_.replyKeyCombination_.toLocal8Bit();
   QByteArray cstr = parseString(cstrTmp.isEmpty() ? QByteArray("^Z"): cstrTmp);
   //cstr += m_param.m_strAutoReply.toLocal8Bit();
@@ -945,8 +973,13 @@ void FQTermSession::readReady(int size, int raw_size) {
       int last_size = telnet_data_.size();
       telnet_data_.resize(last_size + size);
       telnet_->read(&telnet_data_[0] + last_size, size);
-
-      int processed = decoder_->decode(&telnet_data_[0], telnet_data_.size());
+      int processed = 0;
+      {
+        while (!bufferWriteLock_.tryLockForWrite()) {}
+        //QWriteLocker locker(&bufferWriteLock_);
+        processed = decoder_->decode(&telnet_data_[0], telnet_data_.size());
+        bufferWriteLock_.unlock();
+      }
       telnet_data_.erase(telnet_data_.begin(), telnet_data_.begin() + processed);
     }
 
@@ -983,7 +1016,7 @@ void FQTermSession::readReady(int size, int raw_size) {
     strText = strText.trimmed();
 
     if (termBuffer_->getCaretRow() == termBuffer_->getNumRows() - 1
-        && termBuffer_->getCaretColumn() >= strText.length() - 1) {
+        && termBuffer_->getCaretColumn() >= (strText.length() - 1) / 2) {
       waitCondition_.wakeAll();
     }
 
@@ -996,54 +1029,37 @@ void FQTermSession::readReady(int size, int raw_size) {
       emit startAlert();
       emit bellReceived();
 
-      if (isAutoReply()) {
+      if (scriptListener_) {
+        scriptListener_->postQtScriptCallback(SFN_ON_BELL);
 #ifdef HAVE_PYTHON
-        if (!pythonCallback("autoReply", Py_BuildValue("(l)", this))) {
+        scriptListener_->postPythonCallback(SFN_ON_BELL, Py_BuildValue("l", scriptListener_->windowID()));
 #endif
+      }
+
+      if (isAutoReply()) {
           // TODO: save messages
           if (isIdling_) {
             autoReplyMessage();
           } else {
             autoReplyTimer_->start(param_.maxIdleSeconds_ *1000 / 2);
           }
-#ifdef HAVE_PYTHON
-        }
-#endif
       }
     }
 
     // set page state
     detectPageState();
-
-    emit sessionUpdated();
-
+    if (scriptListener_) {
+      scriptListener_->postQtScriptCallback(SFN_DATA_EVENT);
 #ifdef HAVE_PYTHON
-    // python
-    pythonCallback("dataEvent", Py_BuildValue("(l)", this));
+      scriptListener_->postPythonCallback(SFN_DATA_EVENT, Py_BuildValue("l", scriptListener_->windowID()));
 #endif
+    }
+    emit sessionUpdated();
   }
 
   if (zmodem_->transferstate == transferstop) {
     zmodem_->transferstate = notransfer;
   }
-}
-
-QByteArray FQTermSession::stripWhitespace(const QByteArray &cstr) {
-  QString cstrText = QString::fromLatin1(cstr);
-
-#if (QT_VERSION>=300)
-  int pos = cstrText.lastIndexOf(QRegExp("[\\S]"));
-#else
-  int pos = cstrText.lastIndexOf(QRegExp("[^\\s]"));
-#endif
-
-  if (pos == -1) {
-    cstrText = "";
-  } else {
-    cstrText.truncate(pos + 1);
-  }
-
-  return cstrText.toLatin1();
 }
 
 /* 0-left 1-middle 2-right 3-relsase 4/5-wheel
@@ -1247,63 +1263,6 @@ QByteArray FQTermSession::unicode2bbs_smart(const QString &text) {
   return strTmp;
 }
 
-#ifdef HAVE_PYTHON
-bool FQTermSession::pythonCallback(const QString &func, PyObject *pArgs) {
-  if (!isPythonScriptLoaded_) {
-    Py_DECREF(pArgs);
-    return false;
-  };
-
-  bool done = false;
-  // get the global lock
-  PyEval_AcquireLock();
-  // get a reference to the PyInterpreterState
-
-  //Python thread references
-  extern PyThreadState *mainThreadState;
-
-  PyInterpreterState *mainInterpreterState = mainThreadState->interp;
-  // create a thread state object for this thread
-  PyThreadState *myThreadState = PyThreadState_New(mainInterpreterState);
-  PyThreadState_Swap(myThreadState);
-
-  PyObject *pF = PyString_FromString(func.toLatin1());
-  PyObject *pFunc = PyDict_GetItem(pythonDict_, pF);
-  Py_DECREF(pF);
-
-  if (pFunc && PyCallable_Check(pFunc)) {
-    PyObject *pValue = PyObject_CallObject(pFunc, pArgs);
-    Py_DECREF(pArgs);
-    if (pValue != NULL) {
-      done = true;
-      Py_DECREF(pValue);
-    } else {
-      // TODO: fixme.
-      // QMessageBox::warning(this, "Python script error", getException());
-    }
-  } else {
-    PyErr_Print();
-    FQ_TRACE("session", 0) << "Cannot find python callback function: "
-                           << func;
-  }
-
-  // swap my thread state out of the interpreter
-  PyThreadState_Swap(NULL);
-  // clear out any cruft from thread state object
-  PyThreadState_Clear(myThreadState);
-  // delete my thread state object
-  PyThreadState_Delete(myThreadState);
-  // release the lock
-  PyEval_ReleaseLock();
-
-  if (func == "autoReply") {
-    // TODO: fixme
-    // paveViewMessage_->display("You have messages", PageViewMessage::Info, 0);
-  }
-
-  return done;
-}
-#endif //HAVE_PYTHON
 
 void FQTermSession::onIdle() {
   // do as autoreply when it is enabled
@@ -1315,11 +1274,14 @@ void FQTermSession::onIdle() {
 
   isIdling_ = true;
   // system script can handle that
+  if (scriptListener_) {
+    bool res = scriptListener_->postQtScriptCallback(SFN_ANTI_IDLE);
 #ifdef HAVE_PYTHON
-  if (pythonCallback("antiIdle", Py_BuildValue("(l)", this))) {
-    return ;
-  }
+    res = scriptListener_->postPythonCallback(SFN_ANTI_IDLE, Py_BuildValue("l", scriptListener_->windowID())) || res;
 #endif
+    if (res)
+      return;
+  }
   // the default function
   int length;
   QByteArray cstr = parseString(param_.antiIdleMessage_.toLocal8Bit(), &length);
@@ -1478,15 +1440,22 @@ void FQTermSession::onSSHAuthOK() {
     telnet_->windowSizeChanged(param_.numColumns_, param_.numRows_);
 }
 
+void FQTermSession::updateSetting( const FQTermParam p ) {
+  param_ = p;
+  setAntiIdle(isAntiIdle());
+}
+
 ArticleCopyThread::ArticleCopyThread(
-    FQTermSession &bbs, QWaitCondition &waitCondition)
+    FQTermSession &bbs, QWaitCondition &waitCondition, QReadWriteLock &bufferLock)
     : session_(bbs),
       waitCondition_(waitCondition),
-      mutex_(new QMutex()) {
+      lock_(bufferLock) {
+    FQ_VERIFY(connect(this, SIGNAL(writeSession(const QString&)), 
+                      &session_, SLOT(handleInput(const QString&)), 
+                      Qt::QueuedConnection));
 }
 
 ArticleCopyThread::~ArticleCopyThread() {
-  delete mutex_;
 }
 
 static void removeTrailSpace(QString &line) {
@@ -1531,7 +1500,7 @@ static std::pair<int, int> ParseLastLine(QString str) {
 
 
 void ArticleCopyThread::run() {
-  mutex_->lock();
+  QReadLocker locker(&lock_);
 
   typedef std::vector<QString> Page;
   const FQTermBuffer *buffer = session_.getBuffer();;
@@ -1542,8 +1511,9 @@ void ArticleCopyThread::run() {
   buffer->getTextLineInTerm(buffer->getNumRows() - 1)->getAllPlainText(firstPageLastLine);
   if (firstPageLastLine.indexOf("%") != -1) {
     MultiPage = true;
-    session_.write("e", 1);
-    if (!waitCondition_.wait(mutex_, 10000)) {
+    //session_.write("e", 1);
+    emit writeSession("e");
+    if (!waitCondition_.wait(&lock_, 10000)) {
       emit articleCopied(DAE_TIMEOUT, "");
       return;
     }
@@ -1559,8 +1529,9 @@ void ArticleCopyThread::run() {
       buffer->getTextLineInTerm(i - range.first)->getAllPlainText(strTemp);
       page[i - 1] = strTemp;
     }
-    session_.write("s", 1);
-    if (!waitCondition_.wait(mutex_, 10000)) {
+    //session_.write("s", 1);
+    emit writeSession("s");
+    if (!waitCondition_.wait(&lock_, 10000)) {
       emit articleCopied(DAE_TIMEOUT, "");
       return;
     }
@@ -1595,8 +1566,9 @@ void ArticleCopyThread::run() {
 
 
     // wait for next page.
-    session_.write(" ", 1);
-    if (!waitCondition_.wait(mutex_, 10000)) {
+    //session_.write(" ", 1);
+    emit writeSession(" ");
+    if (!waitCondition_.wait(&lock_, 10000)) {
       emit articleCopied(DAE_TIMEOUT, "");
       break;
     }
@@ -1614,7 +1586,6 @@ void ArticleCopyThread::run() {
 
   //qApp->postEvent(pWin, new QCustomEvent(DAE_FINISH));
   emit articleCopied(DAE_FINISH, articleText);
-  mutex_->unlock();
 }
 
 }  // namespace FQTerm

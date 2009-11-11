@@ -23,8 +23,8 @@
 
 #include <QList>
 #include <QObject>
-
 #include <QPoint>
+
 #include "fqterm_text_line.h"
 class QString;
 class QByteArray;
@@ -290,19 +290,6 @@ class FQTermBuffer: public QObject {
 
   // whether this buffer is used for a bbs session.
   bool is_bbs_;
-
-  public slots:
-    //APIs for script.
-    int caretX() const {return getCaretColumn();}
-    int caretY() const {return getCaretRow();}
-    int termWidth() const {return getNumColumns();}
-    int termHeight() const {return getNumRows();}
-    QString allPlainTextAt(int index) const;
-    QString plainTextAt(int index, int begin, int end) const;
-    const unsigned char *colorsAt(int index) const;
-    const unsigned char *attributesAt(int index) const;
-    QString allAnsiTextAt(int index, const char* escape = "\x1b\x1b[") const;
-    QString ansiTextAt(int index, int begin, int end, const char* escape = "\x1b\x1b[") const;
 }; 
 
 }  // namespace FQTerm

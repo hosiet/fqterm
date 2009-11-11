@@ -24,14 +24,19 @@
 #include <QMainWindow>
 #include <QCursor>
 #include <QString>
-
+#include <QProcess>
 #ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
+
+#ifdef HAVE_PYTHON
+#include <Python.h>
 #endif
 
 #include "fqterm_param.h"
 #include "fqterm_config.h"
 #include "fqterm_convert.h"
+#include "fqterm_session.h"
 
 class QCloseEvent;
 class QEvent;
@@ -39,12 +44,11 @@ class QKeyEvent;
 class QMouseEvent;
 class QMouseEvent; 
 class QProgressBar;
-class QScriptEngine;
 class QWheelEvent;
 
 namespace FQTerm {
 
-class QProgressDialog;
+//class QProgressDialog;
 class PageViewMessage;
 class FQTermConfig;
 class FQTermImage;
@@ -57,9 +61,27 @@ class FQTermSound;
 class FQTermWindow;
 class popWidget;
 class zmodemDialog;
+class FQTermScriptEngine;
 
+class FQTermExternalEditor : public QObject {
+  Q_OBJECT;
+public:
+  FQTermExternalEditor(QObject* parent);
+  ~FQTermExternalEditor();
+  void start();
+signals:
+  void done(const QString&);
+public slots:
+  void stateChanged(QProcess::ProcessState state);
+private:
+  QString getTempFilename();
+  void clearTempFileContent();
+  bool started_;
+  QProcess* editorProcess_;
+};
 
-class FQTermWindow: public QMainWindow {
+class FQTermWindow : public QMainWindow,
+                      public FQTermScriptEventListener {
   friend class FQTermScreen;
 
   Q_OBJECT;
@@ -88,14 +110,23 @@ class FQTermWindow: public QMainWindow {
   int externInput(const QString &);
   void getHttpHelper(const QString &, bool);
 
+  void openUrl(QString url);
+  void openUrlImpl(QString url);
 
   FQTermSession * getSession() const { return session_; }
-
-
-  QString pythonErrorMessage_;
-
+  FQTermScreen * getScreen() const {return screen_;}
   QPoint getUrlStartPoint() const { return urlStartPoint_; }
   QPoint getUrlEndPoint() const { return urlEndPoint_; }
+public:
+  //FQTermScriptEventListener
+  virtual bool postQtScriptCallback(const QString& func, const QScriptValueList & args = QScriptValueList());
+#ifdef HAVE_PYTHON
+  virtual bool postPythonCallback(const QString& func, PyObject* pArgs) {
+    return pythonCallback(func, pArgs);
+  }
+#endif //HAVE_PYTHON
+  virtual long windowID() {return long(this);}
+  //end FQTermScriptEventListener
 
 signals:
   void resizeSignal(FQTermWindow*);
@@ -108,6 +139,7 @@ signals:
   void paste();
   void openAsUrl();
   void googleIt();
+  void externalEditor();
   void copyArticle();
   void setting();
   void setColor();
@@ -132,11 +164,7 @@ signals:
 
   //  void sendMouseState(int, Qt::KeyboardModifier, Qt::KeyboardModifier, const
   //                    QPoint &);
-#ifdef HAVE_PYTHON
-  bool pythonCallback(const QString &, PyObject*);
-#endif
-  void pythonMouseEvent(int, Qt::KeyboardModifier, Qt::KeyboardModifier, const
-    QPoint &, int);
+
 
  protected slots:
   void setFont();
@@ -152,6 +180,8 @@ signals:
   void showSessionErrorMessage(QString);
 
   void blinkTab();
+
+  void externalEditorDone(const QString& str);
 
   //http menu
   void previewLink();
@@ -241,12 +271,8 @@ signals:
 
   bool isUrlUnderLined_;
 
-#ifdef HAVE_PYTHON
-  PyObject *pythonModule_,  *pythonDict_;
-#endif
-
-  QScriptEngine *script_engine_;  
-
+  FQTermScriptEngine *script_engine_;  
+  FQTermExternalEditor *externalEditor_;
  private:
   void addMenu();
   void saveSetting();
@@ -256,8 +282,7 @@ signals:
   //show ip location info if openUrlCheck is set
   void setCursorType(const QPoint& mousePosition);
 
-  void openUrl(QString url);
-  void openUrlImpl(QString url);
+
   void enterMenuItem();
   void processLClick(const QPoint& cellClicked);
 
@@ -270,15 +295,40 @@ signals:
   void sendKey(const int key, const Qt::KeyboardModifiers modifier,
                const QString &text);
 
-  QScriptEngine *getScriptEngine();
-  void clearScriptEngine();
+  bool scriptKeyEvent(QKeyEvent *keyevent);
+  bool scriptMouseEvent(QMouseEvent *mouseevent);
+  bool scriptWheelEvent(QWheelEvent *wheelevent);
 
   public slots:
     //for script
     int writeString(const QString& str) {return externInput(str);}
+    int writeRawString(const QString& str);
+    
+
+
+//python support
+#ifdef HAVE_PYTHON
+public:
+  QString getPythonErrorMessage() {
+    return pythonErrorMessage_;
+  }
+  void runPythonScript();
+  void runPythonScriptFile(const QString&);
+protected:
+	bool pythonCallback(const QString &, PyObject*);
+	int runPythonFile(const QString& file);
+  void initPython(const QString& file);
+  void finalizePython();
+  //void sendMouseState(int, ButtonState, ButtonState, const QPoint&);
+private:
+	PyObject *pModule, *pDict;
+  bool pythonScriptLoaded_;
+  QString pythonErrorMessage_;
+#endif
 
 };
 
 }  // namespace FQTerm
 
 #endif  // FQTERM_WINDOW_H
+

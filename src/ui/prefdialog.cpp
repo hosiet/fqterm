@@ -72,6 +72,7 @@ void prefDialog::connectSlots() {
   FQ_VERIFY(connect(ui_.imagePushButton, SIGNAL(clicked()), this, SLOT(onImage())));
   FQ_VERIFY(connect(ui_.poolPushButton, SIGNAL(clicked()), this, SLOT(onPool())));
   FQ_VERIFY(connect(ui_.styleSheetPushButton, SIGNAL(clicked()), this, SLOT(onStyleSheet())));
+  FQ_VERIFY(connect(ui_.editorPushButton, SIGNAL(clicked()), this, SLOT(onEditor())));
 }
 
 void prefDialog::loadSetting() {
@@ -153,6 +154,12 @@ void prefDialog::loadSetting() {
 
   strTmp = config_->getItemValue("preference", "qssfile");
   ui_.styleSheetLineEdit->setText(strTmp);
+
+  strTmp = config_->getItemValue("preference", "editor");
+  ui_.editorLineEdit->setText(strTmp);
+
+  strTmp = config_->getItemValue("preference", "editorarg");
+  ui_.editorArgLineEdit->setText(strTmp);
 }
 
 void prefDialog::saveSetting() {
@@ -221,6 +228,8 @@ void prefDialog::saveSetting() {
 
   config_->setItemValue("preference", "qssfile", ui_.styleSheetLineEdit->text().trimmed());
 
+  config_->setItemValue("preference", "editor", ui_.editorLineEdit->text());
+  config_->setItemValue("preference", "editorarg", ui_.editorArgLineEdit->text());
   config_->save(getPath(USER_CONFIG) + "fqterm.cfg");
 }
 
@@ -293,6 +302,13 @@ void prefDialog::onStyleSheet()
   QString qssFile = fileDialog_->getOpenName("Choose a QSS File", "Qt Style Sheets (*.qss *.QSS)");
   if (!qssFile.isEmpty()) {
     ui_.styleSheetLineEdit->setText(qssFile);
+  }
+}
+
+void prefDialog::onEditor() {
+  QString editor = fileDialog_->getOpenName("Choose a directory", ui_.editorLineEdit->text());
+  if (!editor.isEmpty()) {
+    ui_.editorLineEdit->setText(editor);
   }
 }
 }  // namespace FQTerm

@@ -53,6 +53,8 @@ SSHLoginDialog::SSHLoginDialog(QString *username, QString *password,
 
   FQ_VERIFY(connect(ui_.bOK, SIGNAL(clicked()), this, SLOT(accept())));
   FQ_VERIFY(connect(ui_.bCancel, SIGNAL(clicked()), this, SLOT(reject())));
+  FQ_VERIFY(connect(ui_.leUserName, SIGNAL(returnPressed()), this, SLOT(moveFocus())));
+  FQ_VERIFY(connect(ui_.lePassword, SIGNAL(returnPressed()), this, SLOT(accept())));
 }
 
 /*  
@@ -66,6 +68,11 @@ void SSHLoginDialog::accept() {
 	*strUserName = ui_.leUserName->text();
 	*strPassword = ui_.lePassword->text();
 	QDialog::accept();
+}
+
+void SSHLoginDialog::moveFocus()
+{
+  ui_.lePassword->setFocus();
 }
 
 }  // namespace FQTerm

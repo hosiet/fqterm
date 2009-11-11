@@ -67,7 +67,7 @@ quickDialog::~quickDialog() {
 }
 
 void quickDialog::closeEvent(QCloseEvent*) {
-  config_->save(getPath(USER_CONFIG) + "qterm.cfg");
+  config_->save(getPath(USER_CONFIG) + "fqterm.cfg");
   reject();
 }
 

@@ -18,6 +18,8 @@ set(fqterm_common_SRCS
   fqterm_exif_extractor.cpp
   fqterm_filedialog.h
   fqterm_filedialog.cpp
+  fqterm_shortcuthelper.h
+  fqterm_shortcuthelper.cpp
 )
 
 qt4_automoc(${fqterm_common_SRCS})

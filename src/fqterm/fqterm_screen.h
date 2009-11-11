@@ -97,7 +97,16 @@ class FQTermScreen: public QWidget {
   /*void clearPaintState() {
       paintState_ = None;
   }*/
+  // Buffer cell coordinate to screen pixel.
+  int getBufferStart() {return bufferStart_;}
+  QPoint mapToPixel(const QPoint &);
 
+  // Screen pixel coordinate to buffer cell coordinate.
+  QPoint mapToChar(const QPoint &);
+
+  // Buffer cell coordinate to screen pixel.
+  QRect mapToRect(int, int, int, int);
+  QRect mapToRect(const QRect &);
  private:
   int paintState_;
   void updateWidgetRect(QPainter& painter);
@@ -163,15 +172,7 @@ class FQTermScreen: public QWidget {
   //screen size, in pixel.
   QSize getScreenSize() const;
 
-  // Buffer cell coordinate to screen pixel.
-  QPoint mapToPixel(const QPoint &);
 
-  // Screen pixel coordinate to buffer cell coordinate.
-  QPoint mapToChar(const QPoint &);
-
-  // Buffer cell coordinate to screen pixel.
-  QRect mapToRect(int, int, int, int);
-  QRect mapToRect(const QRect &);
 
   void updateFont();
   void setFontMetrics();
@@ -258,35 +259,6 @@ class FQTermScreen: public QWidget {
 
   friend class FQTermWindow;
   // for test only
-  public slots:
-    //for script.
-    int clientWidth() const {return clientRectangle_.width();}
-    int clientHeight() const {return clientRectangle_.height();}
-    QList<int> mapCharToPixel(int x, int y) 
-    {QList<int> plist; QPoint bt = mapToChar(QPoint(0, 0)); QPoint pt = mapToPixel(QPoint(x , y + bt.y())); plist << pt.x() << pt.y(); return plist;}
-    QList<int> mapPixelToChar(int x, int y) 
-    {QList<int> plist; QPoint bt = mapToChar(QPoint(0, 0)); QPoint pt = mapToChar(QPoint(x, y)); plist << pt.x()  << pt.y() - bt.y(); return plist;}
-signals:
-    //Value in Qt                   Mapped value
-    //Qt::NoModifier                0x00000000
-    //Qt::ShiftModifier             0x02000000
-    //Qt::ControlModifier           0x04000000
-    //Qt::AltModifier               0x08000000
-    //Qt::MetaModifier              0x10000000
-    //Qt::KeypadModifier            0x20000000
-    //Qt::GroupSwitchModifier       0x40000000
-    void keyPressEvent(int modifiers, int key);
-    //QEvent::MouseButtonPress      0
-    //QEvent::MouseButtonRelease    1
-    //QEvent::MouseButtonDblClick   2
-    //QEvent::MouseMove             3
-    //Qt::NoButton                  0x00000000
-    //Qt::LeftButton                0x00000001
-    //Qt::RightButton               0x00000002
-    //Qt::MidButton                 0x00000004
-    //Qt::XButton1                  0x00000008
-    //Qt::XButton2                  0x00000010
-    void mouseEvent(int type, int x, int y, int button, int buttons, int modifiers);
 };
 
 }  // namespace FQTerm

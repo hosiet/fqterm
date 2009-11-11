@@ -1,5 +1,5 @@
 ;--------------------------------
-!define FQTERMDIR E:\QtProjects\fqterm\newTrunk
+!define FQTERMDIR F:\build_fqterm\fqterm
 
 ;--------------------------------
 
@@ -66,6 +66,7 @@ Section "" ; empty string makes it hidden, so would starting with -
   CreateDirectory "$INSTDIR\pic\ViewerButtons"
   CreateDirectory "$INSTDIR\schema"
   CreateDirectory "$INSTDIR\userconf"
+  CreateDirectory "$INSTDIR\script"
   CreateDirectory "$APPDATA\FQTerm"
   CreateDirectory "$APPDATA\FQTerm\pool"
   CreateDirectory "$APPDATA\FQTerm\pool\shadow-cache"
@@ -89,9 +90,10 @@ Section "-CopyFiles"
   SetOutPath "$INSTDIR"
   File "${FQTERMDIR}\build\release\fqterm.exe"
   File "${FQTERMDIR}\build\release\libeay32.dll"
-  File "${FQTERMDIR}\build\release\msvcr80.dll"
-  File "${FQTERMDIR}\build\release\msvcp80.dll"
-  File "${FQTERMDIR}\build\release\Microsoft.VC80.CRT.manifest"
+  File "${FQTERMDIR}\build\release\msvcr*.dll"
+  File "${FQTERMDIR}\build\release\msvcp*.dll"
+  File "${FQTERMDIR}\build\release\msvcm*.dll"
+  File "${FQTERMDIR}\build\release\Microsoft.*.CRT.manifest"
   File "${FQTERMDIR}\build\release\QQWry.Dat"
   SetOutPath "$INSTDIR\dict"
   File "${FQTERMDIR}\build\*.qm"
@@ -111,6 +113,8 @@ Section "-CopyFiles"
   SetOutPath "$INSTDIR\userconf"
   File "${FQTERMDIR}\res\userconf\*.*"
 
+  SetOutPath "$INSTDIR\script"
+  File "${FQTERMDIR}\res\script\*.*"
 SectionEnd
 
 

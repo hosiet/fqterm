@@ -52,6 +52,9 @@ class FQTermWndMgr: public QMdiArea {
 
 
   FQTermWindow *activeWindow();
+  int activeWindowIndex() {
+    return FQToIndex(activeWindow());
+  }
   FQTermWindow *nthWindow(int n);
   int count();
 

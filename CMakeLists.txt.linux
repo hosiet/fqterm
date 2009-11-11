@@ -73,6 +73,7 @@ target_link_libraries(fqterm.bin
   ${QT_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${AUDIO_LIBRARY}
+  ${PYTHON_LIB}
 )
 
 add_dependencies(fqterm.bin
