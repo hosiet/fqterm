@@ -23,10 +23,6 @@
 
 #include <vector>
 
-#ifdef HAVE_PYTHON
-#include <Python.h>
-#endif
-
 #include <QPoint>
 #include <QRect>
 #include <QObject>
@@ -34,18 +30,28 @@
 #include <QString>
 #include <QWaitCondition>
 #include <QList>
-
+#include <QtScript/QScriptValue>
+#include <QReadWriteLock>
 #include "fqterm_param.h"
 #include "fqterm_config.h"
 #include "fqterm_convert.h"
-#include "fqterm_python.h"
 
 class QRect;
 class QTimer;
-class QMutex;
+
 
 namespace FQTerm {
 
+class FQTermScriptEventListener {
+public:
+  virtual bool postQtScriptCallback(const QString& func, const QScriptValueList & args = QScriptValueList()) = 0;
+#ifdef HAVE_PYTHON
+  virtual bool postPythonCallback(const QString& func, PyObject* pArgs) = 0;
+#endif //HAVE_PYTHON
+  virtual long windowID() = 0;
+  virtual ~FQTermScriptEventListener() {}
+};
+ 
 struct LineColorInfo {
   bool hasBackgroundColor;
   bool hasForegroundColor;
@@ -109,59 +115,165 @@ class FQTermSession: public QObject {
   static const QString endOfUrl[];
 
   static const QString protocolPrefix[];
-  void detectPageState();
   PageState getPageState();
-
 
   // Set current cursor postion to pt,
   // return whether the selection rectangle is changed.
   // the output parameter rc be a rectangle including both
   // the new and the old selection region.
   bool setCursorPos(const QPoint &pt, QRect &rc);
-  // Get current selection rectangle.
-  // also detect the menu char if in kMenu page state.
-  QRect getSelectRect();
+  CursorType getCursorType(const QPoint &);
+
   // Get the menu char detected in getSelectRect().
   char getMenuChar();
 
+  // Get current selection rectangle.
+  // also detect the menu char if in kMenu page state.
+  QRect detectMenuRect();
+  QRect getMenuRect() {return menuRect_;}
+  void setMenuRect(int row, int col, int len);
   // detect whether the given line or point is contained by current selection rectangle.
-  bool isSelected(int line);
-  bool isSelected(const QPoint &);
+  bool isSelectedMenu(int line);
+  bool isSelectedMenu(const QPoint &);
+  //selection.
+  void setSelect(const QPoint &pt1, const QPoint &pt2);
+  void clearSelect();
 
   bool isUrl(QRect &, QRect &);
   bool isIP(QRect &, QRect &);
-  bool checkUrl(QRect &, QRect &, bool);
   QString getUrl();
   QString getIP();
 
-  bool isPageComplete();
 
-  bool readyForInput();
 
   // Set current screen start line to help detect cursor type
   // and select rectangle corresponding to current cursor postion.
   void setScreenStart(int);
-  CursorType getCursorType(const QPoint &);
 
-  void setSelect(const QPoint &pt1, const QPoint &pt2);
-  void clearSelect();
 
-  QString getMessage();
 
   // Set a line of buffer to have been changed from start to end.
   void clearLineChanged(int index);
   void setLineAllChanged(int index);
 
+  bool isAntiIdle();
+  void setAntiIdle(bool antiIdle);
+  void leaveIdle();
+
+  bool isAutoReply();
+  void setAutoReply(bool autoReply);
+  QString getMessage();
+
+  bool readyForInput();
   void setTermSize(int col, int row);
 
- private:
+  QWaitCondition& getWaitCondition() {return waitCondition_;};
+  //this function will do
+  //1. convert unicode to bbs encoding
+  //2. if there are some chars express same meaning in simplify/traditional
+  //Chinese, auto covert them by considering ime/bbs encoding.
+  QByteArray unicode2bbs_smart(const QString &);
+  QString bbs2unicode(const QByteArray &text);
+  QByteArray unicode2bbs(const QString &text);
+
+  // Write data raw data
+  int write(const char *data, int len);
+  int writeStr(const char *str);
+
+  // type: 0-no proxy; 1-wingate; 2-sock4; 3-socks5
+  // needAuth: if authentation needed
+  void setProxy(int type, bool needAuth,
+    const QString &hostname, quint16 portNumber,
+    const QString &username, const QString &password);
+  // User close the connection
+  void close();
+
+  bool isConnected() {return isConnected_;}
+  void setSendingMessage(bool sending = true) {isSendingMessage_ = sending;}
+  const QPoint& urlStartPoint() {return urlStartPoint_;}
+  const QPoint& urlEndPoint() {return urlEndPoint_;}
+
+  FQTermParam& param() {return param_;}
+  void updateSetting(const FQTermParam p);
+  QReadWriteLock& getBufferLock() {return bufferWriteLock_;}
+
+ public:
+
+
+ public slots:
+  FQTermBuffer *getBuffer() const;
+  void connectHost(const QString &hostname, quint16 portnumber);
+  void reconnect();
+  void disconnect();
+
+  void cancelZmodem();
+  void changeTelnetState(int state);
+
+  void handleInput(const QString &text);
+
+  void copyArticle();
+
+ signals:
+  void messageAutoReplied();
+  void articleCopied(int state, const QString content);
+  void sessionUpdated();
+  void connectionClosed();
+  void bellReceived();
+  void startAlert();
+  void stopAlert();
+
+  void requestUserPwd(QString *user, QString *pwd, bool *isOK);
+
+  void telnetStateChanged(int state);
+  void zmodemStateChanged(int type, int value, const char *status);
+
+  void errorMessage(QString);
+
+private slots:
+  void readReady(int size, int raw_size);
+  void onIdle();
+  void onAutoReply();
+  void onEnqReceived();
+  void onSSHAuthOK();
+  void setMouseMode(bool on);
+
+private:
+  void sendMouseState(int, Qt::KeyboardModifier, Qt::KeyboardModifier, const QPoint &);
   void getLineColorInfo(const FQTermTextLine * line, LineColorInfo * colorInfo);
   bool isIllChar(char);
+  void detectPageState();
+  QString expandUrl(const QPoint& pt, QPair<int, int>& range);
+  bool checkUrl(QRect &, QRect &, bool);
+  QByteArray parseString(const QByteArray &cstr, int *len = 0);
+  void finalizeConnection();
+  bool isPageComplete();
+  void autoReplyMessage();
+  void reconnectProcess();
+  void doAutoLogin();
+
+private:
+  //this read-write lock will be locked as a writer's lock if the buffer is being changed
+  //so for a reader who wants to ensure thread-safe, he should lock
+  //this lock as a reader's lock.
+  mutable QReadWriteLock bufferWriteLock_;
+
+  FQTermParam param_;
+  FQTermConvert encodingConverter_;
+  bool isTelnetLogining_;
+  bool isSSHLogining_;
+
+  bool isIdling_;
+  bool isMouseX11_;
+  bool isConnected_;
+  bool isSendingMessage_;
 
   QRect urlRect_;
+  QPoint urlStartPoint_;
+  QPoint urlEndPoint_;
   QString url_;
   QString ip_;
   char menuChar_;
+  QRect menuRect_;
   PageState pageState_;
   QPoint cursorPoint_;
   int screenStartLineNumber_;
@@ -181,133 +293,31 @@ class FQTermSession: public QObject {
   std::vector<char> telnet_data_;
   std::vector<char> raw_data_;
 
- public:
-  FQTermParam param_;
-
-  bool isConnected_;
-
-
-  bool isSendingMessage_;
-
-  QPoint urlStartPoint_;
-  QPoint urlEndPoint_;
-
-
-#ifdef HAVE_PYTHON
-  PyObject *pythonModule_,  *pythonDict_;
-#endif
-
- public:
-  bool isAntiIdle();
-  void setAntiIdle(bool antiIdle);
-  bool isAutoReply();
-  void setAutoReply(bool autoReply);
-  void leaveIdle();
-
-  void autoReplyMessage();
-  void reconnectProcess();
-  void sendMouseState(int, Qt::KeyboardModifier, Qt::KeyboardModifier, const QPoint &);
-
-  void doAutoLogin();
-
-  QString bbs2unicode(const QByteArray &text);
-  QByteArray unicode2bbs(const QString &text);
-
-  //this function will do
-  //1. convert unicode to bbs encoding
-  //2. if there are some chars express same meaning in simplify/traditional
-  //Chinese, auto covert them by considering ime/bbs encoding.
-  QByteArray unicode2bbs_smart(const QString &);
-
-  // Write data raw data
-  int write(const char *data, int len);
-  int writeStr(const char *str);
-
-  // type: 0-no proxy; 1-wingate; 2-sock4; 3-socks5
-  // needAuth: if authentation needed
-  void setProxy(int type, bool needAuth,
-                const QString &hostname, quint16 portNumber,
-                const QString &username, const QString &password);
-  // User close the connection
-  void close();
-
-#ifdef HAVE_PYTHON
-  bool pythonCallback(const QString &, PyObject*);
-#endif
-
-  QByteArray stripWhitespace(const QByteArray &cstr);
-
- public slots:
-  FQTermBuffer *getBuffer() const;
-  void connectHost(const QString &hostname, quint16 portnumber);
-  void reconnect();
-  void disconnect();
-
-  void cancelZmodem();
-  void changeTelnetState(int state);
-
-  void handleInput(const QString &text);
-
-  void copyArticle();
-
-  void setMouseMode(bool on);
-
- signals:
-  void messageAutoReplied();
-  void articleCopied(int state, const QString content);
-  void sessionUpdated();
-  void connectionClosed();
-  void bellReceived();
-  void startAlert();
-  void stopAlert();
-
-  void requestUserPwd(QString *user, QString *pwd, bool *isOK);
-
-  void telnetStateChanged(int state);
-  void zmodemStateChanged(int type, int value, const char *status);
-
-  void errorMessage(QString);
-
- private slots:
-  void readReady(int size, int raw_size);
-  void onIdle();
-  void onAutoReply();
-  void onEnqReceived();
-  void onSSHAuthOK();
-
- private:
-  QString expandUrl(const QPoint& pt, QPair<int, int>& range);
-
-  QByteArray parseString(const QByteArray &cstr, int *len = 0);
-
-
-  void finalizeConnection();
-  FQTermConvert encodingConverter_;
-
-  bool isTelnetLogining_;
-  bool isSSHLogining_;
-
-  bool isIdling_;
-  bool isMouseX11_;
+public:
+  void setScriptListener(FQTermScriptEventListener* pythonListener) {
+    scriptListener_ = pythonListener;
+  }
+private:
+  FQTermScriptEventListener* scriptListener_;
 };
 
 class ArticleCopyThread: public QThread {
   Q_OBJECT;
  public:
-  ArticleCopyThread(FQTermSession &bbs, QWaitCondition &waitCondition);
+  ArticleCopyThread(FQTermSession &bbs, QWaitCondition &waitCondition, QReadWriteLock &bufferLock);
 
   ~ArticleCopyThread();
 
  signals:
   void articleCopied(int state, const QString content);
-
+  void writeSession(const QString&);
  protected:
   virtual void run();
  private:
   FQTermSession &session_;
   QWaitCondition &waitCondition_;
 
-  QMutex *mutex_;
+  QReadWriteLock &lock_;
 };
 
 }  // namespace FQTerm

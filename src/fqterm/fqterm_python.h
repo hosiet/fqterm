@@ -18,48 +18,36 @@
  *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
-#ifndef FQTERM_PREF_DIALOG_H
-#define FQTERM_PREF_DIALOG_H
+#ifndef FQTERM_PYTHON_H
+#define FQTERM_PYTHON_H
 
-#include "ui_prefdialog.h"
-#include "fqterm_filedialog.h"
+#include "fqterm.h"
 
-class QCloseEvnt;
+#ifdef HAVE_PYTHON
+#include <Python.h>
 
 namespace FQTerm {
 
-class FQTermConfig;
+class FQTermWindow;
+extern QString getException();
+extern QString getErrOutputFile(FQTermWindow*);
+extern PyMethodDef fqterm_methods[];
 
-class prefDialog: public QDialog {
-  Q_OBJECT;
- public:
-  prefDialog(FQTermConfig *, QWidget *parent_ = 0, Qt::WFlags fl = 0);
-  ~prefDialog();
-
- protected slots:
-  void onOK();
-  void onCancel();
-  void onSound();
-  void onHttp();
-  // 	void onBeep(int);
-  void onBrowse();
-  void onImage();
-  void onPool();
-  void onStyleSheet();
-  void onEditor();
- protected:
-  void closeEvent(QCloseEvent*);
-  void connectSlots();
-  void loadSetting();
-  void saveSetting();
-
- private:
-  Ui::prefDialog ui_;
-  QButtonGroup soundButtonGroup_;
-  FQTermConfig * config_;
-  FQTermFileDialog *fileDialog_;
+class FQTermPythonHelper
+{
+public:
+  FQTermPythonHelper();
+  ~FQTermPythonHelper();
+  PyThreadState* getPyThreadState() {
+    return mainThreadState_;
+  }
+private:
+  PyThreadState * mainThreadState_;
 };
 
 }  // namespace FQTerm
 
-#endif  // FQTERM_PREF_DIALOG_H
+#endif  // HAVE_PYTHON
+
+#endif  // FQTERM_PYTHON_H
+

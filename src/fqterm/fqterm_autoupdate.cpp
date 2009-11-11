@@ -47,7 +47,7 @@ static int versionCompare(QString lhs, QString rhs) {
   QStringList lhsList = lhs.split(".");
   QStringList rhsList = rhs.split(".");
   if (lhsList.size() != 3 || rhsList.size() != 3) {
-    return 1; //something is wrong, maybe update could solve it.
+    return 0; //something is wrong
   }
   for (int i = 0; i < 3; ++i) {
     if (lhsList[i].toInt() < rhsList[i].toInt()) {
@@ -87,11 +87,11 @@ void FQTermAutoUpdater::checkUpdate() {
 
 QString FQTermAutoUpdater::getNewestVersion() {
 #if defined(WIN32)
-  const QString platform = "Win";
+  const QString platform = "FQWin";
 #elif defined(__unix__) && !defined(__APPLE__)
-  const QString platform = "Linux";
+  const QString platform = "FQLinux";
 #else
-  const QString platform = "Mac";
+  const QString platform = "FQMac";
 #endif
   FQTermConfig versionInfo(FQTermPref::getInstance()->poolDir_ + "VersionInfo");
   QString ver = versionInfo.getItemValue(platform, "version");

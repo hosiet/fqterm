@@ -299,7 +299,7 @@ void addrDialog::onChooseScript() {
   QString path = getPath(USER_CONFIG) + "script";
 
   QString strFile = QFileDialog::getOpenFileName(this, "choose a script file",
-                                                 path, "JavaScript File (*.js)");
+                                                 path, "JavaScript/Python File (*.js *.py)");
 
   if (strFile.isNull()) {
     return ;

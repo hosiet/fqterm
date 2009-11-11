@@ -50,6 +50,7 @@ target_link_libraries(fqterm.bin
   ${QT_QTSCRIPT_LIBRARIES}  
   ${QT_LIBRARIES}
   ${OPENSSL_LIBRARIES}
+  ${PYTHON_LIB}
 )
 
 add_dependencies(fqterm.bin

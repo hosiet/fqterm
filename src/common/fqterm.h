@@ -286,6 +286,37 @@ const char ANSWERBACK_MESSAGE[] = "This is fqterm.";
 #define ID_HELP_ABOUT       0x60
 #define ID_HELP_HOMEPAGE    0x61
 
+//for open last addr
+#define LAST_ADDRESS_INDEX  -321
+
+//script function names:
+#define SFN_ANTI_IDLE       "antiIdle"
+#define SFN_ON_BELL         "onBell"
+#define SFN_AUTO_REPLY      "autoReply"
+#define SFN_DATA_EVENT      "dataEvent"
+#define SFN_KEY_EVENT       "keyEvent"
+#define SFN_MOUSE_EVENT     "mouseEvent"
+#define SFN_DETECT_MENU     "detectMenu"
+
+//script key event type
+#define SKET_KEY_PRESS      0
+
+//script mouse event type
+#define SMET_UNKOWN         -1
+#define SMET_MOUSE_PRESS    0
+#define SMET_MOUSE_RELEASE  1
+#define SMET_MOUSE_MOVE     2
+#define SMET_MOUSE_DBCLICK  3
+#define SMET_WHEEL          4
+
+//script button state & key modifier
+#define SBS_LEFT_BUTTON     0x01
+#define SBS_RIGHT_BUTTON    0x02
+#define SBS_MID_BUTTON      0x04
+#define SBS_ALT             0x08
+#define SBS_CTRL            0x10
+#define SBS_SHIFT           0x20
+
 }  // namespace FQTerm
 
 #endif  // FQTERM_GLOBAL_H

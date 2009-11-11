@@ -39,6 +39,8 @@ set(fqterm_ui_SRCS
   fqterm_tool_button.cpp
   imageviewer.h
   imageviewer.cpp
+  shortcutdialog.h
+  shortcutdialog.cpp
   statusBar.h
   statusBar.cpp
   fqterm_canvas.h

@@ -45,7 +45,18 @@ ADD_EXECUTABLE(fqterm
 if(FQTERM_USE_STATIC_QT)
   set(FQ_QT_STATIC_PLUGINS
   qcncodecs qjpcodecs qkrcodecs qtwcodecs
-  qjpeg qgif qmng
+  qjpeg qgif qmng 
+  )
+  set(SOUND_LIBRARIES
+  "winmm.lib"
+  )
+
+  set(NETWORK_LIBRARIES
+  "ws2_32.lib"
+  )
+
+  set(IME_LIBRARIES
+  "Imm32.lib"
   )
 endif(FQTERM_USE_STATIC_QT)
 
@@ -55,6 +66,10 @@ target_link_libraries(fqterm
   ${QT_QTSCRIPT_LIBRARIES}  
   ${OPENSSL_LIBRARIES}
   ${FQ_QT_STATIC_PLUGINS}
+  ${PYTHON_LIB}
+  ${SOUND_LIBRARIES}
+  ${NETWORK_LIBRARIES}
+  ${IME_LIBRARIES}
 )
 
 add_dependencies(fqterm

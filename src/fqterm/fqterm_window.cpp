@@ -32,14 +32,15 @@
 #include <QImageReader>
 #include <QMenu>
 #include <QMessageBox>
-#include <QScriptEngine>
 #include <QStatusBar>
 #include <QTextEdit>
 #include <QTimer>
 #include <QUrl>
-
+#include <QtScript/QScriptValue>
 #include <QMdiArea>
 #include <QMdiSubWindow>
+#include <QTemporaryFile>
+#include <QRegExp>
 
 #include "addrdialog.h"
 #include "articledialog.h"
@@ -67,7 +68,8 @@
 #include "sshlogindialog.h"
 #include "statusBar.h"
 #include "zmodemdialog.h"
-
+#include "fqterm_python.h"
+#include "fqterm_scriptengine.h"
 namespace FQTerm {
 
 char FQTermWindow::directions_[][5] =  {
@@ -108,7 +110,15 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
       isMouseClicked_(false),
       blinkStatus_(true),
       isUrlUnderLined_(false),
-      script_engine_(NULL) {
+#ifdef HAVE_PYTHON
+      // the system wide script
+      pythonScriptLoaded_(false),
+      // python thread module
+      pModule(NULL),
+      pDict(NULL),
+#endif
+      script_engine_(NULL),
+      externalEditor_(NULL) {
   // isMouseX11_ = false;
   session_ = new FQTermSession(config, param);
   screen_ = new FQTermScreen(this, session_);
@@ -116,7 +126,7 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
   config_ = config;
   zmodemDialog_ = new zmodemDialog(this);
 
-
+  externalEditor_ = new FQTermExternalEditor(this);
 
   ipDatabase_ = new FQTermIPLocation(getPath(USER_CONFIG));
   if (!ipDatabase_->haveFile()) {
@@ -187,6 +197,8 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
 
   FQ_VERIFY(connect(tabBlinkTimer_, SIGNAL(timeout()), this, SLOT(blinkTab())));
 
+  FQ_VERIFY(connect(externalEditor_, SIGNAL(done(const QString&)), this, SLOT(externalEditorDone(const QString&))));
+
 #if defined(WIN32)
   popWindow_ = new popWidget(this, frame_);
 #else
@@ -213,14 +225,31 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
       QPixmap(resource_dir + "cursor/hand.xpm"));
   cursors_[FQTermSession::kNormal] = Qt::ArrowCursor;
 
-  if  (session_->param_.isAutoLoadScript_
-       && !session_->param_.autoLoadedScriptFileName_.isEmpty()) {
-    const QString &filename = session_->param_.autoLoadedScriptFileName_;
-    runScript(filename);    
+  script_engine_ = new FQTermScriptEngine(this);
+  if  (session_->param().isAutoLoadScript_
+       && !session_->param().autoLoadedScriptFileName_.isEmpty()) {
+    const QString &filename = session_->param().autoLoadedScriptFileName_;
+#ifdef HAVE_PYTHON
+    if (filename.trimmed().endsWith(".py", Qt::CaseInsensitive)){
+      initPython(filename);
+    } else {
+      initPython("");
+#endif
+      runScript(filename);    
+#ifdef HAVE_PYTHON
+    }
+  } else {
+    initPython("");
+#endif //HAVE_PYTHON
   }
+  session_->setScriptListener(this);
 }
 
 FQTermWindow::~FQTermWindow() {
+#ifdef HAVE_PYTHON
+  finalizePython();
+#endif //HAVE_PYTHON
+  script_engine_->finalizeScript();
   //  delete telnet_;
   delete session_;
   delete popWindow_;
@@ -230,7 +259,7 @@ FQTermWindow::~FQTermWindow() {
   delete screen_;
   delete ipDatabase_;
   delete pageViewMessage_;
-  delete script_engine_;
+  //delete script_engine_;
 }
 
 void FQTermWindow::addMenu() {
@@ -258,7 +287,7 @@ void FQTermWindow::addMenu() {
                    this, SLOT(paste()), paste_shortcut);
 
   menu_->addAction(QPixmap(resource_dir+"pic/get_article_fulltext.png"), tr("Copy Article"),
-                   this, SLOT(copyArticle()), tr("F9"));
+                   this, SLOT(copyArticle()));
   menu_->addSeparator();
 
   QMenu *fontMenu = new QMenu(menu_);
@@ -402,10 +431,11 @@ bool FQTermWindow::event(QEvent *qevent) {
 }
 
 void FQTermWindow::mouseDoubleClickEvent(QMouseEvent *mouseevent) {
-  //pythonMouseEvent(3, me->button(), me->state(), me->pos(),0);
+  scriptMouseEvent(mouseevent);
 }
 
 void FQTermWindow::mousePressEvent(QMouseEvent *mouseevent) {
+  if (scriptMouseEvent(mouseevent)) return;
   // stop  the tab blinking
   stopBlink();
 
@@ -457,14 +487,12 @@ void FQTermWindow::mousePressEvent(QMouseEvent *mouseevent) {
 
   // xterm mouse event
   //session_->sendMouseState(0, me->button(), me->state(), me->pos());
-
-  // python mouse event
-  //pythonMouseEvent(0, me->button(), me->state(), me->pos(),0);
-
 }
 
 
 void FQTermWindow::mouseMoveEvent(QMouseEvent *mouseevent) {
+  if (scriptMouseEvent(mouseevent)) return;
+
   QPoint position = mouseevent->pos();
 
   // selecting by leftbutton
@@ -472,7 +500,7 @@ void FQTermWindow::mouseMoveEvent(QMouseEvent *mouseevent) {
     onSelecting(position);
   }
 
-  if (!(session_->param_.isSupportMouse_ && isConnected())) {
+  if (!(session_->param().isSupportMouse_ && isConnected())) {
     return;
   }
 
@@ -482,14 +510,14 @@ void FQTermWindow::mouseMoveEvent(QMouseEvent *mouseevent) {
 
 
 
-  if (!isUrlUnderLined_ && session_->urlStartPoint_ != session_->urlEndPoint_) {
+  if (!isUrlUnderLined_ && session_->urlStartPoint() != session_->urlEndPoint()) {
     isUrlUnderLined_ = true;
-    urlStartPoint_ = session_->urlStartPoint_;
-    urlEndPoint_ = session_->urlEndPoint_;
+    urlStartPoint_ = session_->urlStartPoint();
+    urlEndPoint_ = session_->urlEndPoint();
 	  clientRect_ = QRect(QPoint(0, urlStartPoint_.y()), QSize(session_->getBuffer()->getNumColumns(), urlEndPoint_.y() - urlStartPoint_.y() + 1));
 	  repaintScreen();
 	  
-  } else if (isUrlUnderLined_ && (session_->urlStartPoint_ != urlStartPoint_ || session_->urlEndPoint_ != urlEndPoint_)) {
+  } else if (isUrlUnderLined_ && (session_->urlStartPoint() != urlStartPoint_ || session_->urlEndPoint() != urlEndPoint_)) {
     clientRect_ = QRect(QPoint(0, urlStartPoint_.y()), QSize(session_->getBuffer()->getNumColumns(), urlEndPoint_.y() - urlStartPoint_.y() + 1));
     urlStartPoint_ = QPoint();
     urlEndPoint_ = QPoint();
@@ -497,9 +525,6 @@ void FQTermWindow::mouseMoveEvent(QMouseEvent *mouseevent) {
 	  isUrlUnderLined_ = false;
 
   }
-
-  // python mouse event
-  //pythonMouseEvent(2, me->button(), me->state(), position,0);
 }
 
 static bool isSupportedImage(const QString &name) {
@@ -510,6 +535,7 @@ static bool isSupportedImage(const QString &name) {
 }
 
 void FQTermWindow::mouseReleaseEvent(QMouseEvent *mouseevent) {
+  if (scriptMouseEvent(mouseevent)) return;
   if (!isMouseClicked_) {
     return ;
   }
@@ -517,7 +543,6 @@ void FQTermWindow::mouseReleaseEvent(QMouseEvent *mouseevent) {
   // other than Left Button ignored
   if (!(mouseevent->button() & Qt::LeftButton) ||
       (mouseevent->modifiers() & Qt::KeyboardModifierMask)) {
-    //pythonMouseEvent(1, me->button(), me->state(), me->pos(),0);
     // no local mouse event
     //session_->sendMouseState(3, me->button(), me->state(), me->pos());
     return ;
@@ -531,7 +556,7 @@ void FQTermWindow::mouseReleaseEvent(QMouseEvent *mouseevent) {
   }
   isSelecting_ = false;
 
-  if (!session_->param_.isSupportMouse_ || !isConnected()) {
+  if (!session_->param().isSupportMouse_ || !isConnected()) {
     return ;
   }
 
@@ -550,6 +575,7 @@ void FQTermWindow::mouseReleaseEvent(QMouseEvent *mouseevent) {
 }
 
 void FQTermWindow::wheelEvent(QWheelEvent *wheelevent) {
+  if (scriptWheelEvent(wheelevent)) return;
   int j = wheelevent->delta() > 0 ? 4 : 5;
   if (!(wheelevent->modifiers())) {
     if (FQTermPref::getInstance()->isWheelSupported_ && isConnected()) {
@@ -557,9 +583,6 @@ void FQTermWindow::wheelEvent(QWheelEvent *wheelevent) {
     }
     return ;
   }
-
-  //pythonMouseEvent(4, Qt::NoButton, we->state(), we->pos(),we->delta());
-
   //session_->sendMouseState(j, Qt::NoButton, we->state(), we->pos());
 }
 
@@ -571,28 +594,12 @@ void FQTermWindow::keyPressEvent(QKeyEvent *keyevent) {
     keyevent->accept();
     return;
   }
-  
-#ifdef HAVE_PYTHON
-  int state = 0;
-  if (keyevent->modifiers() &Qt::AltModifier) {
-    state |= 0x08;
-  }
-  if (keyevent->modifiers() &Qt::ControlModifier) {
-    state |= 0x10;
-  }
-  if (keyevent->modifiers() &Qt::ShiftModifier) {
-    state |= 0x20;
-  }
-  session_->pythonCallback(
-      "keyEvent", Py_BuildValue("liii", this, 0, state, keyevent->key()));
-#endif
-
-
+  scriptKeyEvent(keyevent);
 
   keyevent->accept();
 
   if (!isConnected()) {
-    if (keyevent->key() == Qt::Key_Return) {
+    if (keyevent->key() == Qt::Key_Return || keyevent->key() == Qt::Key_Enter) {
       session_->reconnect();
     }
     return ;
@@ -620,17 +627,18 @@ void FQTermWindow::focusInEvent (QFocusEvent *event) {
 //connect slot
 void FQTermWindow::connectHost() {
   pageViewMessage_->display(tr("Not connected"), screen_->mapToPixel(QPoint(1, 1)));
-  session_->setProxy(session_->param_.proxyType_,
-                     session_->param_.isAuthentation_,
-                     session_->param_.proxyHostName_,
-                     session_->param_.proxyPort_,
-                     session_->param_.proxyUserName_,
-                     session_->param_.proxyPassword_);
-  session_->connectHost(session_->param_.hostAddress_, session_->param_.port_);
+  session_->setProxy(session_->param().proxyType_,
+                     session_->param().isAuthentation_,
+                     session_->param().proxyHostName_,
+                     session_->param().proxyPort_,
+                     session_->param().proxyUserName_,
+                     session_->param().proxyPassword_);
+  session_->connectHost(session_->param().hostAddress_, session_->param().port_);
+  config_->setItemValue("global", "lastaddrindex", QString("%1").arg(addressIndex_));
 }
 
 bool FQTermWindow::isConnected() {
-  return session_->isConnected_;
+  return session_->isConnected();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -793,9 +801,9 @@ void FQTermWindow::copy() {
   QClipboard *clipboard = QApplication::clipboard();
 
   QString selected_text = session_->getBuffer()->getTextSelected(
-      session_->param_.isRectSelect_,
-      session_->param_.isColorCopy_,
-      parseString((const char*)session_->param_.escapeString_.toLatin1()));
+      session_->param().isRectSelect_,
+      session_->param().isColorCopy_,
+      parseString((const char*)session_->param().escapeString_.toLatin1()));
 
   // TODO_UTF16: there are three modes: Clipboard, Selection, FindBuffer.
   clipboard->setText(selected_text, QClipboard::Clipboard);
@@ -808,22 +816,34 @@ void FQTermWindow::paste() {
 
 void FQTermWindow::openAsUrl() {
   QString selected_text = session_->getBuffer()->getTextSelected(
-    session_->param_.isRectSelect_,
-    session_->param_.isColorCopy_,
-    parseString((const char*)session_->param_.escapeString_.toLatin1()));
+    session_->param().isRectSelect_,
+    session_->param().isColorCopy_,
+    parseString((const char*)session_->param().escapeString_.toLatin1()));
   openUrl(selected_text);
 }
 
 void FQTermWindow::googleIt()
 {
 	QString selected_text = session_->getBuffer()->getTextSelected(
-		session_->param_.isRectSelect_,
-		session_->param_.isColorCopy_,
-		parseString((const char*)session_->param_.escapeString_.toLatin1()));
+		session_->param().isRectSelect_,
+		session_->param().isColorCopy_,
+		parseString((const char*)session_->param().escapeString_.toLatin1()));
 	QString googleUrl = "http://www.google.com/search?client=fqterm&rls=en&q=" + selected_text + "&sourceid=fqterm";
 	QByteArray url = QUrl(googleUrl).toEncoded();
 	openUrlImpl(url);
 }
+
+
+void FQTermWindow::externalEditor() {
+  externalEditor_->start();
+}
+
+
+void FQTermWindow::externalEditorDone(const QString& str) {
+  QByteArray rawStr = session_->unicode2bbs_smart(str);
+  session_->write(rawStr, rawStr.length());
+}
+
 
 void FQTermWindow::pasteHelper(bool clip) {
   if (!isConnected()) {
@@ -844,7 +864,7 @@ void FQTermWindow::pasteHelper(bool clip) {
     cstrText = U2G(clipboard->text(QClipboard::Selection));
     }
 
-    if (session_->param_.serverEncodingID_ == 1) {
+    if (session_->param().serverEncodingID_ == 1) {
     char *str = encodingConverter_.G2B(cstrText, cstrText.length());
     cstrText = str;
     delete [] str;
@@ -856,7 +876,7 @@ void FQTermWindow::pasteHelper(bool clip) {
     cstrText = U2B(clipboard->text(QClipboard::Selection));
     }
 
-    if (session_->param_.serverEncodingID_ == 0) {
+    if (session_->param().serverEncodingID_ == 0) {
     char *str = encodingConverter_.B2G(cstrText, cstrText.length());
     cstrText = str;
     delete [] str;
@@ -878,10 +898,10 @@ void FQTermWindow::pasteHelper(bool clip) {
   if (!FQTermPref::getInstance()->escapeString_.isEmpty()) {
     cstrText.replace(
         parseString(FQTermPref::getInstance()->escapeString_.toLatin1()),
-        parseString((const char*)session_->param_.escapeString_.toLatin1()));
+        parseString((const char*)session_->param().escapeString_.toLatin1()));
   }
 
-  if (session_->param_.isAutoWrap_) {
+  if (session_->param().isAutoWrap_) {
     // convert to unicode for word wrap
     QString strText;
     strText = session_->bbs2unicode(cstrText);
@@ -923,7 +943,7 @@ void FQTermWindow::copyArticle() {
 }
 
 void FQTermWindow::setColor() {
-  addrDialog set(this, session_->param_);
+  addrDialog set(this, session_->param());
 
   set.setCurrentTabIndex(addrDialog::Display);
 
@@ -1010,8 +1030,7 @@ void FQTermWindow::runScript() {
 }
 
 void FQTermWindow::stopScript() {
-  getScriptEngine()->abortEvaluation();
-  clearScriptEngine();
+  script_engine_->stopScript();
 }
 
 void FQTermWindow::viewMessages() {
@@ -1041,7 +1060,7 @@ void FQTermWindow::viewMessages() {
 }
 
 void FQTermWindow::setting() {
-  addrDialog set(this, session_->param_);
+  addrDialog set(this, session_->param());
   if (set.exec() == 1) {
     updateSetting(set.param());
   }
@@ -1105,11 +1124,13 @@ void FQTermWindow::articleCopied(int e, const QString content) {
     config_->setItemValue("global", "articledialog", strSize);
   } else if (e == DAE_TIMEOUT) {
     QMessageBox::warning(this, "timeout", "download article timeout, aborted");
+#ifdef HAVE_PYTHON
   } else if (e == PYE_ERROR) {
     QMessageBox::warning(this, "Python script error", pythonErrorMessage_);
   } else if (e == PYE_FINISH) {
     QMessageBox::information(this, "Python script finished",
                              "Python script file executed successfully");
+#endif //HAVE_PYTHON          
   }
 }
 
@@ -1173,14 +1194,14 @@ void FQTermWindow::saveSetting() {
   FQTermConfig pConf(getPath(USER_CONFIG) + "address.cfg");
   FQTermParam param;
   loadAddress(&pConf, addressIndex_, param);
-  param.isAutoCopy_ = session_->param_.isAutoCopy_;
-  param.isAutoWrap_ = session_->param_.isAutoWrap_;
-  param.isRectSelect_ = session_->param_.isRectSelect_;
-  param.isColorCopy_ = session_->param_.isColorCopy_;
+  param.isAutoCopy_ = session_->param().isAutoCopy_;
+  param.isAutoWrap_ = session_->param().isAutoWrap_;
+  param.isRectSelect_ = session_->param().isRectSelect_;
+  param.isColorCopy_ = session_->param().isColorCopy_;
   saveAddress(&pConf, addressIndex_, param);
   pConf.save(getPath(USER_CONFIG) + "address.cfg");
 
-  if (param == session_->param_) {
+  if (param == session_->param()) {
     return;
   }
   
@@ -1188,7 +1209,7 @@ void FQTermWindow::saveSetting() {
                  QMessageBox::Warning, QMessageBox::Yes | QMessageBox::Default,
                  QMessageBox::No | QMessageBox::Escape, 0, this);
   if (mb.exec() == QMessageBox::Yes) {
-    saveAddress(&pConf, addressIndex_, session_->param_);
+    saveAddress(&pConf, addressIndex_, session_->param());
     pConf.save(getPath(USER_CONFIG) + "address.cfg");
   }
 }
@@ -1202,10 +1223,20 @@ int FQTermWindow::externInput(const QString &cstrText) {
   return externInput(session_->unicode2bbs_smart(cstrText));
 }
 
+int FQTermWindow::writeRawString(const QString& str) {
+  QByteArray rawStr = session_->unicode2bbs_smart(str);
+  return session_->write(rawStr, rawStr.length());
+}
+
 void FQTermWindow::sendParsedString(const char *str) {
   int length;
   QByteArray cstr = parseString(str, &length);
   session_->write(cstr, length);
+}
+
+
+bool FQTermWindow::postQtScriptCallback(const QString& func, const QScriptValueList & args) {
+  return script_engine_->scriptCallback(func, args);
 }
 
 // void FQTermWindow::setMouseMode(bool on) {
@@ -1258,35 +1289,219 @@ void FQTermWindow::sendParsedString(const char *str) {
 /*                           Python Func                                    */
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
+#ifdef HAVE_PYTHON
 
-void FQTermWindow::pythonMouseEvent(
-    int type, Qt::KeyboardModifier, Qt::KeyboardModifier,
-    const QPoint &pt, int delta) {
-  /*
-    int state=0;
 
-    if(btnstate&Qt::LeftButton)
-    state |= 0x01;
-    if(btnstate&Qt::RightButton)
-    state |= 0x02;
-    if(btnstate&Qt::MidButton)
-    state |= 0x04;
+void FQTermWindow::runPythonScript() {
+  QStringList fileList;
+  FQTermFileDialog fileDialog(config_);
 
-    if(keystate&Qt::AltModifier)
-    state |= 0x08;
-    if(keystate&Qt::ControlModifier)
-    state |= 0x10;
-    if(keystate&Qt::ShiftModifier)
-    state |= 0x20;
+  fileList = fileDialog.getOpenNames("Choose a Python file", "Python File (*.py)");
 
-    QPoint ptc = screen_->mapToChar(pt);
-
-    #ifdef HAVE_PYTHON
-    pythonCallback("mouseEvent",
-    Py_BuildValue("liiiii", this, type, state, ptc.x(), ptc.y(),delta));
-    #endif
-  */
+  if (!fileList.isEmpty() && fileList.count() == 1) {
+    runPythonScriptFile(fileList.at(0));
+  }
 }
+
+void FQTermWindow::runPythonScriptFile(const QString& file) {
+  QString str(QString("%1").arg(long(this)));
+	char* lp = strdup(str.toUtf8().data());
+	char *argv[2]={lp,NULL};
+    // get the global python thread lock
+    PyEval_AcquireLock();
+    
+    PyInterpreterState * mainInterpreterState = frame_->getPythonHelper()->getPyThreadState()->interp;
+
+    // create a thread state object for this thread
+    PyThreadState * myThreadState = PyThreadState_New(mainInterpreterState);
+    PyThreadState_Swap(myThreadState);
+
+
+    PySys_SetArgv(1, argv);
+
+    runPythonFile(file);
+
+    //Clean up this thread's python interpreter reference
+    PyThreadState_Swap(NULL);
+    PyThreadState_Clear(myThreadState);
+    PyThreadState_Delete(myThreadState);
+    PyEval_ReleaseLock(); 
+    free((void*)lp);
+}
+
+bool FQTermWindow::pythonCallback(const QString & func, PyObject* pArgs) {
+	if(!pythonScriptLoaded_) {
+		Py_DECREF(pArgs);
+		return false;
+	};
+	
+	bool done = false;
+	// get the global lock
+  PyEval_AcquireLock();
+	// get a reference to the PyInterpreterState
+      
+	//Python thread references
+      
+	PyInterpreterState * mainInterpreterState = frame_->getPythonHelper()->getPyThreadState()->interp;
+	// create a thread state object for this thread
+	PyThreadState * myThreadState = PyThreadState_New(mainInterpreterState);
+	PyThreadState_Swap(myThreadState);
+    
+	PyObject *pF = PyString_FromString(func.toUtf8());
+	PyObject *pFunc = PyDict_GetItem(pDict, pF);
+ 	Py_DECREF(pF);
+
+	if (pFunc && PyCallable_Check(pFunc)) 
+	{
+		PyObject *pValue = PyObject_CallObject(pFunc, pArgs);
+		Py_DECREF(pArgs);
+		if (pValue != NULL) 
+		{
+			done = true;
+			Py_DECREF(pValue);
+		}
+		else 
+		{
+			QMessageBox::warning(this,"Python script error", getException());
+		}
+      }
+	else 
+	{
+		PyErr_Print();
+		printf("Cannot find python %s callback function\n", func.toUtf8().data());
+	}
+      
+	// swap my thread state out of the interpreter
+	PyThreadState_Swap(NULL);
+	// clear out any cruft from thread state object
+	PyThreadState_Clear(myThreadState);
+   // delete my thread state object
+	PyThreadState_Delete(myThreadState);
+	// release the lock
+	PyEval_ReleaseLock();
+
+	if (func == "autoReply")
+		startBlink();
+
+	return done;
+}
+
+
+int FQTermWindow::runPythonFile( const QString& file )
+{
+  QString buffer("def work_thread():\n"
+                 "\ttry:\n\t\texecfile('");
+  buffer += QString(file).replace("\\", "\\\\");
+
+  /* Have to do it like this. PyRun_SimpleFile requires you to pass a
+   * stdio file pointer, but Vim and the Python DLL are compiled with
+   * different options under Windows, meaning that stdio pointers aren't
+   * compatible between the two. Yuk.
+   *
+   * Put the string "execfile('file')" into buffer. But, we need to
+   * escape any backslashes or single quotes in the file name, so that
+   * Python won't mangle the file name.
+ * ---- kafa
+   */
+  
+  /* Put in the terminating "')" and a null */
+  buffer += "',{})\n\0";
+
+  buffer += QString("\texcept:\n"
+      "\t\texc, val, tb = sys.exc_info()\n"
+      "\t\tlines = traceback.format_exception(exc, val, tb)\n"
+      "\t\terr = string.join(lines)\n"
+      "\t\tprint err\n"
+      "\t\tf=open('%1','w')\n"
+      "\t\tf.write(err)\n"
+      "\t\tf.close()\n").arg(getErrOutputFile(this));
+
+  buffer += QString("\t\tfqterm.formatError(%1)\n").arg((long)this);
+  buffer += "\t\texit\n";
+
+  /* Execute the file */
+	PyRun_SimpleString("import thread,string,sys,traceback,fqterm");
+	PyRun_SimpleString(buffer.toUtf8());
+	PyRun_SimpleString(	"thread.start_new_thread(work_thread,())\n");
+
+	return 0;
+}
+
+void FQTermWindow::initPython(const QString& file) {
+
+	// get the global python thread lock
+  PyEval_AcquireLock();
+
+  // get a reference to the PyInterpreterState
+  PyInterpreterState * mainInterpreterState = frame_->getPythonHelper()->getPyThreadState()->interp;
+
+
+
+  // create a thread state object for this thread
+  PyThreadState * myThreadState = PyThreadState_New(mainInterpreterState);
+  PyThreadState_Swap(myThreadState);
+  
+  Py_InitModule4("fqterm", fqterm_methods,
+    NULL,(PyObject*)NULL,PYTHON_API_VERSION);
+    
+	PyImport_AddModule("fqterm");
+
+	if(!file.isEmpty() )
+	{
+    QFileInfo info(file);
+    PyRun_SimpleString("import sys"); 
+    PyRun_SimpleString(QString("sys.path.append(\"%1/\")").arg(info.absolutePath()).toUtf8().data()); 
+		PyObject *pName = PyString_FromString(info.baseName().toUtf8().data());
+		pModule = PyImport_Import(pName);
+    //PyErr_Print();
+		Py_DECREF(pName);
+		if (pModule != NULL) 
+			  pDict = PyModule_GetDict(pModule);
+		else
+		{
+			//printf("Failed to PyImport_Import\n");
+		}
+
+		if(pDict != NULL )
+			pythonScriptLoaded_ = true;
+		else
+		{
+			//printf("Failed to PyModule_GetDict\n");
+		}
+	}
+	
+    //Clean up this thread's python interpreter reference
+    PyThreadState_Swap(NULL);
+    PyThreadState_Clear(myThreadState);
+    PyThreadState_Delete(myThreadState);
+    PyEval_ReleaseLock();
+    
+}
+
+void FQTermWindow::finalizePython()
+{
+  // get the global python thread lock
+	PyEval_AcquireLock();
+
+	// get a reference to the PyInterpreterState
+	PyInterpreterState * mainInterpreterState = frame_->getPythonHelper()->getPyThreadState()->interp;
+      
+	// create a thread state object for this thread
+	PyThreadState * myThreadState = PyThreadState_New(mainInterpreterState);
+	PyThreadState_Swap(myThreadState);
+      
+	//Displose of current python module so we can reload in constructor.
+	if(pModule!=NULL)
+		Py_DECREF(pModule);
+
+	//Clean up this thread's python interpreter reference
+	PyThreadState_Swap(NULL);
+	PyThreadState_Clear(myThreadState);
+	PyThreadState_Delete(myThreadState);
+	PyEval_ReleaseLock();
+}
+
+#endif //HAVE_PYTHON
 
 /* ------------------------------------------------------------------------ */
 /*                                                                         */
@@ -1382,7 +1597,7 @@ void FQTermWindow::getHttpHelper(const QString &url, bool preview) {
 
   const QString &strPool = FQTermPref::getInstance()->poolDir_;
 
-  FQTermHttp *http = new FQTermHttp(config_, this, strPool, session_->param_.serverEncodingID_);
+  FQTermHttp *http = new FQTermHttp(config_, this, strPool, session_->param().serverEncodingID_);
   FQTerm::StatusBar::instance()->newProgressOperation(http).setDescription(tr("Waiting header...")).setAbortSlot(http, SLOT(cancel())).setMaximum(100);
   FQTerm::StatusBar::instance()->resetMainText();
   FQTerm::StatusBar::instance()->setProgress(http, 0);
@@ -1441,8 +1656,8 @@ void FQTermWindow::previewImage(const QString &filename, bool raiseViewer) {
 }
 
 void FQTermWindow::beep() {
-  if (session_->param_.isBeep_) {
-    if (session_->param_.isBuzz_) {
+  if (session_->param().isBeep_) {
+    if (session_->param().isBuzz_) {
       frame_->buzz(this);
     }
     if (FQTermPref::getInstance()->beepSoundFileName_.isEmpty() ||
@@ -1475,7 +1690,7 @@ void FQTermWindow::beep() {
     allMessages_ += strMsg + "\n\n";
   }
 
-  session_->isSendingMessage_ = true;
+  session_->setSendingMessage();
 }
 
 void FQTermWindow::startBlink() {
@@ -1518,10 +1733,10 @@ void FQTermWindow::setCursorPosition(const QPoint& mousePosition) {
 
     //re-check whether the cursor is still on the selected rectangle -- dp
     QPoint localPos = mapFromGlobal(QCursor::pos()); //local.
-    if (!session_->getSelectRect().contains(screen_->mapToChar(localPos)))
+    if (!session_->getMenuRect().contains(screen_->mapToChar(localPos)))
     {
       QRect dummyRect;
-      rc = session_->getSelectRect();
+      rc = session_->getMenuRect();
       session_->setCursorPos(screen_->mapToChar(localPos), dummyRect);
       screen_->repaint(screen_->mapToRect(rc));
       //restore the state.
@@ -1549,7 +1764,7 @@ void FQTermWindow::repaintScreen() {
 
 void FQTermWindow::enterMenuItem() {
   char cr = CHAR_CR;
-  QRect rc = session_->getSelectRect();
+  QRect rc = session_->getMenuRect();
   FQTermSession::PageState ps = session_->getPageState();
   switch (ps) {
     case FQTermSession::Menu:
@@ -1635,7 +1850,7 @@ void FQTermWindow::finishSelecting(const QPoint& mousePosition) {
   QPoint currentMouseCell = screen_->mapToChar(mousePosition);
   session_->setSelect(currentMouseCell, lastMouseCell_);
   refreshScreen();
-  if (session_->param_.isAutoCopy_) {
+  if (session_->param().isAutoCopy_) {
     copy();
   }
   isSelecting_ = false;
@@ -1870,6 +2085,42 @@ void FQTermWindow::sendKey(const int keyCode, const Qt::KeyboardModifiers modifi
     case Qt::Key_Right:
       session_->writeStr(directions_[7]);
       return;
+    case Qt::Key_F1:
+      session_->writeStr("\x1b[11~");
+      return;
+    case Qt::Key_F2:
+      session_->writeStr("\x1b[12~");
+      return;
+    case Qt::Key_F3:
+      session_->writeStr("\x1b[13~");
+      return;
+    case Qt::Key_F4:
+      session_->writeStr("\x1b[14~");
+      return;
+    case Qt::Key_F5:
+      session_->writeStr("\x1b[15~");
+      return;
+    case Qt::Key_F6:
+      session_->writeStr("\x1b[17~");
+      return;
+    case Qt::Key_F7:
+      session_->writeStr("\x1b[18~");
+      return;
+    case Qt::Key_F8:
+      session_->writeStr("\x1b[19~");
+      return;
+    case Qt::Key_F9:
+      session_->writeStr("\x1b[20~");
+      return;
+    case Qt::Key_F10:
+      session_->writeStr("\x1b[21~");
+      return;
+    case Qt::Key_F11:
+      session_->writeStr("\x1b[23~");
+      return;
+    case Qt::Key_F12:
+      session_->writeStr("\x1b[24~");
+      return;
   }
   
   if (text.length() > 0) {
@@ -1903,7 +2154,7 @@ void FQTermWindow::sendKey(const int keyCode, const Qt::KeyboardModifiers modifi
       if (shift_on) {
         session_->writeStr("\x1b[3~");
       } else {
-        if (session_->param_.backspaceType_ ==  0)
+        if (session_->param().backspaceType_ ==  0)
           session_->writeStr("\x08");
         else
           session_->writeStr("\x7f");
@@ -1913,7 +2164,7 @@ void FQTermWindow::sendKey(const int keyCode, const Qt::KeyboardModifiers modifi
     
     if (key == Qt::Key_Delete) {
       if (shift_on) {
-        if (session_->param_.backspaceType_ ==  0)
+        if (session_->param().backspaceType_ ==  0)
           session_->writeStr("\x08");
         else
           session_->writeStr("\x7f");
@@ -1944,8 +2195,7 @@ void FQTermWindow::forcedRepaintScreen() {
 }
 
 void FQTermWindow::updateSetting(const FQTermParam& param) {
-  session_->param_ = param;
-  session_->setAntiIdle(session_->isAntiIdle());
+  session_->updateSetting(param);
   screen_->setTermFont(true,
                        QFont(param.englishFontName_,
                              param.englishFontSize_));
@@ -1965,8 +2215,8 @@ void FQTermWindow::setFont()
 
 void FQTermWindow::setFont(bool isEnglish) {
   bool ok;
-  QString& fontName = isEnglish?session_->param_.englishFontName_:session_->param_.nonEnglishFontName_;
-  int& fontSize = isEnglish?session_->param_.englishFontSize_:session_->param_.nonEnglishFontSize_;
+  QString& fontName = isEnglish?session_->param().englishFontName_:session_->param().nonEnglishFontName_;
+  int& fontSize = isEnglish?session_->param().englishFontSize_:session_->param().nonEnglishFontSize_;
   QFont font(fontName, fontSize);
   font = QFontDialog::getFont(&ok, font);
   if (ok == true) {
@@ -1981,70 +2231,156 @@ void FQTermWindow::setFont(bool isEnglish) {
 }
 
 void FQTermWindow::runScript(const QString &filename) {
-    QFile file(filename);
-    if (!file.open(QIODevice::ReadOnly)) {
-      FQ_TRACE("script", 0) << "Unable to open the script file: " << filename;
-      QMessageBox::warning(this, tr("FQTerm"),
-                           tr("Unable to open the script file\n") + filename,
-                           QMessageBox::Close);
-      return;
-    }
-
-    QString script = QString::fromUtf8(file.readAll());
-    QScriptEngine *engine = getScriptEngine();
-
-    QScriptValue result = engine->evaluate(script);
-    if (engine->hasUncaughtException()) {
-      int line = engine->uncaughtExceptionLineNumber();
-      FQ_TRACE("script", 0) << "uncaught exception at line " << line
-               << ":" << result.toString();
-      QMessageBox::warning(this, tr("FQTerm"),
-                           tr("uncaught exception at line ") + QString::number(line)
-                           + ":\n" + result.toString(),
-                           QMessageBox::Close);
-    }
+  script_engine_->runScript(filename);
 }
 
-template <typename Tp>
-QScriptValue qScriptValueFromQObject(QScriptEngine *engine, Tp &qobject) {
-    return engine->newQObject(qobject);
+//-----------
+static int translateQtModifiers(Qt::KeyboardModifiers modifiers) {
+  int state = 0;
+  if (modifiers &Qt::AltModifier) {
+    state |= SBS_ALT;
+  }
+  if (modifiers &Qt::ControlModifier) {
+    state |= SBS_CTRL;
+  }
+  if (modifiers &Qt::ShiftModifier) {
+    state |= SBS_SHIFT;
+  }
+  return state;
 }
 
-template <typename Tp>
-void qScriptValueToQObject(const QScriptValue &value, Tp &qobject) {   
-    qobject = qobject_cast<Tp>(value.toQObject());
+static int translateQtButton(Qt::MouseButtons btnstate) {
+  int state = 0;
+  if(btnstate&Qt::LeftButton)
+    state |= SBS_LEFT_BUTTON;
+  if(btnstate&Qt::RightButton)
+    state |= SBS_RIGHT_BUTTON;
+  if(btnstate&Qt::MidButton)
+    state |= SBS_MID_BUTTON;
+  return state;
 }
 
-template <typename Tp>
-int qScriptRegisterQObjectMetaType(
-    QScriptEngine *engine, const QScriptValue &prototype = QScriptValue()
-                                   ) {
-    return qScriptRegisterMetaType<Tp>(engine, qScriptValueFromQObject,
-                                       qScriptValueToQObject, prototype);
+bool FQTermWindow::scriptKeyEvent( QKeyEvent *keyevent ){
+  bool res = false;
+  int state = 0;
+  state |= translateQtModifiers(keyevent->modifiers());
+
+#ifdef HAVE_PYTHON
+  res = pythonCallback(
+    SFN_KEY_EVENT, Py_BuildValue("liii", this, SKET_KEY_PRESS, state, keyevent->key()));
+#endif //HAVE_PYTHON
+  res = postQtScriptCallback(SFN_KEY_EVENT, QScriptValueList() << SKET_KEY_PRESS << state << keyevent->key()) || res;
+  return res;
 }
 
-QScriptEngine *FQTermWindow::getScriptEngine() {
-  if (script_engine_ == NULL) {
-    script_engine_ = new QScriptEngine();
-    script_engine_->globalObject().setProperty(
-        "fq_session", script_engine_->newQObject(session_));
-    script_engine_->globalObject().setProperty(
-        "fq_window", script_engine_->newQObject(this));
-    script_engine_->globalObject().setProperty(
-        "fq_buffer", script_engine_->newQObject(session_->getBuffer()));
-    script_engine_->globalObject().setProperty(
-        "fq_screen", script_engine_->newQObject(screen_));
-    // qScriptRegisterQObjectMetaType<QString *>(script_engine_);
+bool FQTermWindow::scriptMouseEvent(QMouseEvent *mouseevent){
+  int type = SMET_UNKOWN;
+  switch (mouseevent->type())
+  {
+  case QEvent::MouseButtonPress:
+    type = SMET_MOUSE_PRESS;
+    break;
+  case QEvent::MouseButtonRelease:
+    type = SMET_MOUSE_RELEASE;
+    break;
+  case QEvent::MouseButtonDblClick:
+    type = SMET_MOUSE_DBCLICK;
+    break; 
+  case QEvent::MouseMove:
+    type = SMET_MOUSE_MOVE;
+    break;
   }
 
-  return script_engine_;
+  int delta = 0;
+  int state=0;
+
+  state |= translateQtButton(mouseevent->button());
+  state |= translateQtModifiers(mouseevent->modifiers());
+
+  QPoint ptc = screen_->mapToChar(mouseevent->pos());
+  ptc.setY(ptc.y() - screen_->getBufferStart());
+  int res = false;
+#ifdef HAVE_PYTHON
+  res = pythonCallback(SFN_MOUSE_EVENT, Py_BuildValue("liiiii", this, type, state, ptc.x(), ptc.y(),delta));
+#endif //HAVE_PYTHON
+  res = postQtScriptCallback(SFN_MOUSE_EVENT, QScriptValueList() << type << state << ptc.x() << ptc.y() << delta) || res;
+  return res;
 }
 
-void FQTermWindow::clearScriptEngine() {
-  delete script_engine_;
-  script_engine_ = NULL;
+bool FQTermWindow::scriptWheelEvent( QWheelEvent *wheelevent ) {
+  int type = SMET_WHEEL;
+  int delta = 0;
+  int state=0;
+  state |= translateQtModifiers(wheelevent->modifiers());
+  QPoint ptc = screen_->mapToChar(wheelevent->pos());
+  ptc.setY(ptc.y() - screen_->getBufferStart());
+  int res = false;
+#ifdef HAVE_PYTHON
+  res = pythonCallback(SFN_MOUSE_EVENT, Py_BuildValue("liiiii", this, type, state, ptc.x(), ptc.y(),wheelevent->delta()));
+#endif //HAVE_PYTHON
+  res = postQtScriptCallback(SFN_MOUSE_EVENT, QScriptValueList() << type << state << ptc.x() << ptc.y() << wheelevent->delta()) || res;
+  return res;
 }
 
-}  // namespace FQTerm
+FQTermExternalEditor::FQTermExternalEditor(QObject* parent) 
+: QObject(parent),
+  editorProcess_(NULL),
+  started_(false) {
+  editorProcess_ = new QProcess(this);
+  FQ_VERIFY(connect(editorProcess_, SIGNAL(stateChanged(QProcess::ProcessState)), 
+                    this, SLOT(stateChanged(QProcess::ProcessState))));
+  clearTempFileContent();
+}  
 
+FQTermExternalEditor::~FQTermExternalEditor() {
+  editorProcess_->kill();
+  QFile::remove(getTempFilename());
+  delete editorProcess_;
+}
+
+void FQTermExternalEditor::start() {
+  if (FQTermPref::getInstance()->externalEditor_.isEmpty())
+    return;
+  if (started_)
+    return;
+  started_ = true;
+  if (FQTermPref::getInstance()->externalEditorArg_.isEmpty()) {
+    editorProcess_->start(FQTermPref::getInstance()->externalEditor_, QStringList() << getTempFilename());
+  } else {
+    FQ_TRACE("editor", 5) << FQTermPref::getInstance()->externalEditorArg_.arg(getTempFilename());
+    editorProcess_->start(FQTermPref::getInstance()->externalEditor_ + " " + FQTermPref::getInstance()->externalEditorArg_.arg(getTempFilename()));
+  }
+}
+
+
+QString FQTermExternalEditor::getTempFilename() {
+  return getPath(USER_CONFIG) + "tmp_do_not_use.txt";
+}
+
+void FQTermExternalEditor::clearTempFileContent() {
+  QFile file(getTempFilename());
+  file.open(QIODevice::Truncate | QIODevice::WriteOnly);
+  file.write("\xEF\xBB\xBF");
+  file.flush();
+  file.close();
+}
+
+void FQTermExternalEditor::stateChanged( QProcess::ProcessState state ) {
+  //FQ_TRACE("editor", 0) << "stateChanged: " << state << editorProcess_->readAllStandardOutput() << editorProcess_->readAllStandardError();
+  if (!started_ || state != QProcess::NotRunning)
+    return;
+  QFile file(getTempFilename());
+  file.open(QIODevice::ReadOnly);
+  QString result = U82U(file.readAll());
+  file.close();
+#if !defined(WIN32) && !defined(__APPLE__) 
+  if (result.endsWith(OS_NEW_LINE)) {
+    result.resize(result.size() - 1);
+  }
+#endif
+  emit done(result);
+  clearTempFileContent();
+  started_ = false;
+}
+} // namespace FQTerm
 #include "fqterm_window.moc"

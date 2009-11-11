@@ -18,25 +18,44 @@
  *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
-#ifndef FQTERM_PYTHON_H
-#define FQTERM_PYTHON_H
+#ifndef FQTERM_SHORTCUT_DIALOG_H
+#define FQTERM_SHORTCUT_DIALOG_H
+#include <QDialog>
+#include <QLineEdit>
+class QTableWidget;
+namespace FQTerm
+{
+class FQTermShortcutHelper;
 
-#include "fqterm.h"
+class FQTermShortcutTableWidget : public QLineEdit
+{
+public:
+  FQTermShortcutTableWidget(QWidget* parent) : QLineEdit(parent) {
+  }
+protected:
+  void keyReleaseEvent(QKeyEvent * event);
+  void keyPressEvent(QKeyEvent * event);
+};
 
-#ifdef HAVE_PYTHON
-#include <Python.h>
+class FQTermShortcutDialog : public QDialog
+{
+  Q_OBJECT; 
+public:
+  FQTermShortcutDialog(FQTermShortcutHelper* helper, QWidget *parent_ = 0, Qt::WFlags fl = Qt::Dialog);
+  ~FQTermShortcutDialog();
+private:
+  FQTermShortcutHelper* helper_;
+  QTableWidget* table_;
+protected slots:
+  void defaultClicked(int row);
+  void okBtnClicked();
+  void applyBtnClicked();
+  void cancelBtnClicked();
+  void resetBtnClicked();
+private:
+  void applyChanges();
+};
+}//namespace FQTerm
 
-namespace FQTerm {
 
-class FQTermWindow;
-extern QString getException();
-extern QString getErrOutputFile(FQTermWindow*);
-extern PyMethodDef fqterm_methods[];
-QByteArray stripWhitespace(const QByteArray &cstr);
-
-}  // namespace FQTerm
-
-#endif  // HAVE_PYTHON
-
-#endif  // FQTERM_PYTHON_H
-
+#endif //FQTERM_SHORTCUT_DIALOG_H

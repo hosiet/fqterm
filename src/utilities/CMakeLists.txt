@@ -2,11 +2,9 @@ set(fqterm_utilities_SRCS
   fqterm_convert.h
   fqterm_http.h
   fqterm_ip_location.h
-  fqterm_python.h
   fqterm_convert.cpp
   fqterm_http.cpp
   fqterm_ip_location.cpp
-  fqterm_python.cpp
 )
 
 set(fq_SRCS

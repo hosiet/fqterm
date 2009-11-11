@@ -58,7 +58,7 @@ FQTermScreen::FQTermScreen(QWidget *parent, FQTermSession *session)
       enLetterSpacing_(0.0){
   termWindow_ = (FQTermWindow*)parent;
   session_ = session;
-  param_ = &session->param_;
+  param_ = &session->param();
   paintState_ = System;
   isCursorShown_ = true;
   is_light_background_mode_ = false;
@@ -135,57 +135,9 @@ bool FQTermScreen::event(QEvent *e) {
   switch(e->type()) {
     case QEvent::KeyPress:
     {
-      //for script
-      {
-        QKeyEvent* keyevent = (QKeyEvent*)e;
-        int modifiers = 0;
-        modifiers |= (keyevent->modifiers() & Qt::ShiftModifier)?0x02000000:0x0;
-        modifiers |= (keyevent->modifiers() & Qt::ControlModifier)?0x04000000:0x0;
-        modifiers |= (keyevent->modifiers() & Qt::AltModifier)?0x08000000:0x0;
-        modifiers |= (keyevent->modifiers() & Qt::MetaModifier)?0x10000000:0x0;
-        modifiers |= (keyevent->modifiers() & Qt::KeypadModifier)?0x20000000:0x0;
-        modifiers |= (keyevent->modifiers() & Qt::GroupSwitchModifier)?0x40000000:0x0;
-        emit keyPressEvent(modifiers, keyevent->key());
-      }
       // forward all key press events to parant (FQTermWindow).
       return false;
     }
-    case QEvent::MouseButtonDblClick:
-    case QEvent::MouseButtonPress:
-    case QEvent::MouseButtonRelease:
-    case QEvent::MouseMove:
-      {
-        //for script.
-        QMouseEvent* mouseevent = (QMouseEvent*)e;
-        int modifiers = 0;
-        modifiers |= (mouseevent->modifiers() & Qt::ShiftModifier)?0x02000000:0x0;
-        modifiers |= (mouseevent->modifiers() & Qt::ControlModifier)?0x04000000:0x0;
-        modifiers |= (mouseevent->modifiers() & Qt::AltModifier)?0x08000000:0x0;
-        modifiers |= (mouseevent->modifiers() & Qt::MetaModifier)?0x10000000:0x0;
-        modifiers |= (mouseevent->modifiers() & Qt::KeypadModifier)?0x20000000:0x0;
-        modifiers |= (mouseevent->modifiers() & Qt::GroupSwitchModifier)?0x40000000:0x0;
-        int type = 0;
-        if (mouseevent->type() == QEvent::MouseButtonPress) type = 0;
-        if (mouseevent->type() == QEvent::MouseButtonRelease) type = 1;
-        if (mouseevent->type() == QEvent::MouseButtonDblClick) type = 2;
-        if (mouseevent->type() == QEvent::MouseMove) type = 3;
-        int button = 0;
-        if (mouseevent->button() == Qt::NoButton) button = 0x00000000;
-        if (mouseevent->button() == Qt::LeftButton) button = 0x00000001;
-        if (mouseevent->button() == Qt::RightButton) button = 0x00000002;
-        if (mouseevent->button() == Qt::MidButton) button = 0x00000004;
-        if (mouseevent->button() == Qt::XButton1) button = 0x00000008;
-        if (mouseevent->button() == Qt::XButton2) button = 0x00000010;
-        int buttons = 0;
-        buttons |= (mouseevent->buttons() & Qt::NoButton)?0x00000000:0x0;
-        buttons |= (mouseevent->buttons() & Qt::LeftButton)?0x00000001:0x0;
-        buttons |= (mouseevent->buttons() & Qt::RightButton)?0x00000002:0x0;
-        buttons |= (mouseevent->buttons() & Qt::MidButton)?0x00000004:0x0;
-        buttons |= (mouseevent->buttons() & Qt::XButton1)?0x00000008:0x0;
-        buttons |= (mouseevent->buttons() & Qt::XButton2)?0x00000010:0x0;
-        emit mouseEvent(type, mouseevent->pos().x(), mouseevent->pos().y(), button, buttons, modifiers);
-      }
-      break;
   }
   return this->QWidget::event(e);
 }
@@ -951,7 +903,7 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
   const unsigned char *attr = pTextLine->getAttributes();
 
   uint linelength = pTextLine->getWidth();
-  bool isSessionSelected = session_->isSelected(index);
+  bool isSessionSelected = session_->isSelectedMenu(index);
   bool isTransparent = isSessionSelected && param_->menuType_ == 2;
 
   menuRect_ = QRect();
@@ -1280,6 +1232,7 @@ void FQTermScreen::bossColor() {
 QRect FQTermScreen::drawMenuSelect(QPainter &painter, int index) {
   QRect rcSelect, rcMenu, rcInter;
   // 	FIXME: what is this for
+/*
   if (termBuffer_->isSelected(index)) {
     bool is_rect_sel = param_->isRectSelect_;
     rcSelect = mapToRect(termBuffer_->getSelectRect(index, is_rect_sel));
@@ -1289,9 +1242,9 @@ QRect FQTermScreen::drawMenuSelect(QPainter &painter, int index) {
       painter.fillRect(rcSelect, QBrush(colors_[7]));
     }
   }
-
-  if (session_->isSelected(index)) {
-    rcMenu = mapToRect(session_->getSelectRect());
+*/
+  if (session_->isSelectedMenu(index)) {
+    rcMenu = mapToRect(session_->getMenuRect());
     // 		m_pBand->setGeometry(rcMenu);
     // 		m_pBand->show();
     switch (param_->menuType_) {

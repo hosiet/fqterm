@@ -124,7 +124,7 @@ FQTermBuffer::Caret::Caret()
 void FQTermBuffer::setTermSize(int col, int row) {
   FQ_TRACE("term", 3) << "Change term size to "
                     << col << "x" << row;
-  
+
   if (num_columns_ == col && num_rows_ == row) {
     return;
   }
@@ -190,7 +190,7 @@ void FQTermBuffer::setCurrentAttr(unsigned char color, unsigned char attr) {
 }
 
 void FQTermBuffer::writeText(const QString &str, int charstate) {
-  
+    
   QString cstr = str;
 
   FQ_TRACE("term", 8) << "Add text: \"" << cstr << "\"";
@@ -283,6 +283,7 @@ void FQTermBuffer::tab() {
 }
 
 int FQTermBuffer::getTabStop(int column) {
+  
   std::vector<int> &tabs = *(TabStops *)tab_stops_;
 
   if (tabs.size() == 0) {
@@ -972,38 +973,6 @@ void FQTermBuffer::scrollTerm(int numRows) {
   moveCaretOffset(0, numRows);
 }
 
-QString FQTermBuffer::allPlainTextAt(int index) const {
-  QString result;
-  getTextLineInTerm(index)->getAllPlainText(result);
-  return result;
-}
-
-QString FQTermBuffer::plainTextAt(int index, int begin, int end) const {
-  QString result;
-  getTextLineInTerm(index)->getPlainText(begin, end, result);
-  return result;
-}
-
-const unsigned char *FQTermBuffer::colorsAt(int index) const {
-  return getTextLineInTerm(index)->getColors();
-}
-
-const unsigned char *FQTermBuffer::attributesAt(int index) const {
-  return getTextLineInTerm(index)->getAttributes();
-}
-
-QString FQTermBuffer::allAnsiTextAt(int index, const char* escape) const {
-  QString result;
-  getTextLineInTerm(index)->getAllAnsiText(result, escape);
-  return result;
-}
-
-
-QString FQTermBuffer::ansiTextAt(int index, int begin, int end, const char* escape) const {
-  QString result;
-  getTextLineInTerm(index)->getAnsiText(begin, end, result, escape);
-  return result;
-}
 
 }  // namespace FQTerm
 

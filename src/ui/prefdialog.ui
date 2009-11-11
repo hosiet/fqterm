@@ -1,7 +1,8 @@
-<ui version="4.0" >
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
  <class>prefDialog</class>
- <widget class="QDialog" name="prefDialog" >
-  <property name="geometry" >
+ <widget class="QDialog" name="prefDialog">
+  <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
@@ -9,31 +10,31 @@
     <height>584</height>
    </rect>
   </property>
-  <property name="windowTitle" >
+  <property name="windowTitle">
    <string>Preference</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout" >
-   <item row="0" column="0" colspan="3" >
-    <layout class="QHBoxLayout" >
-     <property name="spacing" >
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="0" column="0" colspan="3">
+    <layout class="QHBoxLayout">
+     <property name="spacing">
       <number>6</number>
      </property>
-     <property name="margin" >
+     <property name="margin">
       <number>11</number>
      </property>
      <item>
-      <widget class="QLabel" name="TextLabel1_2" >
-       <property name="text" >
+      <widget class="QLabel" name="TextLabel1_2">
+       <property name="text">
         <string>Paste Word-Wrap At</string>
        </property>
       </widget>
      </item>
      <item>
       <spacer>
-       <property name="orientation" >
+       <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
-       <property name="sizeHint" stdset="0" >
+       <property name="sizeHint" stdset="0">
         <size>
          <width>40</width>
          <height>20</height>
@@ -42,21 +43,21 @@
       </spacer>
      </item>
      <item>
-      <widget class="QLineEdit" name="wordLineEdit3" />
+      <widget class="QLineEdit" name="wordLineEdit3"/>
      </item>
      <item>
-      <widget class="QCheckBox" name="smartCheckBox" >
-       <property name="text" >
+      <widget class="QCheckBox" name="smartCheckBox">
+       <property name="text">
         <string>Enable Smart Word-Wrap</string>
        </property>
       </widget>
      </item>
      <item>
       <spacer>
-       <property name="orientation" >
+       <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
-       <property name="sizeHint" stdset="0" >
+       <property name="sizeHint" stdset="0">
         <size>
          <width>40</width>
          <height>20</height>
@@ -66,10 +67,10 @@
      </item>
      <item>
       <spacer>
-       <property name="orientation" >
+       <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
-       <property name="sizeHint" stdset="0" >
+       <property name="sizeHint" stdset="0">
         <size>
          <width>40</width>
          <height>20</height>
@@ -79,127 +80,127 @@
      </item>
     </layout>
    </item>
-   <item rowspan="2" row="1" column="0" >
-    <layout class="QVBoxLayout" >
-     <property name="spacing" >
+   <item row="1" column="0" rowspan="2">
+    <layout class="QVBoxLayout">
+     <property name="spacing">
       <number>6</number>
      </property>
-     <property name="margin" >
+     <property name="margin">
       <number>0</number>
      </property>
      <item>
-      <widget class="QCheckBox" name="wheelCheckBox" >
-       <property name="text" >
+      <widget class="QCheckBox" name="wheelCheckBox">
+       <property name="text">
         <string>Alternative Mouse Wheel Control</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="urlCheckBox" >
-       <property name="text" >
+      <widget class="QCheckBox" name="urlCheckBox">
+       <property name="text">
         <string>Detect URL When Mouse Move</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="saveCheckBox" >
-       <property name="text" >
+      <widget class="QCheckBox" name="saveCheckBox">
+       <property name="text">
         <string>Save Message To File</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="blinkCheckBox" >
-       <property name="text" >
+      <widget class="QCheckBox" name="blinkCheckBox">
+       <property name="text">
         <string>Blink Tab When Receive Message</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="warnCheckBox" >
-       <property name="text" >
+      <widget class="QCheckBox" name="warnCheckBox">
+       <property name="text">
         <string>Warn When Exit Connected</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="aacheckBox" >
-       <property name="text" >
+      <widget class="QCheckBox" name="aacheckBox">
+       <property name="text">
         <string>AntiAlias</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="trayCheckBox" >
-       <property name="text" >
+      <widget class="QCheckBox" name="trayCheckBox">
+       <property name="text">
         <string>Show As Tray When Close</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="clearCheckBox" >
-       <property name="text" >
+      <widget class="QCheckBox" name="clearCheckBox">
+       <property name="text">
         <string>Clear ZModem And HTTP Directory When Exit</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="enqCheckBox" >
-       <property name="text" >
+      <widget class="QCheckBox" name="enqCheckBox">
+       <property name="text">
         <string>Reply when ENQ received</string>
        </property>
       </widget>
      </item>
     </layout>
    </item>
-   <item rowspan="2" row="1" column="1" colspan="2" >
-    <widget class="Line" name="line" >
-     <property name="orientation" >
+   <item row="1" column="1" rowspan="2" colspan="2">
+    <widget class="Line" name="line">
+     <property name="orientation">
       <enum>Qt::Vertical</enum>
      </property>
     </widget>
    </item>
-   <item row="2" column="2" >
-    <layout class="QVBoxLayout" name="verticalLayout" >
+   <item row="2" column="2">
+    <layout class="QVBoxLayout" name="verticalLayout">
      <item>
-      <widget class="QGroupBox" name="groupBox" >
-       <property name="title" >
+      <widget class="QGroupBox" name="groupBox">
+       <property name="title">
         <string>Sound When Receive Messages</string>
        </property>
-       <layout class="QGridLayout" >
-        <property name="margin" >
+       <layout class="QGridLayout">
+        <property name="margin">
          <number>11</number>
         </property>
-        <property name="spacing" >
+        <property name="spacing">
          <number>6</number>
         </property>
-        <item row="0" column="0" >
-         <widget class="QRadioButton" name="noneRadioButton" >
-          <property name="text" >
+        <item row="0" column="0">
+         <widget class="QRadioButton" name="noneRadioButton">
+          <property name="text">
            <string>None</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="1" >
-         <widget class="QRadioButton" name="beepRadioButton" >
-          <property name="text" >
+        <item row="0" column="1">
+         <widget class="QRadioButton" name="beepRadioButton">
+          <property name="text">
            <string>Beep</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="2" >
-         <widget class="QRadioButton" name="fileRadioButton" >
-          <property name="text" >
+        <item row="0" column="2">
+         <widget class="QRadioButton" name="fileRadioButton">
+          <property name="text">
            <string>Sound File</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="0" colspan="2" >
-         <widget class="QLineEdit" name="wavefileLineEdit" />
+        <item row="1" column="0" colspan="2">
+         <widget class="QLineEdit" name="wavefileLineEdit"/>
         </item>
-        <item row="1" column="2" >
-         <widget class="QPushButton" name="selectsoundPushButton" >
-          <property name="text" >
+        <item row="1" column="2">
+         <widget class="QPushButton" name="selectsoundPushButton">
+          <property name="text">
            <string>Configure</string>
           </property>
          </widget>
@@ -208,29 +209,29 @@
       </widget>
      </item>
      <item>
-      <layout class="QHBoxLayout" >
-       <property name="spacing" >
+      <layout class="QHBoxLayout">
+       <property name="spacing">
         <number>6</number>
        </property>
-       <property name="margin" >
+       <property name="margin">
         <number>11</number>
        </property>
        <item>
-        <widget class="QLabel" name="TextLabel1" >
-         <property name="text" >
+        <widget class="QLabel" name="TextLabel1">
+         <property name="text">
           <string>Input Method</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="ximComboBox" >
+        <widget class="QComboBox" name="ximComboBox">
          <item>
-          <property name="text" >
+          <property name="text">
            <string>GBK</string>
           </property>
          </item>
          <item>
-          <property name="text" >
+          <property name="text">
            <string>BIG5</string>
           </property>
          </item>
@@ -239,23 +240,23 @@
       </layout>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout" >
+      <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
-        <widget class="QLabel" name="label" >
-         <property name="text" >
+        <widget class="QLabel" name="label">
+         <property name="text">
           <string>Display Offset</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QSlider" name="displayOffsetSlider" >
-         <property name="orientation" >
+        <widget class="QSlider" name="displayOffsetSlider">
+         <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
-         <property name="tickPosition" >
+         <property name="tickPosition">
           <enum>QSlider::TicksBelow</enum>
          </property>
-         <property name="tickInterval" >
+         <property name="tickInterval">
           <number>5</number>
          </property>
         </widget>
@@ -264,13 +265,13 @@
      </item>
      <item>
       <spacer>
-       <property name="orientation" >
+       <property name="orientation">
         <enum>Qt::Vertical</enum>
        </property>
-       <property name="sizeType" >
+       <property name="sizeType">
         <enum>QSizePolicy::MinimumExpanding</enum>
        </property>
-       <property name="sizeHint" stdset="0" >
+       <property name="sizeHint" stdset="0">
         <size>
          <width>287</width>
          <height>58</height>
@@ -280,123 +281,119 @@
      </item>
     </layout>
    </item>
-   <item row="3" column="0" colspan="3" >
-    <layout class="QHBoxLayout" >
-     <property name="spacing" >
-      <number>6</number>
-     </property>
-     <property name="margin" >
-      <number>11</number>
-     </property>
+   <item row="3" column="0" colspan="3">
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
      <item>
-      <layout class="QVBoxLayout" >
-       <property name="spacing" >
-        <number>6</number>
-       </property>
-       <property name="margin" >
-        <number>11</number>
-       </property>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
-        <widget class="QLabel" name="textLabel1" >
-         <property name="text" >
+        <widget class="QLabel" name="textLabel1">
+         <property name="text">
           <string>Zmodem Directory</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QLabel" name="textLabel1_3" >
-         <property name="text" >
+        <widget class="QLabel" name="textLabel1_3">
+         <property name="text">
           <string>HTTP Directory</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QLabel" name="textLabel9" >
-         <property name="text" >
+        <widget class="QLabel" name="textLabel9">
+         <property name="text">
           <string>StyleSheet File</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QLabel" name="TextLabel3" >
-         <property name="text" >
+        <widget class="QLabel" name="TextLabel3">
+         <property name="text">
           <string>HTTP Browser</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QLabel" name="textLabel1_2" >
-         <property name="text" >
+        <widget class="QLabel" name="textLabel1_2">
+         <property name="text">
           <string>Image Viewer</string>
          </property>
         </widget>
        </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QVBoxLayout" >
-       <property name="spacing" >
-        <number>6</number>
-       </property>
-       <property name="margin" >
-        <number>11</number>
-       </property>
        <item>
-        <widget class="QLineEdit" name="zmodemLineEdit" />
-       </item>
-       <item>
-        <widget class="QLineEdit" name="poolLineEdit" />
-       </item>
-       <item>
-        <widget class="QLineEdit" name="styleSheetLineEdit" />
-       </item>
-       <item>
-        <widget class="QLineEdit" name="httpLineEdit" />
-       </item>
-       <item>
-        <widget class="QLineEdit" name="imageLineEdit" />
+        <widget class="QLabel" name="textLabel1_4">
+         <property name="text">
+          <string>Editor &amp; Args</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>
      <item>
-      <layout class="QVBoxLayout" >
-       <property name="spacing" >
-        <number>6</number>
-       </property>
-       <property name="margin" >
-        <number>11</number>
-       </property>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="0" column="0" colspan="2">
+        <widget class="QLineEdit" name="zmodemLineEdit"/>
+       </item>
+       <item row="1" column="0" colspan="2">
+        <widget class="QLineEdit" name="poolLineEdit"/>
+       </item>
+       <item row="2" column="0" colspan="2">
+        <widget class="QLineEdit" name="styleSheetLineEdit"/>
+       </item>
+       <item row="3" column="0" colspan="2">
+        <widget class="QLineEdit" name="httpLineEdit"/>
+       </item>
+       <item row="4" column="0" colspan="2">
+        <widget class="QLineEdit" name="imageLineEdit"/>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLineEdit" name="editorLineEdit"/>
+       </item>
+       <item row="5" column="1">
+        <widget class="QLineEdit" name="editorArgLineEdit"/>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="verticalLayout_3">
        <item>
-        <widget class="QPushButton" name="browsePushButton" >
-         <property name="text" >
+        <widget class="QPushButton" name="browsePushButton">
+         <property name="text">
           <string>Browse</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="poolPushButton" >
-         <property name="text" >
+        <widget class="QPushButton" name="poolPushButton">
+         <property name="text">
           <string>Browse</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="styleSheetPushButton" >
-         <property name="text" >
+        <widget class="QPushButton" name="styleSheetPushButton">
+         <property name="text">
           <string>Browse</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="choosehttpPushButton" >
-         <property name="text" >
+        <widget class="QPushButton" name="choosehttpPushButton">
+         <property name="text">
           <string>Choose</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="imagePushButton" >
-         <property name="text" >
+        <widget class="QPushButton" name="imagePushButton">
+         <property name="text">
+          <string>Choose</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="editorPushButton">
+         <property name="text">
           <string>Choose</string>
          </property>
         </widget>
@@ -405,33 +402,33 @@
      </item>
     </layout>
    </item>
-   <item row="4" column="0" colspan="3" >
-    <widget class="Line" name="Line1" >
-     <property name="frameShape" >
+   <item row="4" column="0" colspan="3">
+    <widget class="Line" name="Line1">
+     <property name="frameShape">
       <enum>QFrame::HLine</enum>
      </property>
-     <property name="frameShadow" >
+     <property name="frameShadow">
       <enum>QFrame::Sunken</enum>
      </property>
-     <property name="orientation" >
+     <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
     </widget>
    </item>
-   <item row="5" column="0" colspan="3" >
-    <layout class="QHBoxLayout" >
-     <property name="spacing" >
+   <item row="5" column="0" colspan="3">
+    <layout class="QHBoxLayout">
+     <property name="spacing">
       <number>6</number>
      </property>
-     <property name="margin" >
+     <property name="margin">
       <number>11</number>
      </property>
      <item>
       <spacer>
-       <property name="orientation" >
+       <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
-       <property name="sizeHint" stdset="0" >
+       <property name="sizeHint" stdset="0">
         <size>
          <width>40</width>
          <height>20</height>
@@ -440,15 +437,15 @@
       </spacer>
      </item>
      <item>
-      <widget class="QPushButton" name="okPushButton" >
-       <property name="text" >
+      <widget class="QPushButton" name="okPushButton">
+       <property name="text">
         <string>OK</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="cancelPushButton" >
-       <property name="text" >
+      <widget class="QPushButton" name="cancelPushButton">
+       <property name="text">
         <string>Cancel</string>
        </property>
       </widget>
@@ -457,7 +454,7 @@
    </item>
   </layout>
  </widget>
- <layoutdefault spacing="6" margin="11" />
+ <layoutdefault spacing="6" margin="11"/>
  <tabstops>
   <tabstop>wordLineEdit3</tabstop>
   <tabstop>smartCheckBox</tabstop>
@@ -494,11 +491,11 @@
    <receiver>wavefileLineEdit</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>290</x>
      <y>95</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>290</x>
      <y>125</y>
     </hint>
@@ -510,11 +507,11 @@
    <receiver>selectsoundPushButton</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>360</x>
      <y>80</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>420</x>
      <y>120</y>
     </hint>
@@ -526,11 +523,11 @@
    <receiver>wavefileLineEdit</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>393</x>
      <y>90</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>366</x>
      <y>129</y>
     </hint>
@@ -542,11 +539,11 @@
    <receiver>selectsoundPushButton</receiver>
    <slot>setDisabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>413</x>
      <y>92</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>449</x>
      <y>125</y>
     </hint>
@@ -558,11 +555,11 @@
    <receiver>wavefileLineEdit</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>467</x>
      <y>97</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>380</x>
      <y>126</y>
     </hint>
@@ -574,11 +571,11 @@
    <receiver>selectsoundPushButton</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>502</x>
      <y>86</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>493</x>
      <y>128</y>
     </hint>

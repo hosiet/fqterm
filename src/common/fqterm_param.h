@@ -62,7 +62,8 @@ struct FQTermPref {
   QString zmodemDir_;
   QString poolDir_;
   QString imageViewerName_;
-
+  QString externalEditor_;
+  QString externalEditorArg_;
   //global settings
   bool isBossColor_;
   QString escapeString_;

@@ -79,6 +79,10 @@
 #include "fqterm_text_line.h"
 
 int main(int argc, char **argv) {
+#if defined(WIN32)
+#else
+  QApplication::setGraphicsSystem("raster");
+#endif
   QApplication a(argc, argv);
 
   // Set trace categories and level.

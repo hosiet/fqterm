@@ -58,6 +58,7 @@ target_link_libraries(fqterm
   ${QT_QTSCRIPT_LIBRARIES}
   ${APPKIT_LIBRARY}
   ${FQ_QT_STATIC_PLUGINS}
+  ${PYTHON_LIB}
   ssl crypto
   fqterm_common 
   fqterm_protocol 

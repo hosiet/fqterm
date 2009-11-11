@@ -114,11 +114,14 @@ below to setup the development environment.
    Make sure the environment variable QTDIR is set to the directory
    where Qt4 is installed.
 
-2. Specify OpenSSL path.
+2. Specify OpenSSL path. And prepare python lib.
 
    First open the file $FQTERM/CMakeLists.txt.win32 with a text
    editor, and then change the two macros, OPENSSL_INCLUDE_DIR and
    OPENSSL_LIBRARIES, based on where OpenSSL is installed.
+
+   You MUST have debug version of python lib(pythonxx_d.lib) when
+   build debug version.
 
 3. Create "build" directory.
 
@@ -130,7 +133,7 @@ below to setup the development environment.
   project files.
 
   $ cd %FQTERM%\build
-  $ cmake -G "Visual Studio 8 2005" ..\
+  $ cmake -G "Visual Studio 9 2008" ..\
    
   This command will generate ".sln" and ".vcproject" files for Visual
   Studio 8. Then you can use Visual Studio to open the .sln file.
