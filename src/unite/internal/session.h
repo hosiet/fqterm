@@ -17,38 +17,11 @@
 *   Free Software Foundation, Inc.,                                       *
 *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
 ***************************************************************************/
+#ifndef FQTERM_UNITE_SESSION
+#define FQTERM_UNITE_SESSION
 
-#ifndef FQTERM_MINI_SERVER_H
-#define FQTERM_MINI_SERVER_H
-
-#include <QThread>
-#include <QTcpServer>
-#include <QTcpSocket>
 namespace FQTerm {
 
-class FQTermMiniServer : public QTcpServer {
-  Q_OBJECT;
-public:
-  FQTermMiniServer( QObject * parent = 0 );
-  ~FQTermMiniServer();
-  void finalizeMiniServer();
-protected:
-  void incomingConnection(int socketDescriptor);
-protected slots:
-  void readyRead();
-  void welcome();
-private:
-  QTcpSocket* socket_;
-};
-
-
-class FQTermMiniServerThread : public QThread{
-protected:
-  virtual void run();
-
-};
-
-
-
 } //namespace FQTerm
-#endif
+
+#endif //FQTERM_UNITE_USER

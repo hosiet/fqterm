@@ -80,7 +80,9 @@ private:
   QString server_name_;
 
   int ssh_version_;
-  
+  int col_;
+  int row_;
+  QString termtype_;
   int chooseVersion(const QString &ver);
   unsigned long socketWriteBlock(const char *data, unsigned long len);
   void parsePacket();
@@ -96,7 +98,7 @@ private slots:
   void handleError(QString);
   
 public:
-  FQTermSSHSocket(const char *sshuser = NULL, const char *sshpasswd = NULL);
+  FQTermSSHSocket(int col = 80, int row = 24, const QString& termtype = "vt100", const char *sshuser = NULL, const char *sshpasswd = NULL);
 
   ~FQTermSSHSocket();
 
@@ -114,7 +116,7 @@ public:
   long writeBlock(const QByteArray &data);
 
   virtual bool readyForInput() {return is_channel_ok_;}
-
+  virtual bool setTermSize(int col, int row);
   unsigned long bytesAvailable();
 
   void flush();

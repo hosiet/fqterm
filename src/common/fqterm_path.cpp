@@ -179,6 +179,23 @@ bool iniSettings() {
   return true;
 }
 
+void checkHelpExists(FQTermConfig* pConf) {
+  QString strTmp = pConf->getItemValue("bbs list", "num");
+  int bbsCount = strTmp.toInt();
+
+  QString strSection;
+
+  for (int i = 0; i < bbsCount; i++) {
+    strSection.sprintf("bbs %d", i);
+    strTmp = pConf->getItemValue(strSection, "name");
+    if (strTmp == "FQTermHelp")
+      return;
+  }
+  pConf->setItemValue("bbs list", "num", QString("%1").arg(bbsCount + 1));
+  saveAddress(pConf, bbsCount, FQTermParam::getFQBBSParam());
+  pConf->save(getPath(USER_CONFIG) + "address.cfg");
+}
+
 void loadNameList(FQTermConfig *pConf, QStringList &listName) {
   QString strTmp = pConf->getItemValue("bbs list", "num");
 
@@ -302,11 +319,15 @@ bool loadAddress(FQTermConfig *pConf, int n, FQTermParam &param) {
   strTmp = pConf->getItemValue(strSection, "retrytimes");
   param.retryTimes_ = strTmp.toInt();
 
-  strTmp = pConf->getItemValue(strSection, "charratio");
-  param.charRatio_ = strTmp.toInt();
+  strTmp = pConf->getItemValue(strSection, "alignmode");
+  param.alignMode_ = strTmp.toInt();
 
-  strTmp = pConf->getItemValue(strSection, "fontratio");
-  param.fontRatio_ = strTmp.toInt();
+
+  strTmp = pConf->getItemValue(strSection, "charspacing");
+  param.charSpacing_ = strTmp.toInt();
+
+  strTmp = pConf->getItemValue(strSection, "linespacing");
+  param.lineSpacing_ = strTmp.toInt();
 
   strTmp = pConf->getItemValue(strSection, "loadscript");
   param.isAutoLoadScript_ = (strTmp != "0");
@@ -371,8 +392,9 @@ void saveAddress(FQTermConfig *pConf, int n, const FQTermParam &param) {
   strTmp.setNum(param.nonEnglishFontSize_);
   pConf->setItemValue(strSection, FQTermParam::getLanguageName(false) + "fontsize", strTmp);
 
-  pConf->setItemValue(strSection, "fontratio", strTmp.setNum(param.fontRatio_));
-  pConf->setItemValue(strSection, "charratio", strTmp.setNum(param.charRatio_));
+  pConf->setItemValue(strSection, "alignmode", strTmp.setNum(param.alignMode_));
+  pConf->setItemValue(strSection, "charspacing", strTmp.setNum(param.charSpacing_));
+  pConf->setItemValue(strSection, "linespacing", strTmp.setNum(param.lineSpacing_));
 
   pConf->setItemValue(strSection, "bgcolor", param.backgroundColor_.name());
   pConf->setItemValue(strSection, "fgcolor", param.foregroundColor_.name());

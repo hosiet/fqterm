@@ -76,91 +76,91 @@
     </message>
     <message>
         <source>Ctrl+Z</source>
-        <translation type="unfinished"></translation>
+        <translation>Ctrl+Z</translation>
     </message>
     <message>
         <source>adjust size</source>
-        <translation type="unfinished"></translation>
+        <translation>调整尺寸</translation>
     </message>
     <message>
         <source>Ctrl+X</source>
-        <translation type="unfinished"></translation>
+        <translation>Ctrl+X</translation>
     </message>
     <message>
         <source>Ctrl+=</source>
-        <translation type="unfinished"></translation>
+        <translation>Ctrl+=</translation>
     </message>
     <message>
         <source>Ctrl+-</source>
-        <translation type="unfinished"></translation>
+        <translation>Ctrl+-</translation>
     </message>
     <message>
         <source>Ctrl+F</source>
-        <translation type="unfinished"></translation>
+        <translation>Ctrl+F</translation>
     </message>
     <message>
         <source>Ctrl+]</source>
-        <translation type="unfinished"></translation>
+        <translation>Ctrl+]</translation>
     </message>
     <message>
         <source>Ctrl+[</source>
-        <translation type="unfinished"></translation>
+        <translation>Ctrl+[</translation>
     </message>
     <message>
         <source>Ctrl+S</source>
-        <translation type="unfinished"></translation>
+        <translation>Ctrl+S</translation>
     </message>
     <message>
         <source>Ctrl+C</source>
-        <translation type="unfinished"></translation>
+        <translation>Ctrl+C</translation>
     </message>
     <message>
         <source>Shift+S</source>
-        <translation type="unfinished"></translation>
+        <translation>Shift+S</translation>
     </message>
     <message>
         <source>Ctrl+D</source>
-        <translation type="unfinished"></translation>
+        <translation>Ctrl+D</translation>
     </message>
     <message>
         <source>Ctrl+Q</source>
-        <translation type="unfinished"></translation>
+        <translation>Ctrl+Q</translation>
     </message>
     <message>
         <source>Open Dir</source>
-        <translation type="unfinished"></translation>
+        <translation>打开文件夹</translation>
     </message>
     <message>
         <source>show Fit</source>
-        <translation type="unfinished"></translation>
+        <translation>适合窗口</translation>
     </message>
     <message>
         <source>show MaxFit</source>
-        <translation type="unfinished"></translation>
+        <translation>适合窗口(拉伸)</translation>
     </message>
     <message>
         <source>show Origin</source>
-        <translation type="unfinished"></translation>
+        <translation>原始大小</translation>
     </message>
     <message>
         <source>show Stretch</source>
-        <translation type="unfinished"></translation>
+        <translation>拉伸</translation>
     </message>
     <message>
         <source>Adjust Mode</source>
-        <translation type="unfinished"></translation>
+        <translation>调整模式</translation>
     </message>
     <message>
         <source>No Preview Available</source>
-        <translation type="unfinished"></translation>
+        <translation>没有预览</translation>
     </message>
     <message>
         <source>Failed to save file</source>
-        <translation type="unfinished"></translation>
+        <translation>保存文件失败</translation>
     </message>
     <message>
         <source>Cant save file, maybe format not supported</source>
-        <translation type="unfinished"></translation>
+        <translation>无法保存文件，可能为不支持的类型</translation>
     </message>
 </context>
 <context>
@@ -186,43 +186,43 @@
     <name>FQTerm::FQTermImageFlow</name>
     <message>
         <source>Close</source>
-        <translation type="unfinished">关闭</translation>
+        <translation>关闭</translation>
     </message>
     <message>
         <source>Trash All</source>
-        <translation type="unfinished"></translation>
+        <translation>全部删除</translation>
     </message>
     <message>
         <source>Like </source>
-        <translation type="unfinished"></translation>
+        <translation>Like </translation>
     </message>
     <message>
         <source>New </source>
-        <translation type="unfinished"></translation>
+        <translation>新建</translation>
     </message>
     <message>
         <source>Trash </source>
-        <translation type="unfinished"></translation>
+        <translation>Trash </translation>
     </message>
     <message>
         <source>Recover </source>
-        <translation type="unfinished"></translation>
+        <translation>恢复</translation>
     </message>
     <message>
         <source>Title </source>
-        <translation type="unfinished"></translation>
+        <translation>题目</translation>
     </message>
     <message>
         <source>Save your likes under</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <source>Recover</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <source>Delete</source>
-        <translation type="unfinished">删除</translation>
+        <translation>删除</translation>
     </message>
 </context>
 <context>
@@ -289,10 +289,51 @@
     </message>
 </context>
 <context>
+    <name>FQTerm::FQTermShortcutDialog</name>
+    <message>
+        <source>Shortcut Setting</source>
+        <translation>快捷键设置</translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation>描述</translation>
+    </message>
+    <message>
+        <source>Shortcut</source>
+        <translation>快捷键</translation>
+    </message>
+    <message>
+        <source>default</source>
+        <translation>缺省</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>应用</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <source>Reset All</source>
+        <translation>重置</translation>
+    </message>
+    <message>
+        <source>Press key/combines on Shortcut column.
+Note Del is reserved for clear shortcut setting.</source>
+        <translation>在快捷键列按相应的自定义快捷键
+按Del可以删除快捷键.</translation>
+    </message>
+</context>
+<context>
     <name>FQTerm::ImageFlow</name>
     <message>
         <source>Tagged as </source>
-        <translation type="unfinished"></translation>
+        <translation>Tagged as </translation>
     </message>
 </context>
 <context>
@@ -353,6 +394,10 @@
     <message>
         <source>AddressBook</source>
         <translation type="obsolete">地址簿</translation>
+    </message>
+    <message>
+        <source>Font Selector</source>
+        <translation>选择文字</translation>
     </message>
 </context>
 <context>
@@ -550,7 +595,11 @@ p, li { white-space: pre-wrap; }
 p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:&apos;SimSun&apos;; font-size:9pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation type="unfinished"></translation>
+        <translation>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:&apos;SimSun&apos;; font-size:9pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
 </context>
 <context>
@@ -877,7 +926,7 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <source>Font ratio</source>
-        <translation>中英文比例</translation>
+        <translation type="obsolete">中英文比例</translation>
     </message>
     <message>
         <source>Adjust Font Size When Resize</source>
@@ -885,7 +934,7 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <source>Char W/H ratio</source>
-        <translation>字符高宽比(影响间距)</translation>
+        <translation type="obsolete">字符高宽比(影响间距)</translation>
     </message>
     <message>
         <source>Keyboard</source>
@@ -922,6 +971,30 @@ p, li { white-space: pre-wrap; }
     <message>
         <source>Enable Mouse Support</source>
         <translation>打开鼠标支持</translation>
+    </message>
+    <message>
+        <source>Align Mode</source>
+        <translation>对齐模式</translation>
+    </message>
+    <message>
+        <source>Line Spacing</source>
+        <translation>行间距</translation>
+    </message>
+    <message>
+        <source>Char Spacing</source>
+        <translation>字间距</translation>
+    </message>
+    <message>
+        <source>Align Mid</source>
+        <translation>中线对齐</translation>
+    </message>
+    <message>
+        <source>Align Bottom</source>
+        <translation>底部对齐</translation>
+    </message>
+    <message>
+        <source>Align Top</source>
+        <translation>顶端对齐</translation>
     </message>
 </context>
 <context>
@@ -1174,6 +1247,10 @@ p, li { white-space: pre-wrap; }
     <message>
         <source>Display Offset</source>
         <translation>显示(横向)偏移量</translation>
+    </message>
+    <message>
+        <source>Editor &amp; Args</source>
+        <translation>编辑器及运行参数</translation>
     </message>
 </context>
 <context>

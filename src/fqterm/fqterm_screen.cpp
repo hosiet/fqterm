@@ -299,25 +299,30 @@ void FQTermScreen::setFontMetrics() {
   float en = englishFM.width('W');
 
   int pix_size = englishFont_->pixelSize();
-  while (2 * en > cn && pix_size > 5) {
+  while (2 * en > cn + 1 && pix_size > 5) {
 	  --pix_size;
 	  englishFont_->setPixelSize(pix_size);
 	  englishFM = QFontMetricsF(*englishFont_);
-	  en = englishFM.width('W');	 
+	  en = englishFM.width('W');
+    /*
+#ifndef __APPLE__
+    //FIXME: correctly draw chars with left/right bearing.
+    if ( - englishFM.leftBearing('W') - englishFM.rightBearing('W') > 0) {
+      en +=  - englishFM.leftBearing('W') - englishFM.rightBearing('W');
+    }
+#endif
+    */
   }
   
   charWidth_ = qMax(float(cn / 2) , float(en));
-  charHeight_ = ceil(qMax(englishFM.height() + englishFM.leading(), nonEnglishFM.height() + nonEnglishFM.leading()));
-  charWidth_ = ceil(qMax(charWidth_, charHeight_ * param_->charRatio_ / 100));
+  charHeight_ = ceil(qMax(englishFM.height(), nonEnglishFM.height()));
+  charHeight_ += param_->lineSpacing_;
+  //charWidth_ = ceil(qMax(charWidth_, charHeight_ * param_->charRatio_ / 100));
+  charWidth_ += param_->charSpacing_;
 
   cnLetterSpacing_ = qMax(charWidth_ * 2 - cn, 0.0);
   enLetterSpacing_ = qMax(charWidth_ - en, 0.0);
   spLetterSpacing_ = qMax(charWidth_ - englishFM.width(' '), 0.0);
-
-  if (!QFontInfo(*englishFont_).fixedPitch()) {
-    englishFont_->setPixelSize((1.0 + param_->fontRatio_ / 100.0) * englishFont_->pixelSize());
-  }
-
 
   fontAscent_ = qMax(englishFM.ascent(), nonEnglishFM.ascent());
   fontDescent_ = qMax(englishFM.descent(), nonEnglishFM.descent());
@@ -1114,8 +1119,7 @@ void FQTermScreen::drawStr(QPainter &painter, const QString &str,
   if (GETINVISIBLE(ea)) {
   }
 
-  QPoint pt = mapToPixel(QPoint(x, y));
-  QRect rcErase = mapToRect(x, y, length, 1);
+
 
   int pen_color_index = GETFG(cp);
   if (!param_->isAnsiColor_) {
@@ -1160,12 +1164,16 @@ void FQTermScreen::drawStr(QPainter &painter, const QString &str,
     
   }
 
-  //rcErase.setBottom(rcErase.bottom() + 1);
-  rcErase.setRight(rcErase.right() + 1);    
-  
+  QPoint pt = mapToPixel(QPoint(x, y));
+  QRect rcErase = mapToRect(x, y, length, 1);
+
+  if (x == 0) {
+    rcErase.setLeft(rcErase.left() - 1);
+  }
   if (!menuRect_.intersects(rcErase)){
-    rcErase.setRight(rcErase.right() - 1);
+    //rcErase.setRight(rcErase.right() + 1);
     painter.fillRect(rcErase, brush);
+    //rcErase.setRight(rcErase.right() - 1);
   } else {
     QRect rcKeep = menuRect_.intersected(rcErase);
     rcKeep.setY(rcErase.y());
@@ -1186,7 +1194,9 @@ void FQTermScreen::drawStr(QPainter &painter, const QString &str,
                        brush);
     }
   }
-
+  if (x == 0) {
+    rcErase.setLeft(rcErase.left() + 1);
+  }
   if (!(isBlinkScreen_ && GETBLINK(attr))) {
     FQ_TRACE("draw_text", 10) << "draw text: " << str;
     
@@ -1198,7 +1208,19 @@ void FQTermScreen::drawStr(QPainter &painter, const QString &str,
     int ascent = qm.ascent() + offset; 
 
 //#if defined(WIN32)
-    painter.drawText(rcErase, Qt::AlignRight, str);
+    int verticalAlign = Qt::AlignVCenter;
+    switch(param_->alignMode_) {
+      case 0:
+        verticalAlign = Qt::AlignVCenter;
+        break;
+      case 1:
+        verticalAlign = Qt::AlignBottom;
+        break;
+      case 2:
+        verticalAlign = Qt::AlignTop;
+        break;
+    }
+    painter.drawText(rcErase, Qt::AlignRight | verticalAlign, str);
 //#else
 //    painter.drawText(pt.x(), pt.y() + ascent, str);
 //#endif
@@ -1312,7 +1334,7 @@ QRect FQTermScreen::mapToRect(int x, int y, int width, int height) {
 	// to the end
     return QRect(pt.x() + dx, pt.y(), size().width(), charHeight_ *height);
   } else {
-    return QRect(pt.x(), pt.y(), width *charWidth_ + 1.0, charHeight_ *height);
+    return QRect(pt.x(), pt.y(), width *charWidth_, charHeight_ *height);
   }
 }
 

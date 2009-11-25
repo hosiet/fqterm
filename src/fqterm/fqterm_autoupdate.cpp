@@ -104,7 +104,7 @@ QString FQTermAutoUpdater::getNewestVersion() {
 void FQTermAutoUpdater::promptUpdate() {
   const QString updateURL = "http://code.google.com/p/fqterm/downloads/list";
   QMessageBox msgBox(QMessageBox::Information, tr("FQTerm Update Notifier"), 
-    tr("FQTerm update available.\nPress OK to visit our download list,\nDiscard for a next-time-startup inform,\nIgnore for no more notification."),
+    tr("FQTerm update available.\nPress OK to visit our download list,\nDiscard for a future prompt,\nIgnore for no more notification."),
     QMessageBox::Ok | QMessageBox::Discard | QMessageBox::Ignore);
   switch (msgBox.exec()) {
    case QMessageBox::Ok:

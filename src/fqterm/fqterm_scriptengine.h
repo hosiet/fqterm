@@ -101,6 +101,9 @@ public slots: //script apis
   void setMenuRect(int row, int col, int len);
 
   bool import(const QString& filename);
+
+  bool isAntiIdle();
+  bool isAutoReply();
   //auxiliary functions.
   //should be move to some other class.
   //qt script provides so poor extensions to js.

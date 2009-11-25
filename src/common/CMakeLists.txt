@@ -27,6 +27,7 @@ qt4_automoc(${fqterm_common_SRCS})
 include_directories(
   ${QT_INCLUDE_DIR}
   ${QT_QTCORE_INCLUDE_DIR}
+  ${QT_QTGUI_INCLUDE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 

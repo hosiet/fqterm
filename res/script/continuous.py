@@ -2,7 +2,8 @@
 import fqterm
 import sys, time
 
-f=open("/home/dp2/test.txt","w")
+# f=open("/home/dp2/test.txt","w")
+f = open("c:\\test.txt", "w")
 
 lp=long(sys.argv[0])
 

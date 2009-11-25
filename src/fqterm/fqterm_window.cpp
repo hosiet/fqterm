@@ -199,6 +199,9 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
 
   FQ_VERIFY(connect(externalEditor_, SIGNAL(done(const QString&)), this, SLOT(externalEditorDone(const QString&))));
 
+  FQ_VERIFY(connect(this, SIGNAL(writeStringSignal(const QString&)), this, SLOT(writeString(const QString&)), Qt::QueuedConnection));
+  FQ_VERIFY(connect(this, SIGNAL(writeRawStringSignal(const QString&)), this, SLOT(writeRawString(const QString&)), Qt::QueuedConnection));
+
 #if defined(WIN32)
   popWindow_ = new popWidget(this, frame_);
 #else
@@ -435,7 +438,7 @@ void FQTermWindow::mouseDoubleClickEvent(QMouseEvent *mouseevent) {
 }
 
 void FQTermWindow::mousePressEvent(QMouseEvent *mouseevent) {
-  if (scriptMouseEvent(mouseevent)) return;
+  scriptMouseEvent(mouseevent);
   // stop  the tab blinking
   stopBlink();
 
@@ -491,7 +494,7 @@ void FQTermWindow::mousePressEvent(QMouseEvent *mouseevent) {
 
 
 void FQTermWindow::mouseMoveEvent(QMouseEvent *mouseevent) {
-  if (scriptMouseEvent(mouseevent)) return;
+  (scriptMouseEvent(mouseevent));
 
   QPoint position = mouseevent->pos();
 
@@ -535,7 +538,7 @@ static bool isSupportedImage(const QString &name) {
 }
 
 void FQTermWindow::mouseReleaseEvent(QMouseEvent *mouseevent) {
-  if (scriptMouseEvent(mouseevent)) return;
+  bool scriptMouseSupport = (scriptMouseEvent(mouseevent));
   if (!isMouseClicked_) {
     return ;
   }
@@ -556,7 +559,7 @@ void FQTermWindow::mouseReleaseEvent(QMouseEvent *mouseevent) {
   }
   isSelecting_ = false;
 
-  if (!session_->param().isSupportMouse_ || !isConnected()) {
+  if (!session_->param().isSupportMouse_ || !isConnected() || scriptMouseSupport) {
     return ;
   }
 
@@ -617,12 +620,12 @@ void FQTermWindow::keyPressEvent(QKeyEvent *keyevent) {
   int key = keyevent->key();
   sendKey(key, modifier, keyevent->text());
 }
-
+/*
 void FQTermWindow::focusInEvent (QFocusEvent *event) {
   QMainWindow::focusInEvent(event);
   screen_->setFocus(Qt::OtherFocusReason);
 }
-
+*/
 
 //connect slot
 void FQTermWindow::connectHost() {
@@ -2218,7 +2221,11 @@ void FQTermWindow::setFont(bool isEnglish) {
   QString& fontName = isEnglish?session_->param().englishFontName_:session_->param().nonEnglishFontName_;
   int& fontSize = isEnglish?session_->param().englishFontSize_:session_->param().nonEnglishFontSize_;
   QFont font(fontName, fontSize);
-  font = QFontDialog::getFont(&ok, font);
+  font = QFontDialog::getFont(&ok, font, this, tr("Font Selector")
+#ifdef __APPLE__
+, QFontDialog::DontUseNativeDialog
+#endif
+  );
   if (ok == true) {
     if (FQTermPref::getInstance()->openAntiAlias_) {
       font.setStyleStrategy(QFont::PreferAntialias);

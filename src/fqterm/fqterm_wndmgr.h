@@ -37,6 +37,18 @@ namespace FQTerm {
 class FQTermWindow;
 class FQTermFrame;
 
+class FQTermTabBar : public QTabBar {
+  Q_OBJECT;
+public:
+  FQTermTabBar(QWidget *parent = 0) : QTabBar(parent) {}
+protected:
+  virtual void mouseReleaseEvent(QMouseEvent * me);
+  virtual void mouseDoubleClickEvent(QMouseEvent * me);
+signals:
+  void rightClicked(int index, const QPoint& p);
+  void doubleClicked(int index, const QPoint& p);
+};
+
 class FQTermWndMgr: public QMdiArea {
   Q_OBJECT;
  public:
@@ -82,43 +94,26 @@ class FQTermWndMgr: public QMdiArea {
    void tile();
 
  protected:
+
   QList<QIcon *> icons_;
   FQTermFrame *termFrame_;
   bool isAfterRemoved_;
   QSize subWindowSize_;
   bool subWindowMax_;
- QTabBar* tabBar_;
+ FQTermTabBar* tabBar_;
 
  typedef std::pair<QMdiSubWindow*, int> mdi_info_t;
  typedef std::map<FQTermWindow*, mdi_info_t> window_map_t;
  typedef std::map<FQTermWindow*, mdi_info_t>::iterator window_map_iterator_t;
  window_map_t windowMap_;
- FQTermWindow* MDIToFQ(QMdiSubWindow* subWindow)
- {
-   for (window_map_iterator_t it = windowMap_.begin(); it != windowMap_.end(); ++it)
-   {
-     if (it->second.first == subWindow)
-       return it->first;
-   }
-   return NULL;
- }
- QMdiSubWindow* FQToMDI(FQTermWindow* window)
- {
-   window_map_iterator_t it = windowMap_.find(window);
-   if (it != windowMap_.end())
-     return it->second.first;
-   return NULL;
- }
- int FQToIndex(FQTermWindow* window)
- {
-   window_map_iterator_t it = windowMap_.find(window);
-   if (it != windowMap_.end())
-     return it->second.second;
-   return -1;
- }
+ FQTermWindow* MDIToFQ(QMdiSubWindow* subWindow);
+ QMdiSubWindow* FQToMDI(FQTermWindow* window);
+ int FQToIndex(FQTermWindow* window);
  bool afterRemove();
  protected slots:
    void onSubWindowActivated(QMdiSubWindow * subWindow);
+   void onTabRightClicked(int index, const QPoint& p);
+   void onTabDoubleClicked(int index, const QPoint& p);
 };
 
 }  // namespace FQTerm

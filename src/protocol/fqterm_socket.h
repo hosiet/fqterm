@@ -132,6 +132,7 @@ class FQTermSocket: public QObject {
   virtual long writeBlock(const QByteArray &data) = 0;
   virtual unsigned long bytesAvailable() = 0;
   virtual bool readyForInput() {return true;}
+  virtual bool setTermSize(int col, int row) {return 0;}
  signals:
   void sshAuthOK();
   void connected();

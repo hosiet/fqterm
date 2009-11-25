@@ -30,7 +30,7 @@
 #include "fqterm_ssh_auth.h"
 #include "fqterm_ssh_channel.h"
 #include "fqterm_trace.h"
-
+#include <QString>
 namespace FQTerm {
 
 #define V1STR	"SSH-1.5-FQTermSSH\n"
@@ -38,7 +38,10 @@ namespace FQTerm {
 #define SSH_V1_C	"SSH-1.5-FQTermSSH"
 #define SSH_V2_C	"SSH-2.0-FQTermSSH"
 
-FQTermSSHSocket::FQTermSSHSocket(const char *sshuser, const char *sshpasswd) {
+FQTermSSHSocket::FQTermSSHSocket(int col, int row, const QString& termtype, const char *sshuser, const char *sshpasswd)
+  : termtype_(termtype) {
+  col_ = col;
+  row_ = row;
   init_user_ = sshuser;
   init_passwd_ = sshpasswd;
 
@@ -167,13 +170,13 @@ void FQTermSSHSocket::kexOK() {
 
 void FQTermSSHSocket::authOK() {
   FQ_TRACE("sshsocket", 3) << "Auth completed!";
-  ssh_channel_->initChannel(packet_receiver_, packet_sender_);
+  ssh_channel_->initChannel(packet_receiver_, packet_sender_, col_, row_, termtype_);
 }
 
 void FQTermSSHSocket::channelOK() {
   FQ_TRACE("sshsocket", 3) << "Channel established!";
   is_channel_ok_ = true;
-  auth_ok_emitted_ = false;
+  //auth_ok_emitted_ = false;
 }
 
 void FQTermSSHSocket::channelReadyRead(const char *data, int len) {
@@ -182,15 +185,15 @@ void FQTermSSHSocket::channelReadyRead(const char *data, int len) {
 }
 
 unsigned long FQTermSSHSocket::socketWriteBlock(const char *data, unsigned long len) {
-  if (!auth_ok_emitted_) {
-      emit sshAuthOK();
-      auth_ok_emitted_ = true;
-  }
   QByteArray to_write(data, len);
   return private_socket_->writeBlock(to_write);
 }
 
 void FQTermSSHSocket::socketReadyRead() {
+  if (!auth_ok_emitted_ && is_channel_ok_) {
+    auth_ok_emitted_ = true;
+    emit sshAuthOK();
+  }
   unsigned long size;
   
   switch (ssh_socket_state_) {
@@ -339,6 +342,11 @@ void FQTermSSHSocket::setProxy(int nProxyType, bool bAuth,
                             uProxyPort, strProxyUsr, strProxyPwd);
 }
 
+bool FQTermSSHSocket::setTermSize(int col, int row) {
+  if (ssh_channel_ && is_channel_ok_)
+    ssh_channel_->changeTermSize(col, row);
+  return true;
+}
 }  // namespace FQTerm
 
 #include "fqterm_ssh_socket.moc"

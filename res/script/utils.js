@@ -1,10 +1,10 @@
 ﻿//script function names:
-//antiIdle()     called on antiIdle, if return true, the embedded antiIdle procedure will not be called
-//onBell()       called on bell received.
-//autoReply()    called on autoReply, if return true, the embedded autoReply procedure will not be called
-//dataEvent()    called when contents in buffer changed. 
+//antiIdle()     called on antiIdle, if this function exists, the embedded antiIdle procedure will not be called. (use fqterm.isAntiIdle() to get info.)
+//onBell()       called on bell received. if this callback exists, the autoReply procedure will not be started. (use fqterm.isAutoReply() to get info.)
+//autoReply()  (deprecated)  called on autoReply, if this callback exists, the embedded autoReply procedure will not be called 
+//dataEvent()    called when contents in buffer changed. (after onBell, you will definitely receive one)
 //keyEvent(type(key event type), states (OR flags), key (key code))     called when keyevent received.
-//mouseEvent(type(mouse event type), states (OR flags), x, y, delta(for wheel))   called when mouseevent received. x, y are in term coordinates. if return true, the embedded mouse event procedure will not be called
+//mouseEvent(type(mouse event type), states (OR flags), x, y, delta(for wheel))   called when mouseevent received. x, y are in term coordinates. If this callback exists, the embedded mouse/wheel support will be disabled (click to read article/enter menu), selecting/right click menu will still be there.
 //detectMenu()   set menu rect here and return true to override the embedded menu selection rect. (call fqterm.setMenuRect()). and the mouse click on article, menu, ... will not take effect. you need to implement them in your mouse event.
 
 

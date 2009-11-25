@@ -631,7 +631,7 @@ long FQTermLocalSocket::writeBlock( const QByteArray &data )
 {
   int count = shell_process_->write(data);
   
-  char c;
+  //char c;
 //  shell_process_->getChar(&c);
 //  shell_process_->ungetChar(c);
   if (bytesAvailable())

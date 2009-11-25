@@ -61,7 +61,7 @@ class FQTermSocket;
 class FQTermTelnet: public QObject {
   Q_OBJECT;
  public:
-  FQTermTelnet(const QString &termtype, int rows, int numColumns, int protocolType, const
+  FQTermTelnet(const QString &termtype, int rows, int numColumns, int protocolType, int hostType, const
               char *sshuser = NULL, const char *sshpasswd = NULL);
   ~FQTermTelnet();
 
@@ -186,6 +186,8 @@ signals:
   int done_naws;
   bool bConnected;
   int raw_size;
+  int hostType_;
+  int protocolType_;
 };
 
 }  // namespace FQTerm

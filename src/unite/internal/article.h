@@ -18,59 +18,11 @@
 *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
 ***************************************************************************/
 
-#include "fqterm_mini_server.h"
-#include "fqterm_trace.h"
-#include <QByteArray>
+#ifndef FQTERM_UNITE_ARTICLE
+#define FQTERM_UNITE_ARTICLE
 
 namespace FQTerm {
 
-
-void FQTermMiniServerThread::run()
-{
-  setTerminationEnabled();
-  FQTermMiniServer miniServer;
-  miniServer.setMaxPendingConnections(1);
-  miniServer.listen(QHostAddress::LocalHost, 10093);
-  exec();
-  miniServer.close();
-  miniServer.finalizeMiniServer();
-}
-
-FQTermMiniServer::FQTermMiniServer(QObject * parent)
-  : QTcpServer(parent) {
-  socket_ = new QTcpSocket(this);
-  FQ_VERIFY(connect(socket_, SIGNAL(readyRead()),
-    this, SLOT(readyRead()),Qt::DirectConnection));
-  FQ_VERIFY(connect(socket_, SIGNAL(connected()),
-		    this, SLOT(welcome()),Qt::DirectConnection));
-}
-
-void FQTermMiniServer::incomingConnection( int socketDescriptor ) {
-  if (socket_->state() != QAbstractSocket::UnconnectedState) {
-    return;
-  }
-  socket_->setSocketDescriptor(socketDescriptor);
-  socket_->write("Welcome to FQBBS\r\n");
-}
-
-FQTermMiniServer::~FQTermMiniServer() {
-}
-
-void FQTermMiniServer::welcome()
-{
-    socket_->write("Welcome to FQBBS\r\n");
-}
-
-void FQTermMiniServer::readyRead() {
-  QByteArray str = socket_->readAll();
-  socket_->write(str);
-}
-
-void FQTermMiniServer::finalizeMiniServer() {
-  socket_->close();
-  delete socket_;
-  socket_ = NULL;
-}
 } //namespace FQTerm
 
-#include "fqterm_mini_server.moc"
+#endif //FQTERM_UNITE_USER

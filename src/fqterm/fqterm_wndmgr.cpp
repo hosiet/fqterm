@@ -30,7 +30,9 @@
 #include <QMdiArea>
 #include <QMdiSubWindow>
 #include <QTabBar>
-
+#include <QMouseEvent>
+#include <QMenu>
+#include <QToolButton>
 #include "fqterm_frame.h"
 #include "fqterm_path.h"
 #include "fqterm_screen.h"
@@ -47,11 +49,14 @@ FQTermWndMgr::FQTermWndMgr(QWidget *parent, const char *name)
       subWindowSize_(640, 480),
       tabBar_(NULL)
  {
-  tabBar_ = new QTabBar(this);
+  tabBar_ = new FQTermTabBar(this);
   tabBar_->setShape(QTabBar::RoundedSouth);
   FQ_VERIFY(connect(tabBar_, SIGNAL(currentChanged(int)),
     this, SLOT(activateTheWindow(int))));
-
+  FQ_VERIFY(connect(tabBar_, SIGNAL(rightClicked(int,const QPoint&)),
+    this, SLOT(onTabRightClicked(int,const QPoint&))));
+  FQ_VERIFY(connect(tabBar_, SIGNAL(doubleClicked(int,const QPoint&)),
+    this, SLOT(onTabDoubleClicked(int,const QPoint&))));
   setObjectName(name);
   termFrame_ = (FQTermFrame*)parent;
   isAfterRemoved_ = false;
@@ -94,10 +99,9 @@ void FQTermWndMgr::activateTheWindow(int n) {
   QMdiSubWindow *subWindow = subWindowList().at(n);
 
   // Fix the refresh bug by send PaintEvent to session screen.
+  //subWindow->setFocus();
   setActiveSubWindow(subWindow);
-  subWindow->setFocus();
-
-  termFrame_->updateMenuToolBar();
+  
 }
 
 //blink the tab when message come in
@@ -125,7 +129,7 @@ void FQTermWndMgr::blinkTheTab(FQTermWindow *mw, bool bVisible) {
   //,QIcon::Automatic);
 
 
-  //termFrame_->tabBar->setTabIcon(n, *icon);
+  
 
   tabBar_->update();
 }
@@ -150,12 +154,11 @@ bool FQTermWndMgr::afterRemove() {
 }
 
 void FQTermWndMgr::refreshAllExcept(FQTermWindow *termWindow) {
-  for (window_map_iterator_t it = windowMap_.begin();
-       it != windowMap_.end();
-       ++it) {
-       if (it->first != termWindow) {
-          it->first->repaintScreen();
-       }
+  for (int i = 0; i < subWindowList().count(); ++i) {
+    FQTermWindow * window = (FQTermWindow *)(subWindowList()[i]->widget());
+    if (window != termWindow) {
+      window->repaintScreen();
+    }
   }
 }
 
@@ -174,26 +177,24 @@ FQTermWindow* FQTermWndMgr::newWindow( const FQTermParam &param, FQTermConfig* c
   if (count() == 1) {
     termFrame_->enableMenuToolBar(true);
   }
-
-  windowMap_[window] = std::make_pair(subWindow, subWindowList().indexOf(subWindow));
   //if no this call, the tab wont display untill you resize the window
-  tabBar_->addTab(*icon, window->windowTitle());
+  int idx = tabBar_->addTab(*icon, window->windowTitle());
   tabBar_->updateGeometry();
   tabBar_->update();
 
   subWindow->resize(subWindowSize_);
   if (subWindowMax_) {
-    subWindow->setWindowFlags(Qt::SubWindow | Qt::CustomizeWindowHint
-      | Qt::WindowMinMaxButtonsHint);
+    subWindow->setWindowFlags(Qt::SubWindow | Qt::CustomizeWindowHint | Qt::WindowMinMaxButtonsHint);
     subWindow->showMaximized();
   } else {
-    subWindow->setWindowFlags(Qt::SubWindow | Qt::CustomizeWindowHint
+    subWindow->setWindowFlags(Qt::SubWindow | (Qt::CustomizeWindowHint
       | Qt::WindowMinMaxButtonsHint
-      | Qt::WindowSystemMenuHint);
+      | Qt::WindowSystemMenuHint));
     subWindow->show();
   }
+  tabBar_->setTabData(idx, qVariantFromValue((QObject*)window));
   FQ_VERIFY(connect(window, SIGNAL(destroyed(QObject*)), 
-		    this ,SLOT(onSubWindowClosed(QObject*))));
+    this ,SLOT(onSubWindowClosed(QObject*))));
   FQ_VERIFY(connect(window, SIGNAL(resizeSignal(FQTermWindow*)),
 		    this, SLOT(subWindowResized(FQTermWindow*))));
   FQ_VERIFY(connect(this, SIGNAL(subWindowActivated(QMdiSubWindow*)),
@@ -207,19 +208,18 @@ FQTermWindow* FQTermWndMgr::newWindow( const FQTermParam &param, FQTermConfig* c
 
 void FQTermWndMgr::onSubWindowClosed(QObject* obj) {
 
-  FQTermWindow* mw = (FQTermWindow*)obj;
-  int n = FQToIndex(mw);
-
-  icons_.removeAt(n);
-
-  if (count() == 0) {
-    termFrame_->enableMenuToolBar(false);
+  for (int i = 0; i < tabBar_->count(); ++i) {
+    if (tabBar_->tabData(i) == qVariantFromValue(obj)) {
+      if (count() == 0) {
+        termFrame_->enableMenuToolBar(false);
+      }
+      if (i == tabBar_->currentIndex())
+        isAfterRemoved_ = true;
+      tabBar_->removeTab(i);
+      icons_.removeAt(i);
+    }
   }
 
-  isAfterRemoved_ = true;
-  //remove from the Tabbar
-  tabBar_->removeTab(n);
-  windowMap_.erase(windowMap_.find(mw));
 }
 
 //---------------------------
@@ -236,15 +236,10 @@ FQTermWndMgr::subWindowResized(FQTermWindow *mw) {
     if (!subWindow->isMinimized()) {
       subWindowSize_ = subWindow->frameSize();
     }
-
-    if (!(wfs & Qt::WindowSystemMenuHint)) {
-      subWindow->setWindowFlags(wfs | Qt::WindowSystemMenuHint);
-    }
+    subWindow->setWindowFlags(wfs | Qt::WindowSystemMenuHint | Qt::WindowMinMaxButtonsHint);
   }
   else {
-    if (wfs & Qt::WindowSystemMenuHint) {
-      subWindow->setWindowFlags(wfs & ~Qt::WindowSystemMenuHint);
-    }
+    subWindow->setWindowFlags(wfs & ~Qt::WindowSystemMenuHint);
   }
 
 }
@@ -264,15 +259,15 @@ void FQTermWndMgr::tile() {
 }
 
 void FQTermWndMgr::activateNextWindow() {
-  activateNextSubWindow();
+  activateTheWindow((activeWindowIndex() + 1) % count());
 }
 
 void FQTermWndMgr::activatePrevWindow() {
-  activatePreviousSubWindow();
+  activateTheWindow((activeWindowIndex() - 1 + count()) % count());
 }
 
 FQTermWindow * FQTermWndMgr::nthWindow(int n) {
-  return MDIToFQ(subWindowList().at(n));
+  return (FQTermWindow *)(subWindowList()[n]->widget());
 }
 
 void FQTermWndMgr::onSubWindowActivated(QMdiSubWindow * subWindow) {
@@ -285,10 +280,59 @@ void FQTermWndMgr::onSubWindowActivated(QMdiSubWindow * subWindow) {
       mw->showNormal();
       mw->showMaximized();
   }
-  tabBar_->setCurrentIndex(n);
+  if (tabBar_->currentIndex() != n) {
+    FQ_VERIFY(disconnect(this, SIGNAL(subWindowActivated(QMdiSubWindow*)),
+      this, SLOT(onSubWindowActivated(QMdiSubWindow*))));
+    tabBar_->setCurrentIndex(n);
+    FQ_VERIFY(connect(this, SIGNAL(subWindowActivated(QMdiSubWindow*)),
+      this, SLOT(onSubWindowActivated(QMdiSubWindow*))));
+  }
   termFrame_->updateMenuToolBar();
 }
 
+void FQTermWndMgr::onTabRightClicked(int index, const QPoint& p) {
+  QMenu* menu = FQToMDI(nthWindow(index))->systemMenu();
+  menu->popup(p);
+}
+
+void FQTermWndMgr::onTabDoubleClicked(int index, const QPoint& p) {
+  closeWindow(nthWindow(index));
+}
+
+FQTermWindow* FQTermWndMgr::MDIToFQ( QMdiSubWindow* subWindow )
+{
+  if (!subWindowList().contains(subWindow))
+    return NULL;
+  return (FQTermWindow*)subWindow->widget();
+}
+
+QMdiSubWindow* FQTermWndMgr::FQToMDI( FQTermWindow* window )
+{
+  for (int i = 0; i < subWindowList().count(); ++i) {
+    if ((FQTermWindow*)(subWindowList()[i]->widget()) == window) {
+      return subWindowList()[i];
+    }
+  } 
+  return NULL;
+}
+
+int FQTermWndMgr::FQToIndex( FQTermWindow* window )
+{
+  return subWindowList().indexOf(FQToMDI(window));
+}
+void FQTermTabBar::mouseReleaseEvent( QMouseEvent * me ) {
+  int index = tabAt(me->pos());
+  if (index != -1 && me->button() == Qt::RightButton && me->modifiers() == Qt::NoModifier) {
+    emit rightClicked(index, mapToGlobal(me->pos()));
+  }
+}
+
+void FQTermTabBar::mouseDoubleClickEvent( QMouseEvent * me ) {
+  int index = tabAt(me->pos());
+  if (index != -1 && me->button() == Qt::LeftButton && me->modifiers() == Qt::NoModifier) {
+    emit doubleClicked(index, mapToGlobal(me->pos()));
+  }
+}
 }  // namespace FQTerm
 
 #include "fqterm_wndmgr.moc"

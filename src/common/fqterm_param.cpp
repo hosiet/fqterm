@@ -43,9 +43,10 @@ FQTermParam::FQTermParam() {
   englishFontSize_ = 14;
   nonEnglishFontName_ = getDefaultFontFamilyForLanguage(false);
   nonEnglishFontSize_ = 14;
-
-  charRatio_ = 0;
-  fontRatio_ = 0;
+  alignMode_ = 0;
+  charSpacing_ = 0;
+  lineSpacing_ = 0;
+  //charRatio_ = 0;
 
   backgroundColor_ = QColor(0, 0, 0);
   foregroundColor_ = QColor(198, 195, 198);
@@ -127,8 +128,10 @@ void FQTermParam::copy(const FQTermParam& param) {
   englishFontSize_ = param.englishFontSize_;
   nonEnglishFontName_ = param.nonEnglishFontName_;
   nonEnglishFontSize_ = param.nonEnglishFontSize_;
-  charRatio_ = param.charRatio_;
-  fontRatio_ = param.fontRatio_;
+  alignMode_ = param.alignMode_;
+  charSpacing_ = param.charSpacing_;
+  lineSpacing_ = param.lineSpacing_;
+  //charRatio_ = param.charRatio_;
   backgroundColor_ = param.backgroundColor_;
   foregroundColor_ = param.foregroundColor_;
   schemaFileName_ = param.schemaFileName_;
@@ -198,8 +201,9 @@ bool FQTermParam::operator==(const FQTermParam& param)
   if (englishFontSize_ != param.englishFontSize_) return false;
   if (nonEnglishFontName_ != param.nonEnglishFontName_) return false;
   if (nonEnglishFontSize_ != param.nonEnglishFontSize_) return false;
-  if (charRatio_ != param.charRatio_) return false;
-  if (fontRatio_ != param.fontRatio_) return false;
+  if (alignMode_ != param.alignMode_) return false;
+  if (charSpacing_ != param.charSpacing_) return false;
+  if (lineSpacing_ != param.lineSpacing_) return false;
   if (backgroundColor_ != param.backgroundColor_) return false;
   if (foregroundColor_ != param.foregroundColor_) return false;
   if (schemaFileName_ != param.schemaFileName_) return false;
@@ -251,4 +255,15 @@ QString FQTermParam::getLanguageName(bool isEnglish)
   return QString(QObject::tr("Non-English"));
 }
 
+const FQTermParam& FQTermParam::getFQBBSParam() {
+  static bool inited = false;
+  static FQTermParam param;
+  if (!inited) {
+    param.name_ = "FQTermHelp";
+    param.hostAddress_ = "127.0.0.1";
+    param.port_ = 35172;
+    param.serverEncodingID_ = 2;
+  }
+  return param;
+}
 }  // namespace FQTerm
