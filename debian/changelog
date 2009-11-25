@@ -1,3 +1,9 @@
+fqterm (0.9.6.3-1) unstable; urgency=low
+
+  * new upstream version.
+
+ -- LI Daobing <lidaobing@debian.org>  Wed, 25 Nov 2009 19:05:30 +0800
+
 fqterm (0.9.5.2-1) unstable; urgency=low
 
   * new upstream version.
