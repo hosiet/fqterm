@@ -42,7 +42,8 @@ public:
   FQTermSSHChannel(){}
   virtual ~FQTermSSHChannel(){}
   virtual void initChannel(FQTermSSHPacketReceiver *packet,
-                           FQTermSSHPacketSender *output) = 0;
+                           FQTermSSHPacketSender *output, 
+                           int col, int row, const QString& termtype) = 0;
   virtual void closeConnection(char *reason) = 0;
 
   // TODO: it seems this function isn't used.
@@ -69,7 +70,8 @@ private:
 
 public:
   FQTermSSH1Channel();
-  virtual void initChannel(FQTermSSHPacketReceiver *packet, FQTermSSHPacketSender *output);
+  virtual void initChannel(FQTermSSHPacketReceiver *packet, FQTermSSHPacketSender *output,
+                          int col, int row, const QString& termtype);
   virtual void closeConnection(char *reason);
   virtual void changeTermSize(int col, int row);
   virtual void sendData(const char *data, int len);
@@ -87,6 +89,9 @@ private:
   static u_int32_t generateChannelID();
 
 private:
+  int col_;
+  int row_;
+  QString termtype_;
   enum FQTermSSH2ChannelState {
     BEGIN_CHANNEL, REQUEST_PTY_SENT, REQUEST_SHELL_SENT, CHANNEL_OK
   }	channel_state_;
@@ -108,7 +113,8 @@ private:
 
 public:
   FQTermSSH2Channel();
-  virtual void initChannel(FQTermSSHPacketReceiver *packet, FQTermSSHPacketSender *output);
+  virtual void initChannel(FQTermSSHPacketReceiver *packet, FQTermSSHPacketSender *output,
+                          int col, int row, const QString& termtype);
   virtual void closeConnection(char *reason);
   virtual void changeTermSize(int col, int row);
   virtual void sendData(const char *data, int len);

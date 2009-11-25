@@ -213,7 +213,7 @@ signals:
   void changeEvent(QEvent*);
   void closeEvent(QCloseEvent*);
   void keyPressEvent(QKeyEvent*);
-  void focusInEvent (QFocusEvent *);
+  //void focusInEvent (QFocusEvent *);
 
  private:
   FQTermFrame *frame_;
@@ -299,13 +299,22 @@ signals:
   bool scriptMouseEvent(QMouseEvent *mouseevent);
   bool scriptWheelEvent(QWheelEvent *wheelevent);
 
-  public slots:
-    //for script
-    int writeString(const QString& str) {return externInput(str);}
-    int writeRawString(const QString& str);
+
+signals: 
+  //these 2 signals are connected to corresponding slots to 
+  //make write thread safe.
+  int writeStringSignal(const QString& str);
+  int writeRawStringSignal(const QString& str);
+public slots:
+  //for script
+  int writeString(const QString& str) {return externInput(str);}
+  int writeRawString(const QString& str);
+public:
+  void writeString_ts(const QString& str) {emit writeStringSignal(str);}
+  void writeRawString_ts(const QString& str) {emit writeRawStringSignal(str);}
+
+
     
-
-
 //python support
 #ifdef HAVE_PYTHON
 public:
@@ -314,6 +323,7 @@ public:
   }
   void runPythonScript();
   void runPythonScriptFile(const QString&);
+  
 protected:
 	bool pythonCallback(const QString &, PyObject*);
 	int runPythonFile(const QString& file);

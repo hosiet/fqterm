@@ -368,7 +368,11 @@ bool FQTermScriptEngine::scriptCallback( const QString& func, const QScriptValue
   QScriptValue f = engine_->globalObject().property("fqterm").property(func);
   if (f.isFunction()) {
     QScriptValue res = f.call(QScriptValue(), args);
-    return res.toBool();
+    if (engine_->hasUncaughtException()) {
+      return false;
+    } else {
+      return true;
+    }
   }
   return false;
 }
@@ -462,6 +466,14 @@ int FQTermScriptEngine::getUIEventInterval() {
 
 void FQTermScriptEngine::setUIEventInterval(int ms) {
   engine_->setProcessEventsInterval(ms);
+}
+
+bool FQTermScriptEngine::isAntiIdle() {
+  return session_->isAntiIdle();
+}
+
+bool FQTermScriptEngine::isAutoReply() {
+  return session_->isAutoReply();
 }
 } // namespace FQTerm
 

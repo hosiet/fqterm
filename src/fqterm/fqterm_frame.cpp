@@ -43,6 +43,7 @@
 #include <QStatusBar>
 #include <QStyleFactory>
 #include <QTime>
+#include <QDate>
 #include <QTimer>
 #include <QToolBar>
 #include <QTranslator>
@@ -79,6 +80,10 @@
 #include "shortcutdialog.h"
 namespace FQTerm {
 
+
+
+
+
 const QString FQTermFrame::qmPrefix[FQTermFrame::translatedModule] =
 {"fqterm_", "ui_", "protocol_"};
 const QString FQTermFrame::qmPostfix = ".qm";
@@ -94,8 +99,14 @@ FQTermFrame::FQTermFrame()
       shortcutHelper_(0) {
   setAttribute(Qt::WA_DeleteOnClose);
 
+/*#ifndef __APPLE__
+  setWindowFlags(Qt::CustomizeWindowHint);
+#endif*/
   config_ = new FQTermConfig(getPath(USER_CONFIG) + "fqterm.cfg");
+
+
   shortcutHelper_ = new FQTermShortcutHelper(config_);
+
 #ifdef IMAGE_USE_PICFLOW
   image_ = new FQTermImageFlow(config_, NULL, Qt::Window);
 #else
@@ -112,11 +123,19 @@ FQTermFrame::FQTermFrame()
 
   initTranslator();
 
+
+/*  FQTermMenuBar* mb = new FQTermMenuBar(this);
+  setMenuBar(mb);*/
   //set menubar
   addMainMenu();
   FQ_VERIFY(connect(this, SIGNAL(changeLanguage()),
                     this, SLOT(recreateMenu())));
-
+  //initialize all settings
+  //This should be done before add main tool, since some status of tool will depend on setting
+  iniSetting();
+  FQTermConfig* conf = new FQTermConfig(getPath(USER_CONFIG) + "address.cfg");
+  checkHelpExists(conf);
+  delete conf;
   //setup toolbar
   addMainTool();
 
@@ -125,7 +144,7 @@ FQTermFrame::FQTermFrame()
   updateKeyToolBar();
   loadToolBarPosition();
 
-  // diaable some menu & toolbar
+  // disable some menu & toolbar
   enableMenuToolBar(false);
 
   // FIXME: !!!create a horizonal layout to hold the tabbar,the reason
@@ -143,7 +162,7 @@ FQTermFrame::FQTermFrame()
 
   windowMapper_ = new QSignalMapper(this);
   FQ_VERIFY(connect(windowMapper_, SIGNAL(mapped(int)),
-    windowManager_->tabBar(), SLOT(setCurrentIndex(int))));
+    windowManager_, SLOT(activateTheWindow(int))));
 
 
   //create a progress bar to notify the download process
@@ -153,16 +172,22 @@ FQTermFrame::FQTermFrame()
 
   initAdditionalActions();
 
-  //initialize all settings
-  iniSetting();
+
 
   installEventFilter(this);
 
-  FQTermAutoUpdater* autoUpdater =
-    new FQTermAutoUpdater(this, config_);
-  autoUpdater->checkUpdate();  
-//  serverThread_ = new FQTermMiniServerThread();
-//  serverThread_->start();
+  QDate lastCheckDate = QDate::fromString(config_->getItemValue("global", "lastcheckupdate"));
+  QDate currentDate = QDate::currentDate();
+  if (!lastCheckDate.isValid() || lastCheckDate.daysTo(currentDate) >= 31) {
+    FQTermAutoUpdater* autoUpdater =
+      new FQTermAutoUpdater(this, config_);
+    autoUpdater->checkUpdate();  
+    config_->setItemValue("global", "lastcheckupdate", currentDate.toString());
+  }
+
+  serverThread_ = new FQTermMiniServerThread();
+  if (FQTermPref::getInstance()->runServer_)
+    serverThread_->start();
 #ifdef HAVE_PYTHON
   pythonHelper_ = new FQTermPythonHelper;
 #endif
@@ -179,10 +204,10 @@ FQTermFrame::~FQTermFrame() {
   delete config_;
   delete windowManager_;
 
-//  serverThread_->quit();
+  serverThread_->quit();
 //  serverThread_->terminate();
-//  serverThread_->wait();
-//  delete serverThread_;
+  serverThread_->wait(1000);
+  delete serverThread_;
 
 }
 
@@ -290,6 +315,9 @@ void FQTermFrame::iniSetting() {
   if (FQTermPref::getInstance()->useStyleSheet_) {
     loadStyleSheetFromFile(FQTermPref::getInstance()->styleSheetFile_);
   }
+
+  strTmp = config_->getItemValue("global", "runserver");
+  FQTermPref::getInstance()->runServer_ = (strTmp != "0");
 }
 
 void FQTermFrame::loadPref() {
@@ -363,7 +391,7 @@ void FQTermFrame::loadPref() {
 
   strTmp = config_->getItemValue("preference", "editorarg");
   FQTermPref::getInstance()->externalEditorArg_ = strTmp;
-  
+ 
 }
 
 //save current setting to fqterm.cfg
@@ -418,6 +446,8 @@ void FQTermFrame::saveSetting() {
   QByteArray state = saveState().toHex();
   strTmp = QString(state);
   config_->setItemValue("global", "toolbarstate", strTmp);
+
+  config_->setItemValue("global", "runserver", FQTermPref::getInstance()->runServer_ ? "1" : "0");
 
   config_->save(getPath(USER_CONFIG) + "fqterm.cfg");
 }
@@ -490,7 +520,7 @@ void FQTermFrame::exitFQTerm() {
   
   if (!clearUp()) return;
   
-  emit frameClosed();
+  deleteLater();
 }
 
 void FQTermFrame::newWindow(const FQTermParam &param, int index) {
@@ -656,7 +686,7 @@ void FQTermFrame::closeEvent(QCloseEvent *clse) {
 
   clse->accept();
 
-  emit frameClosed();
+  deleteLater();
 }
 
 void FQTermFrame::langEnglish() {
@@ -832,6 +862,17 @@ void FQTermFrame::bosscolor() {
 
   actionBossColor_->setChecked(FQTermPref::getInstance()->isBossColor_);
 
+}
+
+
+void FQTermFrame::toggleServer(bool on) {
+  FQTermPref::getInstance()->runServer_ = on;
+  if (on) {
+    serverThread_->start();
+  } else {
+    serverThread_->quit();
+    serverThread_->wait(1000);
+  }
 }
 
 void FQTermFrame::themesMenuAboutToShow() {
@@ -1109,6 +1150,13 @@ void FQTermFrame::addMainTool() {
   toolBarMdiTools_->addAction(actionQuickConnect_);
 
   actionQuickConnect_->setIcon(QPixmap(getPath(RESOURCE) + "pic/quick_login.png"));
+
+  serverButton_ = new QToolButton(toolBarMdiTools_);
+  serverButton_->setCheckable(true);
+  serverButton_->setIcon(QPixmap(getPath(RESOURCE) + "pic/fqterm_32x32.png"));
+  serverButton_->setChecked(FQTermPref::getInstance()->runServer_);
+  FQ_VERIFY(connect(serverButton_, SIGNAL(toggled(bool)), this, SLOT(toggleServer(bool))));
+  toolBarMdiTools_->addWidget(serverButton_);
   // custom define
   toolBarSetupKeys_ = addToolBar("Custom Key");
   toolBarSetupKeys_->setObjectName("Custom Key");
@@ -1183,7 +1231,6 @@ void FQTermFrame::addMainTool() {
       tr("Reconnect When Disconnected By Host"), 
       this, SLOT(reconnect()));
   actionReconnect_->setCheckable(true);
- 
 
   //call popupConnectMenu() to enable the shortcuts
   popupConnectMenu(); 
@@ -1218,7 +1265,8 @@ void FQTermFrame::addMainMenu() {
                            tr("&Quick login"),
                            this, SLOT(quickLogin()), getShortcutText(FQTermShortcutHelper::QUICKLOGIN));
   menuFile_->addSeparator();
-  menuFile_->addAction(tr("&Exit"), this, SLOT(exitFQTerm()));
+  QAction* exitAction = menuFile_->addAction(tr("&Exit"), this, SLOT(exitFQTerm()));
+  exitAction->setMenuRole(QAction::QuitRole);
 
   //Edit Menu
   QMenu *edit = menuMain_->addMenu(tr("&Edit"));
@@ -1367,8 +1415,13 @@ void FQTermFrame::addMainMenu() {
       this, SLOT(setting()), getShortcutText(FQTermShortcutHelper::CURRENTSETTING));
   option->addSeparator();
   option->addAction(tr("&Default setting"), this, SLOT(defaultSetting()), getShortcutText(FQTermShortcutHelper::DEFAULTSETTING));
-  option->addAction(tr("&Preference"), this, SLOT(preference()), getShortcutText(FQTermShortcutHelper::PREFERENCE));
-
+#ifdef Q_OS_MAC
+  QAction* prefAction = menuFile_->addAction(tr("&Preferences..."), this, SLOT(preference()), getShortcutText(FQTermShortcutHelper::PREFERENCE));
+  prefAction->setMenuRole(QAction::PreferencesRole);
+#else
+  QAction* prefAction = option->addAction(tr("&Preferences..."), this, SLOT(preference()), getShortcutText(FQTermShortcutHelper::PREFERENCE));
+  prefAction->setMenuRole(QAction::PreferencesRole);
+#endif
   option->addAction(tr("&Shortcut Setting"), this, SLOT(shortcutSetting()), getShortcutText(FQTermShortcutHelper::SHORTCUTSETTING));
 
   // Special
@@ -1412,7 +1465,8 @@ void FQTermFrame::addMainMenu() {
 
   //Help menu
   QMenu *help = menuMain_->addMenu(tr("&Help"));
-  help->addAction(tr("About &FQTerm"), this, SLOT(aboutFQTerm()), getShortcutText(FQTermShortcutHelper::ABOUT));
+  QAction* aboutAction = help->addAction(tr("About &FQTerm"), this, SLOT(aboutFQTerm()), getShortcutText(FQTermShortcutHelper::ABOUT));
+  aboutAction->setMenuRole(QAction::AboutRole);
 
   help->addAction(tr("FQTerm's &Homepage"), this, SLOT(homepage()), getShortcutText(FQTermShortcutHelper::HOMEPAGE));
 }
@@ -1641,6 +1695,10 @@ void FQTermFrame::trayShow() {
 
 void FQTermFrame::trayHide() {
   static bool showTip = true;
+  QString str = config_->getItemValue("global", "traytipshown");
+  if (str == "1") {
+    showTip = false;
+  }
   hide();
   if (showTip) {
     tray->showMessage(tr("FQTerm"),
@@ -1648,6 +1706,7 @@ void FQTermFrame::trayHide() {
                          "To terminate the program, "
                          "choose exit in the tray menu."));
     showTip = false;
+    config_->setItemValue("global", "traytipshown", "1");
   }
 }
 
@@ -1921,6 +1980,22 @@ QString TranslatorInstaller::languageFormalName() {
   return language_;
 }
 
+#ifndef __APPLE__
+void FQTermMenuBar::mouseDoubleClickEvent( QMouseEvent * event )
+{
+  if (event->button() == Qt::LeftButton && event->modifiers() == Qt::NoModifier) {
+    if (parentWidget()) {
+      if (!parentWidget()->isMaximized())
+        parentWidget()->showMaximized();
+      else
+        parentWidget()->showNormal();
+    }
+  }
+}
+#endif
+FQTermMenuBar::FQTermMenuBar( QWidget * parent /*= 0*/ ) : QMenuBar(parent) {
+
+}
 }  // namespace FQTerm
 
 #include "fqterm_frame.moc"

@@ -14,6 +14,7 @@ ADD_DEFINITIONS(/D FQTERM_VERSION_STRING="\\"${FQTERM_VERSION}\\"")
 
 if(FQTERM_USE_STATIC_QT)
   ADD_DEFINITIONS(/D FQTERM_USE_STATIC_QT)
+  REMOVE_DEFINITIONS(-DQT_DLL)
 endif(FQTERM_USE_STATIC_QT)
 
 add_subdirectory(src)
@@ -31,6 +32,8 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/terminal
   ${CMAKE_CURRENT_SOURCE_DIR}/src/utilities
   ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/unite
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/unite
 )
 
 link_directories(
@@ -78,5 +81,7 @@ add_dependencies(fqterm
   fqterm_terminal
   fqterm_protocol
   fqterm_ui
+  fqterm_unite
   fqterm_utilities
+  fqterm_unite
 )

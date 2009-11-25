@@ -22,7 +22,7 @@
 #include "fqterm_ssh_const.h"
 #include "fqterm_ssh_packet.h"
 #include "fqterm_trace.h"
-
+#include <QString>
 namespace FQTerm {
 
 //==============================================================================
@@ -35,16 +35,17 @@ FQTermSSH1Channel::FQTermSSH1Channel()
 }
 
 void FQTermSSH1Channel::initChannel(FQTermSSHPacketReceiver *packet,
-                                    FQTermSSHPacketSender *output) {
+                                    FQTermSSHPacketSender *output,
+                                    int col, int row, const QString& termtype) {
   packet_receiver_ = packet;
   packet_sender_ = output;
   packet_receiver_->disconnect(this);
   FQ_VERIFY(connect(packet_receiver_, SIGNAL(packetAvaliable(int)), this, SLOT(handlePacket(int))));
   packet_sender_->startPacket(SSH1_CMSG_REQUEST_PTY);
   // pty request is of no use in BBS, but we do this
-  packet_sender_->putString("xterm-color");
-  packet_sender_->putInt(24);  // FIXME: hardcoded term size.
-  packet_sender_->putInt(80);
+  packet_sender_->putString(termtype.toLatin1());
+  packet_sender_->putInt(row);  // FIXME: hardcoded term size.
+  packet_sender_->putInt(col);
   packet_sender_->putInt(0);
   packet_sender_->putInt(0);
   packet_sender_->putByte(0);
@@ -138,7 +139,10 @@ u_int32_t FQTermSSH2Channel::generateChannelID() {
 }
 
 FQTermSSH2Channel::FQTermSSH2Channel()
-    : FQTermSSHChannel() {
+    : FQTermSSHChannel(),
+      col_(80),
+      row_(24),
+      termtype_("vt100") {
   channel_id_ = generateChannelID();
   server_channel_id_ = 0xCCCCCCCC;
   local_window_size_ = 0;
@@ -146,8 +150,12 @@ FQTermSSH2Channel::FQTermSSH2Channel()
 }
 
 void FQTermSSH2Channel::initChannel(FQTermSSHPacketReceiver *packet,
-                                    FQTermSSHPacketSender *output) {
+                                    FQTermSSHPacketSender *output,
+                                    int col, int row, const QString& termtype) {
   FQ_FUNC_TRACE("ssh2channel", 5);
+  col_ = col;
+  row_ = row;
+  termtype_ = termtype;
   packet_receiver_ = packet;
   packet_sender_ = output;
   packet_receiver_->disconnect(this);
@@ -265,9 +273,9 @@ void FQTermSSH2Channel::requestPty() {
   packet_sender_->putInt(server_channel_id_);
   packet_sender_->putString("pty-req");
   packet_sender_->putByte(true);
-  packet_sender_->putString("vt-utf8"); // TODO: hardcoded term type.
-  packet_sender_->putInt(80);   // FIXME: hardcoded screen parameters.
-  packet_sender_->putInt(24);
+  packet_sender_->putString(termtype_.toLatin1()); // TODO: hardcoded term type.
+  packet_sender_->putInt(col_);   // FIXME: hardcoded screen parameters.
+  packet_sender_->putInt(row_);
   packet_sender_->putInt(640);
   packet_sender_->putInt(480);
   packet_sender_->putString("");  // TODO: no modes sent.

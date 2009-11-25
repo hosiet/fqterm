@@ -182,7 +182,7 @@ static PyObject *fqterm_copyArticle(PyObject *, PyObject *args) {
       break;
     }
     // continue
-    termWindow_->writeString(" ");
+    termWindow_->writeString_ts(" ");
 
     // TODO: fixme
     if (!termWindow_->getSession()->getWaitCondition().wait(&bufferLock, 10000)) {
@@ -263,7 +263,7 @@ static PyObject *fqterm_getArticle(PyObject *, PyObject *args) {
       break;
     }
     // continue
-    termWindow_->writeString(" ");
+    termWindow_->writeString_ts(" ");
 
     // TODO: fixme
     if (!termWindow_->getSession()->getWaitCondition().wait(&bufferLock, timeout)) { // timeout
@@ -384,7 +384,7 @@ static PyObject *fqterm_sendString(PyObject *, PyObject *args) {
     return NULL;
   }
 
-  ((FQTermWindow*)lp)->writeRawString(U82U(pstr));
+  ((FQTermWindow*)lp)->writeRawString_ts(U82U(pstr));
 
   Py_INCREF(Py_None);
   return Py_None;
@@ -402,7 +402,7 @@ static PyObject *fqterm_sendParsedString(PyObject *, PyObject *args) {
   }
   len = strlen(pstr);
 
-  ((FQTermWindow*)lp)->externInput(U82U(pstr));
+  ((FQTermWindow*)lp)->writeString_ts(U82U(pstr));
 
   Py_INCREF(Py_None);
   return Py_None;

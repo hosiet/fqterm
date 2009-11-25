@@ -89,20 +89,20 @@ FQTermSession::FQTermSession(FQTermConfig *config, FQTermParam param) {
 
   if (param.protocolType_ == 0) {
     telnet_ = new FQTermTelnet(param_.virtualTermType_.toLatin1(),
-                               param_.numRows_, param_.numColumns_, param.protocolType_ );
+                               param_.numRows_, param_.numColumns_, param.protocolType_, param.hostType_ );
   } else if (param.protocolType_ == 3) {
     telnet_ = new FQTermTelnet(param_.virtualTermType_.toLatin1(),
-      param_.numRows_, param_.numColumns_, param.protocolType_ );
+      param_.numRows_, param_.numColumns_, param.protocolType_, param.hostType_ );
   } else {
 #if defined(_NO_SSH_COMPILED)
     QMessageBox::warning(this, "sorry",
                          "SSH support is not compiled, "
                          "FQTerm can only use Telnet!");
     telnet_ = new FQTermTelnet(param_.virtualTermType_.toUtf8(),
-                               param_.numRows_, param_.numColumns_, param.protocolType_ );
+                               param_.numRows_, param_.numColumns_, param.protocolType_, param.hostType_ );
 #else
     telnet_ = new FQTermTelnet(param_.virtualTermType_.toUtf8(),
-                               param_.numRows_, param_.numColumns_, param.protocolType_ ,
+                               param_.numRows_, param_.numColumns_, param.protocolType_ , param.hostType_ , 
                                param_.sshUserName_.toUtf8(),
                                param_.sshPassword_.toUtf8());
 #endif
@@ -942,7 +942,7 @@ void FQTermSession::doAutoLogin() {
 
   // smth ignore continous input, so sleep 1 sec :)
 #if defined(_OS_WIN32_) || defined(Q_OS_WIN32)
-  Sleep(1);
+  Sleep(1000);
 #else
   sleep(1);
 #endif
@@ -1029,14 +1029,15 @@ void FQTermSession::readReady(int size, int raw_size) {
       emit startAlert();
       emit bellReceived();
 
+      bool bellConsumed = false;
       if (scriptListener_) {
-        scriptListener_->postQtScriptCallback(SFN_ON_BELL);
+        bellConsumed = scriptListener_->postQtScriptCallback(SFN_ON_BELL);
 #ifdef HAVE_PYTHON
-        scriptListener_->postPythonCallback(SFN_ON_BELL, Py_BuildValue("l", scriptListener_->windowID()));
+        bellConsumed = scriptListener_->postPythonCallback(SFN_ON_BELL, Py_BuildValue("l", scriptListener_->windowID())) || bellConsumed;
 #endif
       }
 
-      if (isAutoReply()) {
+      if (isAutoReply() && !bellConsumed) {
           // TODO: save messages
           if (isIdling_) {
             autoReplyMessage();

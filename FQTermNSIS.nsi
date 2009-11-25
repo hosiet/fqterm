@@ -67,6 +67,7 @@ Section "" ; empty string makes it hidden, so would starting with -
   CreateDirectory "$INSTDIR\schema"
   CreateDirectory "$INSTDIR\userconf"
   CreateDirectory "$INSTDIR\script"
+  CreateDirectory "$INSTDIR\unite"
   CreateDirectory "$APPDATA\FQTerm"
   CreateDirectory "$APPDATA\FQTerm\pool"
   CreateDirectory "$APPDATA\FQTerm\pool\shadow-cache"
@@ -93,6 +94,7 @@ Section "-CopyFiles"
   File "${FQTERMDIR}\build\release\msvcr*.dll"
   File "${FQTERMDIR}\build\release\msvcp*.dll"
   File "${FQTERMDIR}\build\release\msvcm*.dll"
+  File "${FQTERMDIR}\build\release\python*.dll"
   File "${FQTERMDIR}\build\release\Microsoft.*.CRT.manifest"
   File "${FQTERMDIR}\build\release\QQWry.Dat"
   SetOutPath "$INSTDIR\dict"
@@ -115,6 +117,10 @@ Section "-CopyFiles"
 
   SetOutPath "$INSTDIR\script"
   File "${FQTERMDIR}\res\script\*.*"
+
+  SetOutPath "$INSTDIR\unite"
+  File "${FQTERMDIR}\res\unite\*.*"
+
 SectionEnd
 
 

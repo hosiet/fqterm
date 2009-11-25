@@ -35,10 +35,12 @@
 #include "fqterm_param.h"
 #include "fqterm_config.h"
 #include "fqterm_convert.h"
+#ifdef HAVE_PYTHON
+#include <Python.h>
+#endif //HAVE_PYTHON
 
 class QRect;
 class QTimer;
-
 
 namespace FQTerm {
 

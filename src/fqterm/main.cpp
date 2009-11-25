@@ -78,13 +78,15 @@
 #include "fqterm_param.h"
 #include "fqterm_text_line.h"
 
+
+
+
 int main(int argc, char **argv) {
 #if defined(WIN32)
 #else
   QApplication::setGraphicsSystem("raster");
 #endif
-  QApplication a(argc, argv);
-
+  FQTerm::FQTermApplication a(argc, argv);
   // Set trace categories and level.
   FQTerm::setMaxTraceLevel(1);
   for (int i = 1; i < argc; ++i) {
@@ -125,8 +127,8 @@ int main(int argc, char **argv) {
   mw->setWindowIcon(QPixmap(getPath(RESOURCE) + "pic/fqterm.png"));
   mw->show();
   a.setQuitOnLastWindowClosed(false);
-  FQ_VERIFY(a.connect(mw, SIGNAL(frameClosed()), &a, SLOT(quit())));
-
+  FQ_VERIFY(a.connect(mw, SIGNAL(destroyed(QObject*)), &a, SLOT(mainWindowDestroyed(QObject*)), Qt::QueuedConnection));
+  FQ_VERIFY(a.connect(&a, SIGNAL(saveData()), mw, SLOT(saveSetting())));
   int res = a.exec();
   return res;
 }

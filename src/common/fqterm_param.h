@@ -70,6 +70,7 @@ struct FQTermPref {
   int clipboardEncodingID_; // 0--GBK 1--BIG5
   bool isStatusBarShown_;
   int termScrollBarPosition_; // 0--hide 1--LEFT 2--RIGHT
+  bool runServer_;
 };
 
 
@@ -83,7 +84,7 @@ class FQTermParam {
 
   bool operator==(const FQTermParam &);
 
-
+  static const FQTermParam& getFQBBSParam();
   static QString getLanguageName(bool isEnglish);
   // General
   // Name
@@ -121,8 +122,11 @@ class FQTermParam {
   // Font Size
   int englishFontSize_;
   int nonEnglishFontSize_;
-  int charRatio_; //height of english char / width of english char
-  int fontRatio_; //x = width of chinese char, y = width of english char, y = (fontRatio_ / 100.0 + 1.0) * x / 2.0
+
+  int alignMode_; //how to align english char/chinese char in vertical direction 0 -- vcenter, 1 -- bottom 2 -- top
+  int charSpacing_; //additional char spacing for English char.
+  int lineSpacing_; //additional line spacing
+  //int charRatio_; //height of english char / width of english char
   // Background Color
   QColor backgroundColor_;
   // Foreground Color

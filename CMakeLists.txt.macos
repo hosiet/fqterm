@@ -22,6 +22,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/terminal
   ${CMAKE_CURRENT_SOURCE_DIR}/src/utilities
   ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/unite
 )
 
 link_directories(
@@ -52,20 +53,23 @@ endif(FQTERM_USE_STATIC_QT)
 
 target_link_libraries(fqterm
   ${QT_LIBRARIES}
-  ${QT_QTCORE_LIBRARIES}
-  ${QT_QTGUI_LIBRARIES}
-  ${QT_QTNETWORK_LIBRARIES}
-  ${QT_QTSCRIPT_LIBRARIES}
+  ${QT_QTCORE_LIBRARY}
+  ${QT_QTGUI_LIBRARY}
+  ${QT_QTNETWORK_LIBRARY}
+  ${QT_QTSCRIPT_LIBRARY}
   ${APPKIT_LIBRARY}
   ${FQ_QT_STATIC_PLUGINS}
   ${PYTHON_LIB}
-  ssl crypto
+  ${ZLIB_LIBRARIES}
+  ssl 
+  crypto
   fqterm_common 
   fqterm_protocol 
   fqterm_terminal 
   fqterm_utilities 
   fqterm_ui
   fqterm_main
+  fqterm_unite
 )
 
 add_dependencies(fqterm
@@ -75,6 +79,7 @@ add_dependencies(fqterm
   fqterm_protocol
   fqterm_ui
   fqterm_utilities
+  fqterm_unite
   fqterm_qm_target
 )
 

@@ -12,9 +12,19 @@
 Press OK to visit our download list,
 Discard for a next-time-startup inform,
 Ignore for no more notification.</source>
-        <translation>FQTerm 新版本可用
+        <translation type="obsolete">FQTerm 新版本可用
 &quot;确认&quot;访问下载列表
 “取消&quot;等待下次启动提示
+&quot;忽略&quot;忽略本次更新.</translation>
+    </message>
+    <message>
+        <source>FQTerm update available.
+Press OK to visit our download list,
+Discard for a future prompt,
+Ignore for no more notification.</source>
+        <translation>FQTerm 新版本可用
+&quot;确认&quot;访问下载列表
+“取消&quot;将来提示
 &quot;忽略&quot;忽略本次更新.</translation>
     </message>
 </context>
@@ -229,7 +239,7 @@ please close all windows and restart.</source>
     </message>
     <message>
         <source>&amp;Preference</source>
-        <translation>偏好(&amp;P)</translation>
+        <translation type="obsolete">偏好(&amp;P)</translation>
     </message>
     <message>
         <source>&amp;Special</source>
@@ -341,51 +351,51 @@ please close all windows and restart.</source>
     </message>
     <message>
         <source>F2</source>
-        <translation>F2</translation>
+        <translation type="obsolete">F2</translation>
     </message>
     <message>
         <source>F3</source>
-        <translation>F3</translation>
+        <translation type="obsolete">F3</translation>
     </message>
     <message>
         <source>Ctrl+Insert</source>
-        <translation>Ctrl+Insert</translation>
+        <translation type="obsolete">Ctrl+Insert</translation>
     </message>
     <message>
         <source>Shift+Insert</source>
-        <translation>Shift+Insert</translation>
+        <translation type="obsolete">Shift+Insert</translation>
     </message>
     <message>
         <source>F5</source>
-        <translation>F5</translation>
+        <translation type="obsolete">F5</translation>
     </message>
     <message>
         <source>F6</source>
-        <translation>F6</translation>
+        <translation type="obsolete">F6</translation>
     </message>
     <message>
         <source>F12</source>
-        <translation>F12</translation>
+        <translation type="obsolete">F12</translation>
     </message>
     <message>
         <source>F9</source>
-        <translation>F9</translation>
+        <translation type="obsolete">F9</translation>
     </message>
     <message>
         <source>F10</source>
-        <translation>F10</translation>
+        <translation type="obsolete">F10</translation>
     </message>
     <message>
         <source>F7</source>
-        <translation>F7</translation>
+        <translation type="obsolete">F7</translation>
     </message>
     <message>
         <source>F8</source>
-        <translation>F8</translation>
+        <translation type="obsolete">F8</translation>
     </message>
     <message>
         <source>F1</source>
-        <translation>F1</translation>
+        <translation type="obsolete">F1</translation>
     </message>
     <message>
         <source>Ctrl</source>
@@ -408,14 +418,6 @@ please close all windows and restart.</source>
         <translation>设置终端字体</translation>
     </message>
     <message>
-        <source>Ctrl+C</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>Ctrl+V</source>
-        <translation></translation>
-    </message>
-    <message>
         <source> Font</source>
         <translation>字体</translation>
     </message>
@@ -430,6 +432,26 @@ please close all windows and restart.</source>
     <message>
         <source>&amp;Setting for current session</source>
         <translation>当前连接属性(&amp;S)</translation>
+    </message>
+    <message>
+        <source>Google It</source>
+        <translation>Google一下</translation>
+    </message>
+    <message>
+        <source>External Editor</source>
+        <translation>外部编辑器</translation>
+    </message>
+    <message>
+        <source>&amp;Preferences...</source>
+        <translation>偏好(&amp;P)...</translation>
+    </message>
+    <message>
+        <source>&amp;Shortcut Setting</source>
+        <translation>快捷键设置(&amp;S)</translation>
+    </message>
+    <message>
+        <source>Run &amp;Python...</source>
+        <translation>执行Python脚本(&amp;P)...</translation>
     </message>
 </context>
 <context>
@@ -449,6 +471,22 @@ please close all windows and restart.</source>
     <message>
         <source>Shift+Down</source>
         <translation>Shift+Down</translation>
+    </message>
+</context>
+<context>
+    <name>FQTerm::FQTermScriptEngine</name>
+    <message>
+        <source>FQTerm</source>
+        <translation>FQTerm</translation>
+    </message>
+    <message>
+        <source>Unable to open the script file
+</source>
+        <translation>无法打开脚本文件</translation>
+    </message>
+    <message>
+        <source>uncaught exception at line </source>
+        <translation>未捕获的异常，所在行数：</translation>
     </message>
 </context>
 <context>
@@ -611,7 +649,7 @@ please close all windows and restart.</source>
     </message>
     <message>
         <source>F9</source>
-        <translation>F9</translation>
+        <translation type="obsolete">F9</translation>
     </message>
     <message>
         <source>FQTerm</source>
@@ -770,13 +808,16 @@ please close all windows and restart.</source>
         <translation>获取文件头...</translation>
     </message>
     <message>
-        <source>Unable to open the script file
-</source>
-        <translation></translation>
+        <source>Open Selected As Url</source>
+        <translation>将选中文字作为URL打开</translation>
     </message>
     <message>
-        <source>uncaught exception at line </source>
-        <translation></translation>
+        <source>Google Selected Text!</source>
+        <translation>Google选中文字!</translation>
+    </message>
+    <message>
+        <source>Font Selector</source>
+        <translation>字体选择</translation>
     </message>
 </context>
 </TS>

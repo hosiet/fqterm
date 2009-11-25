@@ -581,8 +581,11 @@ void FQTermBuffer::setLineAllChanged(int index) {
 }
 
 void FQTermBuffer::scrollLinesInTerm(int startRow, int numRows) {
-  if (numRows == 0) {
+  if (numRows == 0 || startRow > bottom_row_) {
     return ;
+  }
+  if (startRow < top_row_) {
+    startRow = top_row_;
   }
 
   // TODO: performance issue here. Reuse the old text lines.

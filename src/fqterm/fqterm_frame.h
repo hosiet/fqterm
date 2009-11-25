@@ -23,7 +23,8 @@
 
 #include <QMainWindow>
 #include <QSystemTrayIcon>
-
+#include <QMenuBar>
+#include <QApplication>
 class QWidget;
 class QLineEdit;
 class QToolButton;
@@ -51,6 +52,19 @@ class FQTermShortcutHelper;
 class FQTermPythonHelper;
 #endif //HAVE_PYTHON
 
+class FQTermApplication : public QApplication {
+  Q_OBJECT;
+public:
+  FQTermApplication(int & argc, char ** argv) : QApplication(argc, argv) {}
+protected:
+  virtual void commitData(QSessionManager & manager) {emit saveData();}
+signals:
+  void saveData();
+protected slots:
+  void mainWindowDestroyed(QObject* obj) {quit();}
+};
+
+
 class FQTermFrame: public QMainWindow {
   Q_OBJECT;
  public:
@@ -76,7 +90,6 @@ class FQTermFrame: public QMainWindow {
   void updateScroll();
   void updateStatusBar(bool);
   void changeLanguage();
-  void frameClosed();
   void fontAntiAliasing(bool);
 
  protected slots:
@@ -135,6 +148,7 @@ class FQTermFrame: public QMainWindow {
   void refreshScreen();
   void fullscreen();
   void bosscolor();
+  void toggleServer(bool on);
   void uiFont();
   void antiIdle();
   void autoReply();
@@ -163,7 +177,8 @@ class FQTermFrame: public QMainWindow {
   void paintEvent(QPaintEvent*);
 
   void reloadConfig();
- 
+
+  void saveSetting();
  private:
 
   FQTermWndMgr *windowManager_;
@@ -237,6 +252,7 @@ class FQTermFrame: public QMainWindow {
 
   FQTerm::StatusBar *statusBar_;
 
+  QToolButton *serverButton_;
   QToolButton *connectButton_; // *disconnectButton,
   QToolButton *fontButton_;
   // 				*editRect, *editColor,
@@ -272,8 +288,6 @@ private:
   void selectStyleMenu(int, int);
   void iniSetting();
   void loadPref();
-
-  void saveSetting();
 
   void addMainMenu();
   void addMainTool();
@@ -328,6 +342,17 @@ protected:
   FQTermFrame* frame_;
 
   QString languageName_;
+};
+
+class FQTermMenuBar : public QMenuBar {
+  Q_OBJECT;
+public:
+  FQTermMenuBar(QWidget * parent = 0);
+#ifndef __APPLE__
+protected:
+  virtual void mouseDoubleClickEvent(QMouseEvent * event);
+#endif
+
 };
 
 }  // namespace FQTerm

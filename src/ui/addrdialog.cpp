@@ -131,8 +131,9 @@ void addrDialog::setParamFromUI() {
   param_.autoLoadedScriptFileName_ = ui_.scriptLineEdit->text();
   param_.menuType_ = menuButtonGroup_.checkedId();
   param_.menuColor_ = ui_.menuLabel->palette().color(QPalette::Background);
-  param_.charRatio_ = ui_.charRatioSlider->sliderPosition();
-  param_.fontRatio_ = ui_.fontRatioSlider->sliderPosition();
+  param_.alignMode_ = ui_.alignComboBox->currentIndex();
+  param_.charSpacing_ = ui_.charSpacingSpinBox->value();
+  param_.lineSpacing_ = ui_.lineSpacingSpinBox->value();
 }
 
 void addrDialog::setUIFromParam() {
@@ -187,8 +188,9 @@ void addrDialog::setUIFromParam() {
   ui_.reconnectCheckBox->setChecked(param_.isAutoReconnect_);
   ui_.reconnectLineEdit->setEnabled(param_.isAutoReconnect_);
   ui_.retryLineEdit->setEnabled(param_.isAutoReconnect_);
-  ui_.charRatioSlider->setSliderPosition(param_.charRatio_);
-  ui_.fontRatioSlider->setSliderPosition(param_.fontRatio_);
+  ui_.alignComboBox->setCurrentIndex(param_.alignMode_);
+  ui_.charSpacingSpinBox->setValue(param_.charSpacing_);
+  ui_.lineSpacingSpinBox->setValue(param_.lineSpacing_);
   strTmp.setNum(param_.reconnectInterval_);
   ui_.reconnectLineEdit->setText(strTmp);
   strTmp.setNum(param_.retryTimes_);
@@ -363,7 +365,11 @@ void addrDialog::onFont() {
   int& fontSize = isEnglish?param_.englishFontSize_:param_.nonEnglishFontSize_;
   QFont now(fontName, fontSize);
 
-  QFont font = QFontDialog::getFont(&ok, now);
+  QFont font = QFontDialog::getFont(&ok, now, this, tr("Font Selector")
+#ifdef __APPLE__
+  , QFontDialog::DontUseNativeDialog
+#endif
+  );
   if (ok == true) {
     fontName = font.family();
     fontSize = font.pointSize();

@@ -8,4 +8,6 @@ add_subdirectory(terminal)
 
 add_subdirectory(utilities)
 
+add_subdirectory(unite)
+
 add_subdirectory(fqterm)
