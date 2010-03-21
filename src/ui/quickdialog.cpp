@@ -157,7 +157,7 @@ void quickDialog::onDelete() {
 void quickDialog::onAdvance() {
   setParamFromUI();
 
-  addrDialog set(this, param_);
+  addrDialog set(this, param_, addrDialog::APPLY);
 
   if (set.exec() == 1) {
     param_ = set.param();

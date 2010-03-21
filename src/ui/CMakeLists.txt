@@ -47,6 +47,8 @@ set(fqterm_ui_SRCS
   fqterm_canvas.cpp
   sitemanager.h
   sitemanager.cpp
+  iplookup.h
+  iplookup.cpp
 )
 
 set(fqterm_ui_gen_HS
@@ -62,6 +64,7 @@ set(fqterm_ui_gen_HS
   ui_soundconf.h
   ui_sshlogin.h
   ui_zmodemdialog.h
+  ui_iplookup.h
 )
 
 set(fqterm_ui_UIS
@@ -77,6 +80,7 @@ set(fqterm_ui_UIS
   soundconf.ui
   sshlogin.ui
   zmodemdialog.ui
+  iplookup.ui
 )
 
 qt4_wrap_ui(fqterm_ui_UIS_H
@@ -99,6 +103,7 @@ include_directories(
   ${QT_QTCORE_INCLUDE_DIR}
   ${QT_QTGUI_INCLUDE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/../common
+  ${CMAKE_CURRENT_SOURCE_DIR}/../utilities
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
@@ -109,4 +114,5 @@ add_library(fqterm_ui
 
 add_dependencies(fqterm_ui
   fqterm_common
+  fqterm_utilities
 )

@@ -41,7 +41,7 @@
 #include <QMdiSubWindow>
 #include <QTemporaryFile>
 #include <QRegExp>
-
+#include <QNetworkProxy>
 #include "addrdialog.h"
 #include "articledialog.h"
 #include "msgdialog.h"
@@ -106,7 +106,6 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
       isSelecting_(false),
       addressIndex_(addressIndex),
       sound_(NULL),
-      location_(),
       isMouseClicked_(false),
       blinkStatus_(true),
       isUrlUnderLined_(false),
@@ -128,14 +127,8 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
 
   externalEditor_ = new FQTermExternalEditor(this);
 
-  ipDatabase_ = new FQTermIPLocation(getPath(USER_CONFIG));
-  if (!ipDatabase_->haveFile()) {
-    delete ipDatabase_;
-    ipDatabase_ = new FQTermIPLocation(getPath(RESOURCE));
-  }
   pageViewMessage_ = new PageViewMessage(this);
   tabBlinkTimer_ = new QTimer;
-  isIpDataFileExisting_ = ipDatabase_->haveFile();
 
   setWindowIcon(QIcon("noicon"));
   setWindowTitle(param.name_);
@@ -143,8 +136,7 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
   setFocusProxy(screen_);
   setCentralWidget(screen_);
   addMenu();
-  statusBar()->setSizeGripEnabled(false);
-  statusBar()->setVisible(FQTermPref::getInstance()->isStatusBarShown_);
+  setStatusBar(NULL);
 
 
   FQ_VERIFY(connect(pageViewMessage_, SIGNAL(hideAt(const QRect&)),
@@ -162,8 +154,6 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
                     screen_, SLOT(bossColor())));
   FQ_VERIFY(connect(frame_, SIGNAL(updateScroll()),
                     screen_, SLOT(updateScrollBar())));
-  FQ_VERIFY(connect(frame_, SIGNAL(updateStatusBar(bool)),
-                    this, SLOT(showStatusBar(bool))));
 
   FQ_VERIFY(connect(screen_, SIGNAL(inputEvent(const QString&)),
                     session_, SLOT(handleInput(const QString&))));
@@ -260,7 +250,6 @@ FQTermWindow::~FQTermWindow() {
   delete menu_;
   delete urlMenu_;
   delete screen_;
-  delete ipDatabase_;
   delete pageViewMessage_;
   //delete script_engine_;
 }
@@ -335,7 +324,6 @@ void FQTermWindow::closeEvent(QCloseEvent *clse) {
     }
   }
   saveSetting();
-//  frame_->windowManager_->removeWindow(this);
 }
 
 void FQTermWindow::blinkTab() {
@@ -808,6 +796,16 @@ void FQTermWindow::copy() {
       session_->param().isColorCopy_,
       parseString((const char*)session_->param().escapeString_.toLatin1()));
 
+  QByteArray cstrText = session_->unicode2bbs(selected_text);
+
+  // TODO_UTF16: avoid this replacement.
+  if (!FQTermPref::getInstance()->escapeString_.isEmpty()) {
+    cstrText.replace(
+      parseString((const char*)session_->param().escapeString_.toLatin1()),
+      parseString(FQTermPref::getInstance()->escapeString_.toLatin1()));
+  }
+  selected_text = session_->bbs2unicode(cstrText);
+
   // TODO_UTF16: there are three modes: Clipboard, Selection, FindBuffer.
   clipboard->setText(selected_text, QClipboard::Clipboard);
   clipboard->setText(selected_text, QClipboard::Selection);
@@ -815,6 +813,99 @@ void FQTermWindow::copy() {
 
 void FQTermWindow::paste() {
   pasteHelper(true);
+}
+
+void FQTermWindow::writePasting(const QString& content)
+{
+  QByteArray cstrText = session_->unicode2bbs(content);
+
+  // TODO_UTF16: avoid this replacement.
+  if (!FQTermPref::getInstance()->escapeString_.isEmpty()) {
+    cstrText.replace(
+      parseString(FQTermPref::getInstance()->escapeString_.toLatin1()),
+      parseString((const char*)session_->param().escapeString_.toLatin1()));
+  }
+
+  if (session_->param().isAutoWrap_) {
+    // convert to unicode for word wrap
+    QString strText;
+    strText = session_->bbs2unicode(cstrText);
+    // insert '\n' as needed
+    for (uint i = 0; (long)i < strText.length(); i++) {
+      uint j = i;
+      uint k = 0, l = 0;
+      while ((long)j < strText.length() && strText.at(j) != QChar('\n')) {
+        if (FQTermPref::getInstance()->widthToWrapWord_ - (l - k) >= 0
+          && FQTermPref::getInstance()->widthToWrapWord_ - (l - k) < 2) {
+            strText.insert(j, QChar('\n'));
+            k = l;
+            j++;
+            break;
+        }
+        // double byte or not
+        if (strText.at(j).row() == '\0') {
+          l++;
+        } else {
+          l += 2;
+        }
+        j++;
+      }
+      i = j;
+    }
+
+    cstrText = session_->unicode2bbs(strText);
+  }
+
+  session_->write(cstrText, cstrText.length());
+}
+
+void FQTermWindow::pasteHelper(bool clip) {
+  if (!isConnected()) {
+    return ;
+  }
+
+  // TODO_UTF16: there are three modes: Clipboard, Selection, FindBuffer.
+  QClipboard *clipboard = QApplication::clipboard();
+
+  // TODO_UTF16: what's the termFrame_->clipboardEncodingID_?
+  /*
+  if (termFrame_->clipboardEncodingID_ == 0) {
+  if (clip) {
+  cstrText = U2G(clipboard->text(QClipboard::Clipboard));
+  }
+  else {
+  cstrText = U2G(clipboard->text(QClipboard::Selection));
+  }
+
+  if (session_->param().serverEncodingID_ == 1) {
+  char *str = encodingConverter_.G2B(cstrText, cstrText.length());
+  cstrText = str;
+  delete [] str;
+  }
+  } else {
+  if (clip) {
+  cstrText = U2B(clipboard->text(QClipboard::Clipboard));
+  } else {
+  cstrText = U2B(clipboard->text(QClipboard::Selection));
+  }
+
+  if (session_->param().serverEncodingID_ == 0) {
+  char *str = encodingConverter_.B2G(cstrText, cstrText.length());
+  cstrText = str;
+  delete [] str;
+  }
+  }
+  */
+
+  QString clipStr;
+
+  if (clip) {
+    clipStr = clipboard->text(QClipboard::Clipboard);
+  } else {
+    clipStr = clipboard->text(QClipboard::Selection);
+  }
+
+  writePasting(clipStr);
 }
 
 void FQTermWindow::openAsUrl() {
@@ -836,6 +927,20 @@ void FQTermWindow::googleIt()
 	openUrlImpl(url);
 }
 
+void FQTermWindow::fastPost()
+{
+  QClipboard *clipboard = QApplication::clipboard();
+  QString clipStr = clipboard->text(QClipboard::Clipboard);
+  QString lineEnd("\n");
+  QString postTitle = clipStr.left(clipStr.indexOf(lineEnd));
+
+  sendParsedString("^p");
+  writeRawString(postTitle);
+  writeRawString(QString("\n\n"));
+  writePasting(clipStr);
+  sendParsedString("^W\n");
+}
+
 
 void FQTermWindow::externalEditor() {
   externalEditor_->start();
@@ -847,95 +952,6 @@ void FQTermWindow::externalEditorDone(const QString& str) {
   session_->write(rawStr, rawStr.length());
 }
 
-
-void FQTermWindow::pasteHelper(bool clip) {
-  if (!isConnected()) {
-    return ;
-  }
-
-  // TODO_UTF16: there are three modes: Clipboard, Selection, FindBuffer.
-  QClipboard *clipboard = QApplication::clipboard();
-  QByteArray cstrText;
-
-  // TODO_UTF16: what's the termFrame_->clipboardEncodingID_?
-  /*
-    if (termFrame_->clipboardEncodingID_ == 0) {
-    if (clip) {
-    cstrText = U2G(clipboard->text(QClipboard::Clipboard));
-    }
-    else {
-    cstrText = U2G(clipboard->text(QClipboard::Selection));
-    }
-
-    if (session_->param().serverEncodingID_ == 1) {
-    char *str = encodingConverter_.G2B(cstrText, cstrText.length());
-    cstrText = str;
-    delete [] str;
-    }
-    } else {
-    if (clip) {
-    cstrText = U2B(clipboard->text(QClipboard::Clipboard));
-    } else {
-    cstrText = U2B(clipboard->text(QClipboard::Selection));
-    }
-
-    if (session_->param().serverEncodingID_ == 0) {
-    char *str = encodingConverter_.B2G(cstrText, cstrText.length());
-    cstrText = str;
-    delete [] str;
-    }
-    }
-  */
-
-  QString clipStr;
-
-  if (clip) {
-    clipStr = clipboard->text(QClipboard::Clipboard);
-  } else {
-    clipStr = clipboard->text(QClipboard::Selection);
-  }
-
-  cstrText = session_->unicode2bbs(clipStr);
-
-  // TODO_UTF16: avoid this replacement.
-  if (!FQTermPref::getInstance()->escapeString_.isEmpty()) {
-    cstrText.replace(
-        parseString(FQTermPref::getInstance()->escapeString_.toLatin1()),
-        parseString((const char*)session_->param().escapeString_.toLatin1()));
-  }
-
-  if (session_->param().isAutoWrap_) {
-    // convert to unicode for word wrap
-    QString strText;
-    strText = session_->bbs2unicode(cstrText);
-    // insert '\n' as needed
-    for (uint i = 0; (long)i < strText.length(); i++) {
-      uint j = i;
-      uint k = 0, l = 0;
-      while ((long)j < strText.length() && strText.at(j) != QChar('\n')) {
-        if (FQTermPref::getInstance()->widthToWrapWord_ - (l - k) >= 0
-            && FQTermPref::getInstance()->widthToWrapWord_ - (l - k) < 2) {
-          strText.insert(j, QChar('\n'));
-          k = l;
-          j++;
-          break;
-        }
-        // double byte or not
-        if (strText.at(j).row() == '\0') {
-          l++;
-        } else {
-          l += 2;
-        }
-        j++;
-      }
-      i = j;
-    }
-
-    cstrText = session_->unicode2bbs(strText);
-  }
-
-  session_->write(cstrText, cstrText.length());
-}
 
 void FQTermWindow::copyArticle() {
   if (!isConnected()) {
@@ -949,9 +965,11 @@ void FQTermWindow::setColor() {
   addrDialog set(this, session_->param());
 
   set.setCurrentTabIndex(addrDialog::Display);
-
-  if (set.exec() == 1) {
+  int res = set.exec();
+  if (res != 0) {
     updateSetting(set.param());
+    if (res == 2)
+      saveSetting(false);
   }
 
 }
@@ -969,7 +987,7 @@ void FQTermWindow::showIP(bool show) {
   }
   QString country, city;
   QString url = session_->getIP();
-  if (ipDatabase_->getLocation(url, country, city)) {
+  if (FQTermIPLocation::getInstance()->getLocation(url, country, city)) {
 
     QRect screenRect = screen_->rect();
     QPoint messagePos;
@@ -1008,15 +1026,6 @@ void FQTermWindow::showIP(bool show) {
         displayText,
         PageViewMessage::Info,
         0, messagePos, ali);
-  }
-}
-
-void FQTermWindow::showStatusBar(bool bShow) {
-  // TODO: remove status bar from sub window.
-  if (bShow) {
-    statusBar()->show();
-  } else {
-    statusBar()->hide();
   }
 }
 
@@ -1064,8 +1073,11 @@ void FQTermWindow::viewMessages() {
 
 void FQTermWindow::setting() {
   addrDialog set(this, session_->param());
-  if (set.exec() == 1) {
+  int res = set.exec();
+  if (res != 0) {
     updateSetting(set.param());
+    if (res == 2)
+      saveSetting(false);
   }
 }
 
@@ -1075,6 +1087,10 @@ void FQTermWindow::toggleAntiIdle() {
 
 void FQTermWindow::toggleAutoReply() {
   session_->setAutoReply(!session_->isAutoReply());
+}
+
+void FQTermWindow::toggleAutoReconnect() {
+  session_->setAutoReconnect(!session_->param().isAutoReconnect_);
 }
 
 void FQTermWindow::connectionClosed() {
@@ -1087,6 +1103,10 @@ void FQTermWindow::connectionClosed() {
   setCursor(cursors_[FQTermSession::kNormal]);
 
   refreshScreen();
+
+  if (!getSession()->param().isAutoReconnect_ && getSession()->param().isAutoCloseWin_) {
+    emit(connectionClosed(this));
+  }
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1188,7 +1208,7 @@ void FQTermWindow::messageAutoReplied() {
   pageViewMessage_->display("You have messages", PageViewMessage::Info, 0);
 }
 
-void FQTermWindow::saveSetting() {
+void FQTermWindow::saveSetting(bool ask /* = true*/) {
   if (addressIndex_ == -1) {
     return ;
   }
@@ -1211,7 +1231,7 @@ void FQTermWindow::saveSetting() {
   QMessageBox mb("FQTerm", "Setting changed do you want to save it?",
                  QMessageBox::Warning, QMessageBox::Yes | QMessageBox::Default,
                  QMessageBox::No | QMessageBox::Escape, 0, this);
-  if (mb.exec() == QMessageBox::Yes) {
+  if (!ask || mb.exec() == QMessageBox::Yes) {
     saveAddress(&pConf, addressIndex_, session_->param());
     pConf.save(getPath(USER_CONFIG) + "address.cfg");
   }
@@ -1601,6 +1621,28 @@ void FQTermWindow::getHttpHelper(const QString &url, bool preview) {
   const QString &strPool = FQTermPref::getInstance()->poolDir_;
 
   FQTermHttp *http = new FQTermHttp(config_, this, strPool, session_->param().serverEncodingID_);
+  if (getSession()->param().proxyType_ != 0) {
+    QString host = getSession()->param().proxyHostName_;
+    int port = getSession()->param().proxyPort_;
+    bool auth = getSession()->param().isAuthentation_;
+    QString user = auth ? getSession()->param().proxyUserName_ : QString();
+    QString pass = auth ? getSession()->param().proxyPassword_ : QString();
+    int ret = 0;
+    switch (getSession()->param().proxyType_)
+    {
+    case 1:
+    case 2:
+      //no support in qt.
+      FQ_TRACE("network", 0) << "proxy type not supported by qt, download will not use proxy.";
+      break;
+    case 3:
+      ret = http->setProxy(QNetworkProxy(QNetworkProxy::Socks5Proxy, host, port, user, pass));
+      break;
+    case 4:
+      ret = http->setProxy(QNetworkProxy(QNetworkProxy::HttpProxy, host, port, user, pass));
+      break;
+    }
+  }
   FQTerm::StatusBar::instance()->newProgressOperation(http).setDescription(tr("Waiting header...")).setAbortSlot(http, SLOT(cancel())).setMaximum(100);
   FQTerm::StatusBar::instance()->resetMainText();
   FQTerm::StatusBar::instance()->setProgress(http, 0);
@@ -1715,7 +1757,7 @@ void FQTermWindow::setCursorType(const QPoint& mousePosition) {
   QRect rcOld;
   bool isUrl = false;
   if (FQTermPref::getInstance()->openUrlCheck_) {
-    showIP(isIpDataFileExisting_ && session_->isIP(ipRectangle_, rcOld));
+    showIP(FQTermIPLocation::getInstance()->ipDataBaseAvailable() && session_->isIP(ipRectangle_, rcOld));
     if (session_->isUrl(urlRectangle_, rcOld)) {
       setCursor(Qt::PointingHandCursor);
       isUrl = true;
@@ -2206,6 +2248,9 @@ void FQTermWindow::updateSetting(const FQTermParam& param) {
                        QFont(param.nonEnglishFontName_,
                              param.nonEnglishFontSize_));
   screen_->setSchema();
+
+  setWindowTitle(param.name_);
+
   forcedRepaintScreen();
 }
 

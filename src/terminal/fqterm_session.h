@@ -166,6 +166,9 @@ class FQTermSession: public QObject {
   void setAutoReply(bool autoReply);
   QString getMessage();
 
+  void setAutoReconnect(bool autoReconnect);
+
+
   bool readyForInput();
   void setTermSize(int col, int row);
 
@@ -196,7 +199,7 @@ class FQTermSession: public QObject {
   const QPoint& urlEndPoint() {return urlEndPoint_;}
 
   FQTermParam& param() {return param_;}
-  void updateSetting(const FQTermParam p);
+  void updateSetting(const FQTermParam& p);
   QReadWriteLock& getBufferLock() {return bufferWriteLock_;}
 
  public:
@@ -286,7 +289,6 @@ private:
   FQTermBuffer *termBuffer_;
 
   QTimer *idleTimer_;
-  QTimer *reconnectTimer_;
   QTimer *autoReplyTimer_;
 
   QWaitCondition waitCondition_;
@@ -295,6 +297,7 @@ private:
   std::vector<char> telnet_data_;
   std::vector<char> raw_data_;
 
+  int reconnectRetry_;
 public:
   void setScriptListener(FQTermScriptEventListener* pythonListener) {
     scriptListener_ = pythonListener;

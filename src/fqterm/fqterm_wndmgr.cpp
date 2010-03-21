@@ -26,7 +26,10 @@
 #include <stdio.h>
 
 #include <QApplication>
+#include <QEvent>
+#include <QKeyEvent>
 #include <QIcon>
+#include <QKeySequence>
 #include <QMdiArea>
 #include <QMdiSubWindow>
 #include <QTabBar>
@@ -203,6 +206,8 @@ FQTermWindow* FQTermWndMgr::newWindow( const FQTermParam &param, FQTermConfig* c
        this, SLOT(blinkTheTab(FQTermWindow*, bool))));
   FQ_VERIFY(connect(window, SIGNAL(refreshOthers(FQTermWindow*)),
        this, SLOT(refreshAllExcept(FQTermWindow*))));
+  FQ_VERIFY(connect(window, SIGNAL(connectionClosed(FQTermWindow*)),
+    this, SLOT(closeWindow(FQTermWindow*)), Qt::QueuedConnection));
   return window;
 }
 
@@ -315,10 +320,21 @@ QMdiSubWindow* FQTermWndMgr::FQToMDI( FQTermWindow* window )
   } 
   return NULL;
 }
-
+ 
 int FQTermWndMgr::FQToIndex( FQTermWindow* window )
 {
   return subWindowList().indexOf(FQToMDI(window));
+}
+
+bool FQTermWndMgr::event( QEvent* e ) {
+  if (e->type() == QEvent::ShortcutOverride) {
+    QKeyEvent* ke = (QKeyEvent*)e;
+    if (ke->key() == Qt::Key_W && ke->modifiers() == Qt::ControlModifier) {
+      ke->accept();
+      return true;
+    }
+  }
+  return QMdiArea::event(e);
 }
 void FQTermTabBar::mouseReleaseEvent( QMouseEvent * me ) {
   int index = tabAt(me->pos());

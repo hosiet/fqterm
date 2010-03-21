@@ -351,9 +351,10 @@ void siteDialog::onAdvance() {
 
 void siteDialog::setting(addrDialog::Tabs tab) {
   setParamFromUI();
-  addrDialog addr(this, param_);
+  addrDialog addr(this, param_, addrDialog::APPLY);
   addr.setCurrentTabIndex(tab);
-  if (addr.exec() == 1) {
+  int res = addr.exec();
+  if (res == 1) {
     param_ = addr.param();
     setUIFromParam();
   }

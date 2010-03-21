@@ -484,6 +484,7 @@ static PyObject *fqterm_reconnect(PyObject *, PyObject *args) {
 }
 
 // bbs encoding 0-GBK 1-BIG5
+//FIXME: UTF8 and HKSCS
 static PyObject *fqterm_getBBSCodec(PyObject *, PyObject *args) {
   long lp;
   if (!PyArg_ParseTuple(args, "l", &lp)) {

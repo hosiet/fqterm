@@ -1,8 +1,9 @@
-﻿[bbs 0]
+[bbs 0]
 addr=bbs.newsmth.org
 alwayshighlight=0
 ansicolor=1
 antiidlestring=^@
+autoclosewin=0
 autocopy=1
 autofont=1
 autologin=0
@@ -53,6 +54,7 @@ addr=newsmth.net
 alwayshighlight=0
 ansicolor=1
 antiidlestring=^@
+autoclosewin=0
 autocopy=1
 autofont=1
 autologin=0
@@ -103,6 +105,7 @@ addr=mitbbs.com
 alwayshighlight=0
 ansicolor=1
 antiidlestring=^@
+autoclosewin=0
 autocopy=1
 autofont=1
 autologin=0

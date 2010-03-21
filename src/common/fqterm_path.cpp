@@ -319,6 +319,9 @@ bool loadAddress(FQTermConfig *pConf, int n, FQTermParam &param) {
   strTmp = pConf->getItemValue(strSection, "retrytimes");
   param.retryTimes_ = strTmp.toInt();
 
+  strTmp = pConf->getItemValue(strSection, "autoclosewin");
+  param.isAutoCloseWin_ = (strTmp == "1");
+
   strTmp = pConf->getItemValue(strSection, "alignmode");
   param.alignMode_ = strTmp.toInt();
 
@@ -441,6 +444,7 @@ void saveAddress(FQTermConfig *pConf, int n, const FQTermParam &param) {
   pConf->setItemValue(strSection, "interval", strTmp);
   strTmp.setNum(param.retryTimes_);
   pConf->setItemValue(strSection, "retrytimes", strTmp);
+  pConf->setItemValue(strSection, "autoclosewin", param.isAutoCloseWin_? "1" : "0");
 
   pConf->setItemValue(strSection, "loadscript", param.isAutoLoadScript_ ? "1" : "0");
   pConf->setItemValue(strSection, "scriptfile", param.autoLoadedScriptFileName_);

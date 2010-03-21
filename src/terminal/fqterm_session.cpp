@@ -80,6 +80,7 @@ const QString  FQTermSession::endOfUrl[] = {
 };
 
 FQTermSession::FQTermSession(FQTermConfig *config, FQTermParam param) {
+  reconnectRetry_ = 0;
   scriptListener_ = NULL;
   param_ = param;
   termBuffer_ = new FQTermBuffer(param_.numColumns_,
@@ -129,12 +130,9 @@ FQTermSession::FQTermSession(FQTermConfig *config, FQTermParam param) {
 
   idleTimer_ = new QTimer;
   autoReplyTimer_ = new QTimer;
-  reconnectTimer_ = new QTimer;
 
   acThread_ = new ArticleCopyThread(*this, waitCondition_, bufferWriteLock_);
 
-  FQ_VERIFY(connect(reconnectTimer_, SIGNAL(timeout()),
-                    this, SLOT(reconnect())));
   FQ_VERIFY(connect(decoder_, SIGNAL(mouseMode(bool)),
                     this, SLOT(setMouseMode(bool))));
   FQ_VERIFY(connect(telnet_, SIGNAL(readyRead(int, int)),
@@ -170,7 +168,6 @@ FQTermSession::FQTermSession(FQTermConfig *config, FQTermParam param) {
 FQTermSession::~FQTermSession() {
   delete idleTimer_;
   delete autoReplyTimer_;
-  delete reconnectTimer_;
   delete acThread_;
   delete termBuffer_;
   delete telnet_;
@@ -593,7 +590,7 @@ QRect FQTermSession::detectMenuRect() {
 }
 
 bool FQTermSession::isIllChar(char ch) {
-  static char illChars[] = ",;'\"()[]<>^";
+  static char illChars[] = ";'\"[]<>^";
   return ch > '~' || ch < '!' || strchr(illChars, ch) != NULL;
 }
 
@@ -834,6 +831,15 @@ void FQTermSession::setAntiIdle(bool antiIdle) {
   }
 }
 
+void FQTermSession::setAutoReconnect(bool autoReconnect) {
+  param_.isAutoReconnect_ = autoReconnect;
+  reconnectRetry_ = 0;
+  if (autoReconnect && !isConnected_) {
+    reconnectProcess();
+  }
+}
+
+
 void FQTermSession::autoReplyMessage() {
   if (autoReplyTimer_->isActive()) {
     autoReplyTimer_->stop();
@@ -903,18 +909,14 @@ QByteArray FQTermSession::parseString(const QByteArray &cstr, int *len) {
 void FQTermSession::reconnect() {
   if (!isConnected_) {
     telnet_->connectHost(param_.hostAddress_, param_.port_);
+    reconnectRetry_++;
   }
 }
 
 void FQTermSession::reconnectProcess() {
-  static int retry = 0;
-  if (retry < param_.retryTimes_ || param_.retryTimes_ == -1) {
-    if (param_.reconnectInterval_ <= 0) {
-      reconnect();
-    } else {
-      reconnectTimer_->start(param_.reconnectInterval_ *1000);
-    }
-    retry++;
+  if (!isConnected_ && param_.isAutoReconnect_ && (reconnectRetry_ < param_.retryTimes_ || param_.retryTimes_ == -1)) {
+    int interval = param_.reconnectInterval_ <= 0 ? 0 : param_.reconnectInterval_ * 1000;
+    QTimer::singleShot(interval, this, SLOT(reconnect()));
   }
 }
 
@@ -1150,6 +1152,7 @@ void FQTermSession::changeTelnetState(int state) {
       break;
     case TSHOSTCONNECTED:
       isConnected_ = true;
+      reconnectRetry_ = 0;
       if (param_.isAutoLogin_) {
         isTelnetLogining_ = true;
       }
@@ -1256,6 +1259,19 @@ QByteArray FQTermSession::unicode2bbs_smart(const QString &text) {
       strTmp = U2B(text);
     }
     break;
+  case FQTERM_ENCODING_HKSCS:
+    if (FQTermPref::getInstance()->imeEncodingID_ == FQTERM_ENCODING_GBK)
+    {
+      strTmp = U2G(text);
+      char* tmp = encodingConverter_.G2B(strTmp, strTmp.length());
+      strTmp = tmp;
+      delete []tmp;
+    }
+    else
+    {
+      strTmp = U2H(text);
+    }
+    break;
   case FQTERM_ENCODING_UTF8:
     strTmp = U2U8(text);
     break;
@@ -1331,9 +1347,6 @@ void FQTermSession::connectHost(const QString &hostName, quint16 portNumber) {
 
 void FQTermSession::close() {
   telnet_->close();
-  if (reconnectTimer_->isActive()) {
-    reconnectTimer_->stop();
-  }
   finalizeConnection();
 }
 
@@ -1441,9 +1454,13 @@ void FQTermSession::onSSHAuthOK() {
     telnet_->windowSizeChanged(param_.numColumns_, param_.numRows_);
 }
 
-void FQTermSession::updateSetting( const FQTermParam p ) {
+void FQTermSession::updateSetting( const FQTermParam& p ) {
+  bool toggleAutoReconnect = (p.isAutoReconnect_ != param_.isAutoReconnect_);
   param_ = p;
+  setTermSize(p.numColumns_, p.numRows_);
   setAntiIdle(isAntiIdle());
+  if (toggleAutoReconnect)
+    setAutoReconnect(param_.isAutoReconnect_);
 }
 
 ArticleCopyThread::ArticleCopyThread(

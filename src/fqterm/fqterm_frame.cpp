@@ -78,25 +78,26 @@
 #include "fqterm_shortcuthelper.h"
 #include "fqterm_mini_server.h"
 #include "shortcutdialog.h"
+#include "schemadialog.h"
+#include "fqterm_ip_location.h"
+#include "iplookup.h"
 namespace FQTerm {
 
 
-
-
-
 const QString FQTermFrame::qmPrefix[FQTermFrame::translatedModule] =
-{"fqterm_", "ui_", "protocol_"};
+{"fqterm_", "ui_", "protocol_", "common_"};
 const QString FQTermFrame::qmPostfix = ".qm";
 
 //constructor
 FQTermFrame::FQTermFrame()
     : QMainWindow(0), 
       tray(0),
-      menuTray_(0), 
+      trayMenu_(0), 
 #ifdef HAVE_PYTHON
       pythonHelper_(0),
 #endif
-      shortcutHelper_(0) {
+      shortcutHelper_(0),
+      ipLookupDialog_(0){
   setAttribute(Qt::WA_DeleteOnClose);
 
 /*#ifndef __APPLE__
@@ -104,32 +105,25 @@ FQTermFrame::FQTermFrame()
 #endif*/
   config_ = new FQTermConfig(getPath(USER_CONFIG) + "fqterm.cfg");
 
-
-  shortcutHelper_ = new FQTermShortcutHelper(config_);
+  initTranslator();
+  shortcutHelper_ = new FQTermShortcutHelper(config_, this);
 
 #ifdef IMAGE_USE_PICFLOW
-  image_ = new FQTermImageFlow(config_, NULL, Qt::Window);
+  imageViewer_ = new FQTermImageFlow(config_, NULL, Qt::Window);
 #else
-  image_ = new FQTermImageOrigin(config_, NULL, Qt::Window);
+  imageViewer_ = new FQTermImageOrigin(config_, NULL, Qt::Window);
 #endif
 
 
   //create the window manager to deal with the window-tab-icon pairs
   windowManager_ = new FQTermWndMgr(this);
-  //windowManager_->setViewMode(QMdiArea::TabbedView);
-  //windowManager_->setTabPosition(QTabWidget::South);
-
   setCentralWidget(windowManager_);
 
-  initTranslator();
-
-
-/*  FQTermMenuBar* mb = new FQTermMenuBar(this);
-  setMenuBar(mb);*/
   //set menubar
   addMainMenu();
   FQ_VERIFY(connect(this, SIGNAL(changeLanguage()),
                     this, SLOT(recreateMenu())));
+
   //initialize all settings
   //This should be done before add main tool, since some status of tool will depend on setting
   iniSetting();
@@ -143,8 +137,6 @@ FQTermFrame::FQTermFrame()
   // and load toolbar position
   updateKeyToolBar();
   loadToolBarPosition();
-
-  // disable some menu & toolbar
   enableMenuToolBar(false);
 
   // FIXME: !!!create a horizonal layout to hold the tabbar,the reason
@@ -163,16 +155,11 @@ FQTermFrame::FQTermFrame()
   windowMapper_ = new QSignalMapper(this);
   FQ_VERIFY(connect(windowMapper_, SIGNAL(mapped(int)),
     windowManager_, SLOT(activateTheWindow(int))));
-
+  initAdditionalActions();
 
   //create a progress bar to notify the download process
   statusBar_ = new FQTerm::StatusBar(statusBar(), "mainStatusBar");
-
   statusBar()->addWidget(statusBar_, 0);
-
-  initAdditionalActions();
-
-
 
   installEventFilter(this);
 
@@ -199,13 +186,12 @@ FQTermFrame::~FQTermFrame() {
   delete pythonHelper_;
 #endif //HAVE_PYTHON
   clearTranslator();
-  delete image_;
+  delete imageViewer_;
   delete shortcutHelper_;
   delete config_;
   delete windowManager_;
-
+  FQTermIPLocation::Destroy();
   serverThread_->quit();
-//  serverThread_->terminate();
   serverThread_->wait(1000);
   delete serverThread_;
 
@@ -218,7 +204,7 @@ void FQTermFrame::iniSetting() {
   strTmp = config_->getItemValue("global", "fullscreen");
   if (strTmp == "1") {
     isFullScreen_ = true;
-    actionFullScreen_->setChecked(true);
+    getAction(FQTermShortcutHelper::FULLSCREEN)->setChecked(true);
     showFullScreen();
   } else {
     isFullScreen_ = false;
@@ -247,25 +233,16 @@ void FQTermFrame::iniSetting() {
   updateLanguageMenu();
 
   //TODO: 
-  actionNoEscape_->setChecked(true);
+  getAction(FQTermShortcutHelper::COLORCTL_NO)->setChecked(true);
   FQTermPref::getInstance()->escapeString_ = config_->getItemValue("global", "escstr");
   if (FQTermPref::getInstance()->escapeString_ == "") {
-    actionNoEscape_->setChecked(true);
+    getAction(FQTermShortcutHelper::COLORCTL_NO)->setChecked(true);
   } else if (FQTermPref::getInstance()->escapeString_ == "^[^[[") {
-    actionEscEscape_->setChecked(true);
+    getAction(FQTermShortcutHelper::COLORCTL_SMTH)->setChecked(true);
   } else if (FQTermPref::getInstance()->escapeString_ == "^u[") {
-    actionUEscape_->setChecked(true);
+    getAction(FQTermShortcutHelper::COLORCTL_PTT)->setChecked(true);
   } else {
-    actionCustomEscape_->setChecked(true);
-  }
-
-  strTmp = config_->getItemValue("global", "clipcodec");
-  if (strTmp == "0") {
-    FQTermPref::getInstance()->clipboardEncodingID_ = 0;
-    actionGBK_->setChecked(true);
-  } else {
-    FQTermPref::getInstance()->clipboardEncodingID_ = 1;
-    actionBIG5_->setChecked(true);
+    getAction(FQTermShortcutHelper::COLORCTL_CUSTOM)->setChecked(true);
   }
 
   strTmp = config_->getItemValue("global", "vscrollpos");
@@ -276,14 +253,9 @@ void FQTermFrame::iniSetting() {
   } else {
     FQTermPref::getInstance()->termScrollBarPosition_ = 2;
   }
-
-  strTmp = config_->getItemValue("global", "statusbar");
-  FQTermPref::getInstance()->isStatusBarShown_ = (strTmp != "0");
-  actionStatus_->setChecked(FQTermPref::getInstance()->isStatusBarShown_);
-
   strTmp = config_->getItemValue("global", "switchbar");
   isTabBarShown_ = (strTmp != "0");
-  actionSwitch_->setChecked(isTabBarShown_);
+  getAction(FQTermShortcutHelper::SWITCHBAR)->setChecked(isTabBarShown_);
   if (isTabBarShown_) {
     statusBar()->show();
   } else {
@@ -325,6 +297,8 @@ void FQTermFrame::loadPref() {
   
   strTmp = config_->getItemValue("preference", "displayoffset");
   FQTermPref::getInstance()->displayOffset_ = strTmp.toInt();
+  strTmp = config_->getItemValue("preference", "vsetting");
+  FQTermPref::getInstance()->vsetting_ = strTmp.toInt();
   strTmp = config_->getItemValue("preference", "xim");
   FQTermPref::getInstance()->imeEncodingID_ = strTmp.toInt();
   strTmp = config_->getItemValue("preference", "wordwrap");
@@ -423,15 +397,11 @@ void FQTermFrame::saveSetting() {
   // cstrTmp.setNum(theme);
   config_->setItemValue("global", "theme", theme_);
 
-  strTmp.setNum(FQTermPref::getInstance()->clipboardEncodingID_);
-  config_->setItemValue("global", "clipcodec", strTmp);
-
   config_->setItemValue("global", "escstr", FQTermPref::getInstance()->escapeString_);
 
   strTmp.setNum(FQTermPref::getInstance()->termScrollBarPosition_);
   config_->setItemValue("global", "vscrollpos", strTmp);
 
-  config_->setItemValue("global", "statusbar", FQTermPref::getInstance()->isStatusBarShown_ ? "1" : "0");
   config_->setItemValue("global", "switchbar", isTabBarShown_ ? "1" : "0");
 
   //save subwindow setting
@@ -471,27 +441,8 @@ void FQTermFrame::initAdditionalActions()
     addAction(idAction);
   }
 
-  actionNextWindow_ = new QAction(this);
-  QList<QKeySequence> keySequences;
-  keySequences.append(opt + tr("+Right"));
-  keySequences.append(QKeySequence::NextChild);
-  actionNextWindow_->setShortcuts(keySequences);
-
-  //TODO: wnd mgr should not expose mdiarea apis.
-  FQ_VERIFY(connect(actionNextWindow_, SIGNAL(triggered()),
-                    windowManager_, SLOT(activateNextWindow())));
-  addAction(actionNextWindow_);
-  keySequences.clear();
-
-
-  actionPrevWindow_ = new QAction(this);
-  keySequences.append(opt + tr("+Left"));
-  keySequences.append(QKeySequence::PreviousChild);
-  actionPrevWindow_->setShortcuts(keySequences);
-  //TODO: wnd mgr should not expose mdiarea apis.
-  FQ_VERIFY(connect(actionPrevWindow_, SIGNAL(triggered()),
-                    windowManager_, SLOT(activatePrevWindow())));
-  addAction(actionPrevWindow_);
+  FQTERM_ADDACTION(windowManager_, NEXTWINDOW, windowManager_, activateNextWindow);
+  FQTERM_ADDACTION(windowManager_, PREVWINDOW, windowManager_, activatePrevWindow);
 
 }
 
@@ -516,22 +467,14 @@ void FQTermFrame::quickLogin() {
   }
 }
 
-void FQTermFrame::exitFQTerm() {
-  
+void FQTermFrame::exitFQTerm() {  
   if (!clearUp()) return;
-  
   deleteLater();
 }
 
 void FQTermFrame::newWindow(const FQTermParam &param, int index) {
   QIcon *icon = new QIcon(QPixmap(getPath(RESOURCE) + "pic/tabpad.png"));
-
-
   FQTermWindow* window = windowManager_->newWindow(param, config_, icon, index);
-
-
-
-
   window->connectHost();
 }
 
@@ -543,7 +486,6 @@ void FQTermFrame::aboutFQTerm() {
 
 //slot Help->Homepage
 void FQTermFrame::homepage() {
-
   const QString &httpBrowser = FQTermPref::getInstance()->httpBrowser_;
   const QString homeUrl = "http://code.google.com/p/fqterm";
 
@@ -557,17 +499,16 @@ void FQTermFrame::homepage() {
 //slot Windows menu aboutToShow
 void FQTermFrame::windowsMenuAboutToShow() {
   menuWindows_->clear();
-  QAction *cascadeAction = menuWindows_->addAction(tr("Cascade"), windowManager_, SLOT
-                                                   (cascade()));
-  QAction *tileAction = menuWindows_->addAction(tr("Tile"), windowManager_, SLOT(tile()));
+  FQTERM_ADDACTION(menuWindows_, CASCADEWINDOWS, windowManager_, cascade);
+  FQTERM_ADDACTION(menuWindows_, TILEWINDOWS, windowManager_, tile);
   if (windowManager_->count() == 0) {
-    cascadeAction->setEnabled(false);
-    tileAction->setEnabled(false);
+    getAction(FQTermShortcutHelper::CASCADEWINDOWS)->setEnabled(false);
+    getAction(FQTermShortcutHelper::TILEWINDOWS)->setEnabled(false);
   }
   menuWindows_->addSeparator();
 
 #ifdef Q_OS_MACX
-  // used to dock the programe
+  // used to dock the program
   if (isHidden()) {
     menuWindows_->addAction(tr("Main Window"), this, SLOT(trayShow()));
   }
@@ -588,19 +529,13 @@ void FQTermFrame::reloadConfig() {
 
 void FQTermFrame::popupConnectMenu() {
   menuConnect_->clear();
-
   menuConnect_->addAction(tr("Quick Login"), this, SLOT(quickLogin()));
   menuConnect_->addSeparator();
   
-
-
   FQTermConfig conf(getPath(USER_CONFIG) + "address.cfg");
 
   QStringList listName;
   loadNameList(&conf, listName);
-
-
-
 
   for (int i = 0; i < listName.count(); i++) {
     QAction *idAction = menuConnect_->addAction(listName[i], this, SLOT
@@ -637,13 +572,6 @@ void FQTermFrame::popupConnectMenu() {
   }
 }
 
-void FQTermFrame::connectMenuAboutToHide() {
-  // 	QMouseEvent me( QEvent::MouseButtonRelease, QPoint(0,0), QPoint(0,0),
-  // 			Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
-  // 	QApplication::sendEvent( connectButton, &me );
-
-}
-
 void FQTermFrame::connectMenuActivated() {
   FQTermConfig *pConf = new FQTermConfig(getPath(USER_CONFIG) + "address.cfg");
   int id = static_cast < QAction * > (sender())->data().toInt();
@@ -664,11 +592,6 @@ void FQTermFrame::connectMenuActivated() {
 
 bool FQTermFrame::eventFilter(QObject *o, QEvent *e) {
   return false;
-}
-
-//slot draw something e.g. logo in the background
-//TODO : draw a pixmap in the background
-void FQTermFrame::paintEvent(QPaintEvent*){
 }
 
 void FQTermFrame::closeEvent(QCloseEvent *clse) {
@@ -730,11 +653,15 @@ void FQTermFrame::externalEditor() {
   windowManager_->activeWindow()->externalEditor();
 }
 
+void FQTermFrame::fastPost() {
+  windowManager_->activeWindow()->fastPost();
+}
+
 void FQTermFrame::copyRect() {
   windowManager_->activeWindow()->getSession()->param().isRectSelect_
       = !windowManager_->activeWindow()->getSession()->param().isRectSelect_;
 
-  actionRectangleSelect_->setChecked(
+  getAction(FQTermShortcutHelper::RECTANGLESELECTION)->setChecked(
       windowManager_->activeWindow()->getSession()->param().isRectSelect_);
 }
 
@@ -742,7 +669,7 @@ void FQTermFrame::copyColor() {
   windowManager_->activeWindow()->getSession()->param().isColorCopy_
       = !windowManager_->activeWindow()->getSession()->param().isColorCopy_;
 
-  actionColorCopy_->setChecked(
+  getAction(FQTermShortcutHelper::COPYWITHCOLOR)->setChecked(
       windowManager_->activeWindow()->getSession()->param().isColorCopy_);
 }
 
@@ -754,7 +681,7 @@ void FQTermFrame::autoCopy() {
   windowManager_->activeWindow()->getSession()->param().isAutoCopy_
       = !windowManager_->activeWindow()->getSession()->param().isAutoCopy_;
 
-  actionAutoCopy_->setChecked(
+  getAction(FQTermShortcutHelper::AUTOCOPYSELECTION)->setChecked(
       windowManager_->activeWindow()->getSession()->param().isAutoCopy_);
 }
 
@@ -762,23 +689,23 @@ void FQTermFrame::wordWrap() {
   windowManager_->activeWindow()->getSession()->param().isAutoWrap_
       = !windowManager_->activeWindow()->getSession()->param().isAutoWrap_;
 
-  actionWordWrap_->setChecked(
+  getAction(FQTermShortcutHelper::PASTEWORDWRAP)->setChecked(
       windowManager_->activeWindow()->getSession()->param().isAutoWrap_);
 }
 
 void FQTermFrame::noEsc() {
   FQTermPref::getInstance()->escapeString_ = "";
-  actionNoEscape_->setChecked(true);
+  getAction(FQTermShortcutHelper::COLORCTL_NO)->setChecked(true);
 }
 
 void FQTermFrame::escEsc() {
   FQTermPref::getInstance()->escapeString_ = "^[^[[";
-  actionEscEscape_->setChecked(true);
+  getAction(FQTermShortcutHelper::COLORCTL_SMTH)->setChecked(true);
 }
 
 void FQTermFrame::uEsc() {
   FQTermPref::getInstance()->escapeString_ = "^u[";
-  actionUEscape_->setChecked(true);
+  getAction(FQTermShortcutHelper::COLORCTL_PTT)->setChecked(true);
 }
 
 void FQTermFrame::customEsc() {
@@ -788,18 +715,8 @@ void FQTermFrame::customEsc() {
                                          FQTermPref::getInstance()->escapeString_, &ok);
   if (ok) {
     FQTermPref::getInstance()->escapeString_ = strEsc;
-    actionCustomEscape_->setChecked(true);
+    getAction(FQTermShortcutHelper::COLORCTL_CUSTOM)->setChecked(true);
   }
-}
-
-void FQTermFrame::gbkCodec() {
-  FQTermPref::getInstance()->clipboardEncodingID_ = 0;
-  actionGBK_->setChecked(true);
-}
-
-void FQTermFrame::big5Codec() {
-  FQTermPref::getInstance()->clipboardEncodingID_ = 1;
-  actionBIG5_->setChecked(true);
 }
 
 
@@ -826,7 +743,7 @@ void FQTermFrame::uiFont() {
    if (FQTermPref::getInstance()->useStyleSheet_) {
      refreshStyleSheet();
    }
-   image_->adjustItemSize();
+   imageViewer_->adjustItemSize();
   }
 }
 
@@ -834,21 +751,19 @@ void FQTermFrame::fullscreen() {
   isFullScreen_ = !isFullScreen_;
 
   if (isFullScreen_) {
-    //    menuBar()->hide();
+    menuBar()->hide();
     toolBarMdiTools_->hide();
     toolBarMdiConnectTools_->hide();
     toolBarSetupKeys_->hide();
     hideScroll();
-    showStatusBar();
     showSwitchBar();
     showFullScreen();
   } else {
-    //    menuBar()->show();
+    menuBar()->show();
     toolBarMdiTools_->show();
     toolBarMdiConnectTools_->show();
     toolBarSetupKeys_->show();
     emit updateScroll();
-    showStatusBar();
     showSwitchBar();
     showNormal();
   }
@@ -857,11 +772,8 @@ void FQTermFrame::fullscreen() {
 
 void FQTermFrame::bosscolor() {
   FQTermPref::getInstance()->isBossColor_ = !FQTermPref::getInstance()->isBossColor_;
-
   emit bossColor();
-
-  actionBossColor_->setChecked(FQTermPref::getInstance()->isBossColor_);
-
+  getAction(FQTermShortcutHelper::BOSSCOLOR)->setChecked(FQTermPref::getInstance()->isBossColor_);
 }
 
 
@@ -876,16 +788,27 @@ void FQTermFrame::toggleServer(bool on) {
 }
 
 void FQTermFrame::themesMenuAboutToShow() {
+  QVector<QChar> vectorShortcutKeys;
   menuThemes_->clear();
   QStringList styles = QStyleFactory::keys();
   for (QStringList::ConstIterator it = styles.begin();
        it != styles.end(); it++) {
-    insertThemeItem(*it);
+    QString strTheme = *it;
+    for (int i = 0; i < strTheme.length(); ++i)
+    {
+      if (vectorShortcutKeys.indexOf(strTheme.at(i)) == -1)
+      {
+        vectorShortcutKeys.append(strTheme.at(i));
+        strTheme.insert(i, QChar('&'));
+        break;
+      }
+    }
+    insertThemeItem(strTheme);
   }
 }
 
 void FQTermFrame::themesMenuActivated() {
-  theme_ = ((QAction*)QObject::sender())->text();
+  theme_ = ((QAction*)QObject::sender())->text().remove(QChar('&'));
   QStyle *style = QStyleFactory::create(theme_);
   if (style) {
     qApp->setStyle(style);
@@ -912,19 +835,13 @@ void FQTermFrame::rightScroll() {
 
 void FQTermFrame::showSwitchBar() {
   isTabBarShown_ = !isTabBarShown_;
-  actionSwitch_->setChecked(isTabBarShown_);
+  getAction(FQTermShortcutHelper::SWITCHBAR)->setChecked(isTabBarShown_);
 
   if (isTabBarShown_) {
     statusBar()->show();
   } else {
     statusBar()->hide();
   }
-}
-
-void FQTermFrame::showStatusBar() {
-  FQTermPref::getInstance()->isStatusBarShown_ = !FQTermPref::getInstance()->isStatusBarShown_;
-  actionStatus_->setChecked(FQTermPref::getInstance()->isStatusBarShown_);
-  emit updateStatusBar(FQTermPref::getInstance()->isStatusBarShown_);
 }
 
 void FQTermFrame::setting() {
@@ -940,9 +857,9 @@ void FQTermFrame::defaultSetting() {
     loadAddress(pConf, -1, tmpParam);
   }
 
-  addrDialog set(this, tmpParam);
+  addrDialog set(this, tmpParam, addrDialog::SAVE);
 
-  if (set.exec() == 1) {
+  if (set.exec() == 2) {
     saveAddress(pConf, -1, set.param());
     pConf->save(getPath(USER_CONFIG) + "address.cfg");
   }
@@ -973,7 +890,6 @@ void FQTermFrame::shortcutSetting() {
   FQTermShortcutDialog fsd(shortcutHelper_, this);
   fsd.exec();
   windowManager_->activateTheWindow(act);
-  recreateMenu();
 }
 
 void FQTermFrame::keySetup() {
@@ -984,15 +900,21 @@ void FQTermFrame::keySetup() {
 }
 
 
+void FQTermFrame::ipLookup() {
+  if (!ipLookupDialog_)
+    ipLookupDialog_ = new IPLookupDialog(this);
+  ipLookupDialog_->show();
+}
+
 void FQTermFrame::antiIdle() {
   windowManager_->activeWindow()->toggleAntiIdle();
-  actionAntiIdle_->setChecked(
+  getAction(FQTermShortcutHelper::ANTIIDLE)->setChecked(
       windowManager_->activeWindow()->getSession()->isAntiIdle());
 }
 
 void FQTermFrame::autoReply() {
   windowManager_->activeWindow()->toggleAutoReply();
-  actionAutoReply_->setChecked(
+  getAction(FQTermShortcutHelper::AUTOREPLY)->setChecked(
       windowManager_->activeWindow()->getSession()->isAutoReply());
 }
 
@@ -1003,29 +925,26 @@ void FQTermFrame::viewMessages() {
 void FQTermFrame::enableMouse() {
   windowManager_->activeWindow()->getSession()->param().isSupportMouse_
       = !windowManager_->activeWindow()->getSession()->param().isSupportMouse_;
-  actionMouse_->setChecked(
+  getAction(FQTermShortcutHelper::MOUSESUPPORT)->setChecked(
       windowManager_->activeWindow()->getSession()->param().isSupportMouse_);
 }
 
 void FQTermFrame::viewImages(QString filename, bool raiseViewer) {
-
   if (filename.isEmpty()) {
     filename = FQTermPref::getInstance()->poolDir_;
   }
 
-  
-
   if (raiseViewer) {
-    image_->scrollTo(filename);
-    if (image_->isHidden()) {
-      image_->resize(size() * 3 / 4 + QSize(1,1));
-      image_->show();
+    imageViewer_->scrollTo(filename);
+    if (imageViewer_->isHidden()) {
+      imageViewer_->resize(size() * 3 / 4 + QSize(1,1));
+      imageViewer_->show();
     }
     clearFocus();
-    image_->raise();
-    image_->activateWindow();
+    imageViewer_->raise();
+    imageViewer_->activateWindow();
   } else {
-    image_->updateImage(filename);
+    imageViewer_->updateImage(filename);
   }
 }
 
@@ -1036,14 +955,13 @@ void FQTermFrame::viewImages() {
 void FQTermFrame::beep() {
   windowManager_->activeWindow()->getSession()->param().isBeep_ =
       !windowManager_->activeWindow()->getSession()->param().isBeep_;
-  actionBeep_->setChecked(windowManager_->activeWindow()->getSession()->param().isBeep_);
+  getAction(FQTermShortcutHelper::BEEP)->setChecked(windowManager_->activeWindow()->getSession()->param().isBeep_);
 }
 
 void FQTermFrame::reconnect() {
   FQTermWindow * qtw = windowManager_->activeWindow();
   if (qtw){
-    qtw->getSession()->param().isAutoReconnect_ =
-        !windowManager_->activeWindow()->getSession()->param().isAutoReconnect_;
+    qtw->toggleAutoReconnect();
   }
 }
 
@@ -1134,7 +1052,7 @@ void FQTermFrame::addMainTool() {
   // the main toolbar
   toolBarMdiTools_ = addToolBar("Main ToolBar");
   toolBarMdiTools_->setObjectName("Main ToolBar");
-  toolBarMdiTools_->setIconSize(QSize(22, 22));
+  //toolBarMdiTools_->setIconSize(QSize(22, 22));
 
   connectButton_ = new QToolButton(toolBarMdiTools_);
   connectButton_->setIcon(QPixmap(getPath(RESOURCE) + "pic/connect.png"));
@@ -1147,9 +1065,7 @@ void FQTermFrame::addMainTool() {
   connectButton_->setMenu(menuConnect_);
   connectButton_->setPopupMode(QToolButton::InstantPopup);
 
-  toolBarMdiTools_->addAction(actionQuickConnect_);
-
-  actionQuickConnect_->setIcon(QPixmap(getPath(RESOURCE) + "pic/quick_login.png"));
+  toolBarMdiTools_->addAction(getAction(FQTermShortcutHelper::QUICKLOGIN));
 
   serverButton_ = new QToolButton(toolBarMdiTools_);
   serverButton_->setCheckable(true);
@@ -1164,23 +1080,15 @@ void FQTermFrame::addMainTool() {
   // the toolbar
   toolBarMdiConnectTools_ = addToolBar("bbs operations");
   toolBarMdiConnectTools_->setObjectName("bbs operations");
-  actionDisconnect_ = toolBarMdiConnectTools_->addAction(
-      QPixmap(getPath(RESOURCE) + "pic/disconnect.png"), tr("Disconnect"),
-      this, SLOT(disconnect()));
-  actionDisconnect_->setEnabled(false);
+  FQTERM_ADDACTION(toolBarMdiConnectTools_, DISCONNECT, this, disconnect);
+  getAction(FQTermShortcutHelper::DISCONNECT)->setEnabled(false);
   toolBarMdiConnectTools_->addSeparator();
 
   // Edit (5)
-  toolBarMdiConnectTools_->addAction(actionCopy_);
-  actionCopy_->setIcon(QPixmap(getPath(RESOURCE) + "pic/copy.png"));
-  toolBarMdiConnectTools_->addAction(actionPaste_);
-  actionPaste_->setIcon(QPixmap(getPath(RESOURCE) + "pic/paste.png"));
-  toolBarMdiConnectTools_->addAction(actionColorCopy_);
-  actionColorCopy_->setIcon(QPixmap(getPath(RESOURCE) + "pic/copy_with_color.png"));
-  actionColorCopy_->setCheckable(true);
-  toolBarMdiConnectTools_->addAction(actionRectangleSelect_);
-  actionRectangleSelect_->setIcon(QPixmap(getPath(RESOURCE) + "pic/rectangle_selection.png"));
-  actionRectangleSelect_->setCheckable(true);
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::COPY));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::PASTE));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::COPYWITHCOLOR));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::RECTANGLESELECTION));
   toolBarMdiConnectTools_->addSeparator();
 
   //View (3)
@@ -1192,149 +1100,82 @@ void FQTermFrame::addMainTool() {
   fontButton_->setMenu(menuFont_);
   fontButton_->setPopupMode(QToolButton::InstantPopup);
 
-  toolBarMdiConnectTools_->addAction(actionColor_);
-  actionColor_->setIcon(QPixmap(getPath(RESOURCE) + "pic/ansi_color.png"));
-  toolBarMdiConnectTools_->addAction(actionToggleAnsiColor_);
-  actionToggleAnsiColor_->setIcon(QPixmap(getPath(RESOURCE) + "pic/toggle_ansi_color.png"));
-  actionToggleAnsiColor_->setCheckable(true);
-  toolBarMdiConnectTools_->addAction(actionRefresh_);
-  actionRefresh_->setIcon(QPixmap(getPath(RESOURCE) + "pic/refresh.png"));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::COLORSETTING));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::ANSICOLOR));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::REFRESHSCREEN));
   toolBarMdiConnectTools_->addSeparator();
 
   // Option
-  toolBarMdiConnectTools_->addAction(actionCurrentSession_);
-  actionCurrentSession_->setIcon(QPixmap(getPath(RESOURCE) + "pic/preferences.png"));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::CURRENTSETTING));
   toolBarMdiConnectTools_->addSeparator();
 
   // Spec (5)
-  toolBarMdiConnectTools_->addAction(actionCopyArticle_);
-  actionCopyArticle_->setIcon(QPixmap(getPath(RESOURCE)
-                                      + "pic/get_article_fulltext.png"));
-  toolBarMdiConnectTools_->addAction(actionAntiIdle_);
-  actionAntiIdle_->setIcon(QPixmap(getPath(RESOURCE) + "pic/anti_idle.png"));
-  actionAntiIdle_->setCheckable(true);
-  toolBarMdiConnectTools_->addAction(actionAutoReply_);
-  actionAutoReply_->setIcon(QPixmap(getPath(RESOURCE) + "pic/auto_reply.png"));
-  actionAutoReply_->setCheckable(true);
-  toolBarMdiConnectTools_->addAction(actionViewMessage_);
-  actionViewMessage_->setIcon(QPixmap(getPath(RESOURCE) + "pic/view_messages.png"));
-  toolBarMdiConnectTools_->addAction(actionViewImage_);
-  actionViewImage_->setIcon(QPixmap(getPath(RESOURCE) + "pic/image_viewer.png"));
-  toolBarMdiConnectTools_->addAction(actionMouse_);
-  actionMouse_->setIcon(QPixmap(getPath(RESOURCE) + "pic/mouse.png"));
-  actionMouse_->setCheckable(true);
-  toolBarMdiConnectTools_->addAction(actionBeep_);
-  actionBeep_->setIcon(QPixmap(getPath(RESOURCE) + "pic/beep.png"));
-  actionBeep_->setCheckable(true);
-  actionReconnect_ = toolBarMdiConnectTools_->addAction(
-      QPixmap(getPath(RESOURCE) + "pic/auto_reconnect.png"),
-      tr("Reconnect When Disconnected By Host"), 
-      this, SLOT(reconnect()));
-  actionReconnect_->setCheckable(true);
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::COPYARTICLE));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::ANTIIDLE));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::AUTOREPLY));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::VIEWMESSAGE));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::IMAGEVIEWER));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::MOUSESUPPORT));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::BEEP));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::AUTORECONNECT));
 
   //call popupConnectMenu() to enable the shortcuts
   popupConnectMenu(); 
 
 }
 
-QString FQTermFrame::getShortcutText(int shortcut) {
+
+QAction* FQTermFrame::getAction(int shortcut) {
   if (!shortcutHelper_)
-    return "";
-  return shortcutHelper_->getShortcutText(shortcut);
+    return NULL;
+  return shortcutHelper_->getAction(shortcut);
 }
 
-void FQTermFrame::addMainMenu() {
-  menuMain_ = menuBar(); //new QMenuBar(this);
 
+
+void FQTermFrame::addMainMenu() {
+  menuMain_ = menuBar(); 
+
+  //File Menu
   menuFile_ = menuMain_->addMenu(tr("&File"));
 
-  menuFile_->addAction(QPixmap(getPath(RESOURCE) + "pic/connect.png"),
-                       tr("&Connect"), this,
-                  SLOT(connectIt()), getShortcutText(FQTermShortcutHelper::CONNECT));
-
-  menuFile_->addAction(QPixmap(getPath(RESOURCE) + "pic/disconnect.png"),
-                       tr("&Disconnect"),
-                  this, SLOT(disconnect()), getShortcutText(FQTermShortcutHelper::DISCONNECT)); //, 0, ID_FILE_DISCONNECT );
-
+  FQTERM_ADDACTION(menuFile_, CONNECT, this, connectIt);
+  FQTERM_ADDACTION(menuFile_, DISCONNECT, this, disconnect);
   menuFile_->addSeparator();
-  menuFile_->addAction(QPixmap(getPath(RESOURCE) + "pic/address_book.png"),
-                       tr("&Address book"),
-                       this, SLOT(addressBook()), getShortcutText(FQTermShortcutHelper::ADDRESSBOOK));
-  actionQuickConnect_ =
-      menuFile_->addAction(QPixmap(getPath(RESOURCE) + "pic/quick_login.png"),
-                           tr("&Quick login"),
-                           this, SLOT(quickLogin()), getShortcutText(FQTermShortcutHelper::QUICKLOGIN));
+  FQTERM_ADDACTION(menuFile_, ADDRESSBOOK, this, addressBook);
+  FQTERM_ADDACTION(menuFile_, QUICKLOGIN, this, quickLogin);
   menuFile_->addSeparator();
-  QAction* exitAction = menuFile_->addAction(tr("&Exit"), this, SLOT(exitFQTerm()));
-  exitAction->setMenuRole(QAction::QuitRole);
+  FQTERM_ADDACTION(menuFile_, EXIT, this, exitFQTerm);
+  getAction(FQTermShortcutHelper::EXIT)->setMenuRole(QAction::QuitRole);
 
   //Edit Menu
   QMenu *edit = menuMain_->addMenu(tr("&Edit"));
 
-  // 	edit->setCheckable( true );
-#if defined(__APPLE__)
-  actionCopy_ = edit->addAction(QPixmap(getPath(RESOURCE) + "pic/copy.png"),
-                                tr("&Copy"), this, SLOT(copy()), getShortcutText(FQTermShortcutHelper::COPY));
-  actionPaste_ = edit->addAction(QPixmap(getPath(RESOURCE) + "pic/paste.png"),
-                                 tr("&Paste"),
-                                 this, SLOT(paste()), getShortcutText(FQTermShortcutHelper::PASTE));
-#else
-  actionCopy_ = edit->addAction(QPixmap(getPath(RESOURCE) + "pic/copy.png"),
-                                tr("&Copy"),
-                                this, SLOT(copy()), getShortcutText(FQTermShortcutHelper::COPY));
-  actionPaste_ = edit->addAction(QPixmap(getPath(RESOURCE) + "pic/paste.png"),
-                                 tr("&Paste"), this, SLOT(paste()), 
-                                 getShortcutText(FQTermShortcutHelper::PASTE));
-#endif
-
+  FQTERM_ADDACTION(edit, COPY, this, copy);
+  FQTERM_ADDACTION(edit, PASTE, this, paste);
   edit->addSeparator();
-  actionColorCopy_ = edit->addAction(
-      QPixmap(getPath(RESOURCE) + "pic/copy_with_color.png"),
-      tr("C&opy with color"), this, SLOT(copyColor()), getShortcutText(FQTermShortcutHelper::COPYWITHCOLOR));
-  actionColorCopy_->setCheckable(true);
-  actionRectangleSelect_ = edit->addAction(
-      QPixmap(getPath(RESOURCE) + "pic/rectangle_selection.png"),
-      tr("&Rectangle select"), this, SLOT(copyRect()), getShortcutText(FQTermShortcutHelper::RECTANGLESELECTION));
-  actionRectangleSelect_->setCheckable(true);
-  actionAutoCopy_ = edit->addAction(tr("Auto copy &select"), this, SLOT
-                                    (autoCopy()), getShortcutText(FQTermShortcutHelper::AUTOCOPYSELECTION));
-  actionAutoCopy_->setCheckable(true);
-  actionWordWrap_ = edit->addAction(tr("P&aste with wordwrap"), this, SLOT
-                                    (wordWrap()), getShortcutText(FQTermShortcutHelper::PASTEWORDWRAP));
-  actionWordWrap_->setCheckable(true);
+  FQTERM_ADDACTION(edit, COPYWITHCOLOR, this, copyColor);
+  FQTERM_ADDACTION(edit, RECTANGLESELECTION, this, copyRect);
+  FQTERM_ADDACTION(edit, AUTOCOPYSELECTION, this, autoCopy);
+  FQTERM_ADDACTION(edit, PASTEWORDWRAP, this, wordWrap);
   edit->addSeparator();
-  actionGoogleIt_ = edit->addAction(tr("Google It"), this, SLOT
-                                    (googleIt()), getShortcutText(FQTermShortcutHelper::GOOGLEIT));
+  FQTERM_ADDACTION(edit, GOOGLEIT, this, googleIt);
   edit->addSeparator();
-  actionExternalEditor_ = edit->addAction(tr("External Editor"), this, SLOT
-                                          (externalEditor()), getShortcutText(FQTermShortcutHelper::EXTERNALEDITOR));
+  FQTERM_ADDACTION(edit, EXTERNALEDITOR, this, externalEditor);
+  edit->addSeparator();
+  FQTERM_ADDACTION(edit, FASTPOST, this, fastPost);
   edit->addSeparator();
 
-  QMenu *escapeMenu = edit->addMenu(tr("Paste &with color"));
+  QMenu *escapeMenu = edit->addMenu(tr("Control sequence in clipboar&d"));
   escapeGroup = new QActionGroup(this);
-  actionNoEscape_ = escapeMenu->addAction(tr("&None"), this, SLOT(noEsc()));
-  actionNoEscape_->setCheckable(true);
-  actionEscEscape_ = escapeMenu->addAction(tr("&ESC ESC ["),
-                                           this, SLOT(escEsc()));
-  actionEscEscape_->setCheckable(true);
-  actionUEscape_ = escapeMenu->addAction(tr("Ctrl+&U ["), this, SLOT(uEsc()));
-  actionUEscape_->setCheckable(true);
-  actionCustomEscape_ = escapeMenu->addAction(tr("&Custom..."), this, SLOT
-                                              (customEsc()));
-  actionCustomEscape_->setCheckable(true);
-  escapeGroup->addAction(actionNoEscape_);
-  escapeGroup->addAction(actionEscEscape_);
-  escapeGroup->addAction(actionUEscape_);
-  escapeGroup->addAction(actionCustomEscape_);
-
-  QMenu *codecMenu = edit->addMenu(tr("Clipboard &encoding"));
-  codecGroup = new QActionGroup(this);
-  actionGBK_ = codecMenu->addAction(tr("&GBK"), this, SLOT(gbkCodec()));
-  actionGBK_->setCheckable(true);
-  actionBIG5_ = codecMenu->addAction(tr("&Big5"), this, SLOT(big5Codec()));
-  actionBIG5_->setCheckable(true);
-  codecGroup->addAction(actionGBK_);
-  codecGroup->addAction(actionBIG5_);
+  FQTERM_ADDACTION(escapeMenu, COLORCTL_NO,this, noEsc);
+  escapeGroup->addAction(getAction(FQTermShortcutHelper::COLORCTL_NO));
+  FQTERM_ADDACTION(escapeMenu, COLORCTL_SMTH,this, escEsc);
+  escapeGroup->addAction(getAction(FQTermShortcutHelper::COLORCTL_SMTH));
+  FQTERM_ADDACTION(escapeMenu, COLORCTL_PTT,this, uEsc);
+  escapeGroup->addAction(getAction(FQTermShortcutHelper::COLORCTL_PTT));
+  FQTERM_ADDACTION(escapeMenu, COLORCTL_CUSTOM,this, customEsc);
+  escapeGroup->addAction(getAction(FQTermShortcutHelper::COLORCTL_CUSTOM));
 
   //View menu
   QMenu *view = menuMain_->addMenu(tr("&View"));
@@ -1342,34 +1183,25 @@ void FQTermFrame::addMainMenu() {
   menuFont_ = view->addMenu(tr("&Font"));
   menuFont_->setIcon(QPixmap(getPath(RESOURCE) + "pic/change_fonts.png"));
   view->addMenu(menuFont_);
-  for (int i = 0; i < 2; ++i) {
-    QAction *act = menuFont_->addAction(
-        FQTermParam::getLanguageName(bool(i)) + tr(" Font"),
-        this, SLOT(setFont()), getShortcutText(i?FQTermShortcutHelper::NONENGLISHFONT:FQTermShortcutHelper::ENGLISHFONT));
-    act->setData(i);
-  }
-
-  actionColor_ = view->addAction(QPixmap(getPath(RESOURCE) + "pic/ansi_color.png"),
-                                 tr("&Color Setting"), this, SLOT(setColor()), getShortcutText(FQTermShortcutHelper::COLORSETTING));
-  actionToggleAnsiColor_ = view->addAction(QPixmap(getPath(RESOURCE) + "pic/toggle_ansi_color.png"),
-    tr("&Use ANSI Color"), this, SLOT(toggleAnsiColor()), getShortcutText(FQTermShortcutHelper::ANSICOLOR));
-  actionRefresh_ = view->addAction(
-      QPixmap(getPath(RESOURCE) + "pic/refresh.png"),
-      tr("&Refresh"), this, SLOT(refreshScreen()), getShortcutText(FQTermShortcutHelper::REFRESHSCREEN));
+  FQTERM_ADDACTION(menuFont_, NONENGLISHFONT, this, setFont);
+  getAction(FQTermShortcutHelper::NONENGLISHFONT)->setData(0);
+  FQTERM_ADDACTION(menuFont_, ENGLISHFONT, this, setFont);
+  getAction(FQTermShortcutHelper::ENGLISHFONT)->setData(1);
+  FQTERM_ADDACTION(view, COLORSETTING, this, setColor);
+  FQTERM_ADDACTION(view, ANSICOLOR, this, toggleAnsiColor);
+  FQTERM_ADDACTION(view, REFRESHSCREEN, this, refreshScreen);
   view->addSeparator();
 
   //language menu
-  languageGroup = new QActionGroup(this);
+  languageGroup = new QActionGroup(view);
   languageGroup->setExclusive(true);
   if (installerList_.isEmpty()) {
     FQ_TRACE("frame", 0)
         << "No language menu because of lack of translation files";
   } else {
     menuLanguage_ = view->addMenu(tr("&Language"));
-    actionEnglish_ = menuLanguage_->addAction(tr("&English"),
-                                              this, SLOT(langEnglish()));
-    actionEnglish_->setCheckable(true);
-    languageGroup->addAction(actionEnglish_);
+    FQTERM_ADDACTION(menuLanguage_, LANGUAGE_ENGLISH, this, langEnglish);
+    languageGroup->addAction(getAction(FQTermShortcutHelper::LANGUAGE_ENGLISH));
 
     foreach(TranslatorInstaller* installer, installerList_) {
       QAction* action = menuLanguage_->addAction(
@@ -1380,95 +1212,66 @@ void FQTermFrame::addMainMenu() {
 
   } 
 
-  view->addAction(tr("&UI font"), this, SLOT(uiFont()), getShortcutText(FQTermShortcutHelper::UIFONT));
+  FQTERM_ADDACTION(view, UIFONT, this, uiFont);
 
   menuThemes_ = view->addMenu(tr("&Themes"));
-  FQ_VERIFY(connect(menuThemes_, SIGNAL(aboutToShow()),
-                    this, SLOT(themesMenuAboutToShow())));
-  actionFullScreen_ = view->addAction(
-      tr("&Fullscreen"), this, SLOT(fullscreen()), getShortcutText(FQTermShortcutHelper::FULLSCREEN));
-  actionFullScreen_->setCheckable(true);
+  FQ_VERIFY(connect(menuThemes_, SIGNAL(aboutToShow()), this, SLOT(themesMenuAboutToShow())));
 
-  actionBossColor_ = view->addAction(
-      tr("Boss &Color"), this, SLOT(bosscolor()), getShortcutText(FQTermShortcutHelper::BOSSCOLOR));
-  actionBossColor_->setCheckable(true);
+  FQTERM_ADDACTION(view, FULLSCREEN, this, fullscreen);
+  FQTERM_ADDACTION(view, BOSSCOLOR, this, bosscolor);
 
   view->addSeparator();
 
   scrollMenu_ = view->addMenu(tr("&ScrollBar"));
-  FQ_VERIFY(connect(scrollMenu_, SIGNAL(aboutToShow()),
-                    this, SLOT(scrollMenuAboutToShow())));
-
-  actionStatus_ = view->addAction(
-      tr("Status &Bar"), this, SLOT(showStatusBar()), getShortcutText(FQTermShortcutHelper::STATUSBAR));
-  actionStatus_->setCheckable(true);
-  actionSwitch_ = view->addAction(
-      tr("S&witch Bar"), this, SLOT(showSwitchBar()), getShortcutText(FQTermShortcutHelper::SWITCHBAR));
-  actionSwitch_->setCheckable(true);
+  FQ_VERIFY(connect(scrollMenu_, SIGNAL(aboutToShow()), this, SLOT(scrollMenuAboutToShow())));
+  FQTERM_ADDACTION(view, SWITCHBAR, this, showSwitchBar);
 
   // Option Menu
   QMenu *option = menuMain_->addMenu(tr("&Option"));
 
-  actionCurrentSession_ = option->addAction(
-      QPixmap(getPath(RESOURCE) + "pic/preferences.png"),
-      tr("&Setting for current session"),
-      this, SLOT(setting()), getShortcutText(FQTermShortcutHelper::CURRENTSETTING));
+  FQTERM_ADDACTION(option, CURRENTSETTING, this, setting);
   option->addSeparator();
-  option->addAction(tr("&Default setting"), this, SLOT(defaultSetting()), getShortcutText(FQTermShortcutHelper::DEFAULTSETTING));
+  FQTERM_ADDACTION(option, DEFAULTSETTING, this, defaultSetting);
 #ifdef Q_OS_MAC
-  QAction* prefAction = menuFile_->addAction(tr("&Preferences..."), this, SLOT(preference()), getShortcutText(FQTermShortcutHelper::PREFERENCE));
-  prefAction->setMenuRole(QAction::PreferencesRole);
+  FQTERM_ADDACTION(menuFile_, PREFERENCE, this, preference);
 #else
-  QAction* prefAction = option->addAction(tr("&Preferences..."), this, SLOT(preference()), getShortcutText(FQTermShortcutHelper::PREFERENCE));
-  prefAction->setMenuRole(QAction::PreferencesRole);
+  FQTERM_ADDACTION(option, PREFERENCE, this, preference);
 #endif
-  option->addAction(tr("&Shortcut Setting"), this, SLOT(shortcutSetting()), getShortcutText(FQTermShortcutHelper::SHORTCUTSETTING));
+  getAction(FQTermShortcutHelper::PREFERENCE)->setMenuRole(QAction::PreferencesRole);
+  FQTERM_ADDACTION(option, SHORTCUTSETTING, this, shortcutSetting);
+  option->addSeparator();
+  FQTERM_ADDACTION(option, EDITSCHEMA, this, editSchema);
 
   // Special
   QMenu *spec = menuMain_->addMenu(tr("&Special"));
-  actionCopyArticle_ = spec->addAction(
-      QPixmap(getPath(RESOURCE) + "pic/get_article_fulltext.png"), tr("&Copy article"),
-      this, SLOT(copyArticle()), getShortcutText(FQTermShortcutHelper::COPYARTICLE));
-  actionAntiIdle_ = spec->addAction(
-      QPixmap(getPath(RESOURCE) + "pic/anti_idle.png"), tr("Anti &idle"),
-      this, SLOT(antiIdle()), getShortcutText(FQTermShortcutHelper::ANTIIDLE));
-  actionAutoReply_ = spec->addAction(
-      QPixmap(getPath(RESOURCE) + "pic/auto_reply.png"), tr("Auto &reply"),
-      this, SLOT(autoReply()), getShortcutText(FQTermShortcutHelper::AUTOREPLY));
-  actionViewMessage_ = spec->addAction(
-      QPixmap(getPath(RESOURCE) + "pic/view_messages.png"), tr("&View messages"),
-      this, SLOT(viewMessages()), getShortcutText(FQTermShortcutHelper::VIEWMESSAGE));
-  actionBeep_ = spec->addAction(
-      QPixmap(getPath(RESOURCE) + "pic/beep.png"), tr("&Beep "),
-      this, SLOT(beep()), getShortcutText(FQTermShortcutHelper::BEEP));
-  actionMouse_ = spec->addAction(
-      QPixmap(getPath(RESOURCE) + "pic/mouse.png"), tr("&Mouse support"),
-      this, SLOT(enableMouse()), getShortcutText(FQTermShortcutHelper::MOUSESUPPORT));
-  actionViewImage_ = spec->addAction(
-    QPixmap(getPath(RESOURCE) + "pic/image_viewer.png"), tr("&Image viewer"),
-    this, SLOT(viewImages()), getShortcutText(FQTermShortcutHelper::IMAGEVIEWER));
+  FQTERM_ADDACTION(spec, COPYARTICLE, this, copyArticle);
+  FQTERM_ADDACTION(spec, ANTIIDLE, this, antiIdle);
+  FQTERM_ADDACTION(spec, AUTOREPLY, this, autoReply);
+  FQTERM_ADDACTION(spec, VIEWMESSAGE, this, viewMessages);
+  FQTERM_ADDACTION(spec, BEEP, this, beep);
+  FQTERM_ADDACTION(spec, MOUSESUPPORT, this, enableMouse);
+  FQTERM_ADDACTION(spec, IMAGEVIEWER, this, viewImages);
+  FQTERM_ADDACTION(spec, IPLOOKUP, this, ipLookup);
 
   //Script
   QMenu *script = menuMain_->addMenu(tr("Scrip&t"));
-  actionRunScript_ = script->addAction(tr("&Run..."), this, SLOT(runScript()), getShortcutText(FQTermShortcutHelper::RUNSCRIPT));
-  actionStopScript_ = script->addAction(tr("&Stop"), this, SLOT(stopScript()), getShortcutText(FQTermShortcutHelper::STOPSCRIPT));
+  FQTERM_ADDACTION(script, RUNSCRIPT, this, runScript);
+  FQTERM_ADDACTION(script, STOPSCRIPT, this, stopScript);
 #ifdef HAVE_PYTHON
   script->addSeparator();
-  actionRunPythonScript_ = script->addAction(tr("Run &Python..."), this, SLOT(runPyScript()), getShortcutText(FQTermShortcutHelper::RUNPYTHONSCRIPT));
+  FQTERM_ADDACTION(script, RUNPYTHONSCRIPT, this, runPyScript);
 #endif //HAVE_PYTHON
+
   //Window menu
   menuWindows_ = menuMain_->addMenu(tr("&Windows"));
-  FQ_VERIFY(connect(menuWindows_, SIGNAL(aboutToShow()),
-                    this, SLOT(windowsMenuAboutToShow())));
-
+  FQ_VERIFY(connect(menuWindows_, SIGNAL(aboutToShow()),this, SLOT(windowsMenuAboutToShow())));
   menuMain_->addSeparator();
 
   //Help menu
   QMenu *help = menuMain_->addMenu(tr("&Help"));
-  QAction* aboutAction = help->addAction(tr("About &FQTerm"), this, SLOT(aboutFQTerm()), getShortcutText(FQTermShortcutHelper::ABOUT));
-  aboutAction->setMenuRole(QAction::AboutRole);
-
-  help->addAction(tr("FQTerm's &Homepage"), this, SLOT(homepage()), getShortcutText(FQTermShortcutHelper::HOMEPAGE));
+  FQTERM_ADDACTION(help, ABOUT, this, aboutFQTerm);
+  getAction(FQTermShortcutHelper::ABOUT)->setMenuRole(QAction::AboutRole);
+  FQTERM_ADDACTION(help, HOMEPAGE, this, homepage);
 }
 
 void FQTermFrame::updateMenuToolBar() {
@@ -1479,56 +1282,52 @@ void FQTermFrame::updateMenuToolBar() {
   }
 
   // update menu
-  actionDisconnect_->setEnabled(window->isConnected());
+  getAction(FQTermShortcutHelper::DISCONNECT)->setEnabled(window->isConnected());
+  getAction(FQTermShortcutHelper::COPYWITHCOLOR)->setChecked(window->getSession()->param().isColorCopy_);
+  getAction(FQTermShortcutHelper::RECTANGLESELECTION)->setChecked(window->getSession()->param().isRectSelect_);
+  getAction(FQTermShortcutHelper::AUTOCOPYSELECTION)->setChecked(window->getSession()->param().isAutoCopy_);
+  getAction(FQTermShortcutHelper::PASTEWORDWRAP)->setChecked(window->getSession()->param().isAutoWrap_);
+  getAction(FQTermShortcutHelper::FULLSCREEN)->setChecked(isFullScreen_);
+  getAction(FQTermShortcutHelper::ANSICOLOR)->setChecked(window->getSession()->param().isAnsiColor_);
+  getAction(FQTermShortcutHelper::ANTIIDLE)->setChecked(window->getSession()->isAntiIdle());
+  getAction(FQTermShortcutHelper::AUTOREPLY)->setChecked(window->getSession()->isAutoReply());
+  getAction(FQTermShortcutHelper::BEEP)->setChecked(window->getSession()->param().isBeep_);
+  getAction(FQTermShortcutHelper::MOUSESUPPORT)->setChecked(window->getSession()->param().isSupportMouse_);
+  getAction(FQTermShortcutHelper::AUTORECONNECT)->setChecked(window->getSession()->param().isAutoReconnect_);
 
-  actionColorCopy_->setChecked(window->getSession()->param().isColorCopy_);
-  actionRectangleSelect_->setChecked(window->getSession()->param().isRectSelect_);
-  actionAutoCopy_->setChecked(window->getSession()->param().isAutoCopy_);
-  actionWordWrap_->setChecked(window->getSession()->param().isAutoWrap_);
-
-  actionFullScreen_->setChecked(isFullScreen_);
-
-  actionToggleAnsiColor_->setChecked(window->getSession()->param().isAnsiColor_);
-
-  actionAntiIdle_->setChecked(window->getSession()->isAntiIdle());
-  actionAutoReply_->setChecked(window->getSession()->isAutoReply());
-  actionBeep_->setChecked(window->getSession()->param().isBeep_);
-  actionMouse_->setChecked(window->getSession()->param().isSupportMouse_);
+  
 }
 
 void FQTermFrame::enableMenuToolBar(bool enable) {
-  actionDisconnect_->setEnabled(enable);
-
-  actionCopy_->setEnabled(enable);
-  actionPaste_->setEnabled(enable);
-  actionColorCopy_->setEnabled(enable);
-  actionRectangleSelect_->setEnabled(enable);
-  actionAutoCopy_->setEnabled(enable);
-  actionWordWrap_->setEnabled(enable);
-
-  actionToggleAnsiColor_->setEnabled(enable);
+  getAction(FQTermShortcutHelper::DISCONNECT)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::COPY)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::PASTE)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::COPYWITHCOLOR)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::RECTANGLESELECTION)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::AUTOCOPYSELECTION)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::PASTEWORDWRAP)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::ANSICOLOR)->setEnabled(enable);
 
   fontButton_->setEnabled(enable);
   menuFont_->setEnabled(enable);
-  actionColor_->setEnabled(enable);
-  actionRefresh_->setEnabled(enable);
 
-  actionCurrentSession_->setEnabled(enable);
-
-  actionCopyArticle_->setEnabled(enable);
-  actionAntiIdle_->setEnabled(enable);
-  actionAutoReply_->setEnabled(enable);
-  actionViewMessage_->setEnabled(enable);
-  actionBeep_->setEnabled(enable);
-  actionMouse_->setEnabled(enable);
-
-  actionRunScript_->setEnabled(enable);
-  actionStopScript_->setEnabled(enable);
+  getAction(FQTermShortcutHelper::COLORSETTING)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::REFRESHSCREEN)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::CURRENTSETTING)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::COPYARTICLE)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::ANTIIDLE)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::AUTOREPLY)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::VIEWMESSAGE)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::BEEP)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::MOUSESUPPORT)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::RUNSCRIPT)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::STOPSCRIPT)->setEnabled(enable);
 #ifdef HAVE_PYTHON
-  actionRunPythonScript_->setEnabled(enable);
+  getAction(FQTermShortcutHelper::RUNPYTHONSCRIPT)->setEnabled(enable);
 #endif 
-  actionGoogleIt_->setEnabled(enable);
-  actionExternalEditor_->setEnabled(enable);
+  getAction(FQTermShortcutHelper::GOOGLEIT)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::EXTERNALEDITOR)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::FASTPOST)->setEnabled(enable);
 }
 
 void FQTermFrame::updateKeyToolBar() {
@@ -1545,10 +1344,7 @@ void FQTermFrame::updateKeyToolBar() {
     strTmp = config_->getItemValue("key", strItem);
     FQTermToolButton *button =
         new FQTermToolButton(toolBarSetupKeys_, i, strTmp);
-
-    // 		button->setUsesTextLabel(true);
     button->setText(strTmp);
-    // 		button->setTextPosition(QToolButton::BesideIcon);
     strItem = QString("key%1").arg(i);
     strTmp = (config_->getItemValue("key", strItem));
     //TODO: add tool tip here
@@ -1572,19 +1368,6 @@ void FQTermFrame::updateKeyToolBar() {
 
 }
 
-QString FQTermFrame::valueToString(bool shown, int dock, int index,
-                                   bool nl, int extra) {
-  QString str = "";
-
-  str = QString("%1 %2 %3 %4 %5")
-        .arg(shown ? 1 : 0)
-        .arg(dock)
-        .arg(index)
-        .arg(nl? 1: 0)
-        .arg(extra);
-
-  return str;
-}
 
 void FQTermFrame::popupFocusIn(FQTermWindow*) {
   // bring to font
@@ -1602,7 +1385,7 @@ void FQTermFrame::popupFocusIn(FQTermWindow*) {
   activateWindow();
 }
 
-void FQTermFrame::insertThemeItem(QString themeitem) {
+void FQTermFrame::insertThemeItem(const QString& themeitem) {
   QAction *idAction;
 
   idAction = menuThemes_->addAction(themeitem,
@@ -1627,31 +1410,31 @@ void FQTermFrame::setUseDock(bool use) {
     return ;
   }
 
-  menuTray_ = new QMenu;
-  FQ_VERIFY(connect(menuTray_, SIGNAL(aboutToShow()), SLOT(buildTrayMenu())));
+  trayMenu_ = new QMenu;
+  FQ_VERIFY(connect(trayMenu_, SIGNAL(aboutToShow()), SLOT(buildTrayMenu())));
 
   tray = new QSystemTrayIcon(this);
   tray->setIcon(QPixmap(getPath(RESOURCE) + "pic/fqterm_tray.png"));
-  tray->setContextMenu(menuTray_);
+  tray->setContextMenu(trayMenu_);
   FQ_VERIFY(connect(tray, SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
                     SLOT(trayActived(QSystemTrayIcon::ActivationReason))));
   tray->show();
 }
 
 void FQTermFrame::buildTrayMenu() {
-  if (!menuTray_) {
+  if (!trayMenu_) {
     return ;
   }
-  menuTray_->clear();
+  trayMenu_->clear();
 
   if (isHidden()) {
-    menuTray_->addAction(tr("Show"), this, SLOT(trayShow()));
+    trayMenu_->addAction(tr("Show"), this, SLOT(trayShow()));
   } else {
-    menuTray_->addAction(tr("Hide"), this, SLOT(trayHide()));
+    trayMenu_->addAction(tr("Hide"), this, SLOT(trayHide()));
   }
-  menuTray_->addSeparator();
-  menuTray_->addAction(tr("About"), this, SLOT(aboutFQTerm()));
-  menuTray_->addAction(tr("Exit"), this, SLOT(exitFQTerm()));
+  trayMenu_->addSeparator();
+  trayMenu_->addAction(tr("About"), this, SLOT(aboutFQTerm()));
+  trayMenu_->addAction(tr("Exit"), this, SLOT(exitFQTerm()));
 }
 
 void FQTermFrame::trayActived(QSystemTrayIcon::ActivationReason reason) {
@@ -1738,9 +1521,12 @@ void FQTermFrame::buzz(FQTermWindow* window) {
 //--------------------------
 void
 FQTermFrame::recreateMenu() {
+
+  if (shortcutHelper_) {
+    shortcutHelper_->retranslateActions();
+  }
   menuBar()->clear();
   delete escapeGroup;
-  delete codecGroup;
   delete languageGroup;
   addMainMenu();
   updateLanguageMenu();
@@ -1868,32 +1654,24 @@ void FQTermFrame::updateLanguageMenu() {
 
 void FQTermFrame::scrollMenuAboutToShow() {
   scrollMenu_->clear();
-  actionHideScrollBar_ = scrollMenu_->addAction(
-      tr("&Hide"), this, SLOT(hideScroll()));
-  actionHideScrollBar_->setCheckable(true);
-  actionLeftScrollBar_ = scrollMenu_->addAction(
-      tr("&Left"), this, SLOT(leftScroll()));
-  actionLeftScrollBar_->setCheckable(true);
-  actionRightScrollBar_ = scrollMenu_->addAction(
-      tr("&Right"), this, SLOT(rightScroll()));
-  actionRightScrollBar_->setCheckable(true);
+  FQTERM_ADDACTION(scrollMenu_, SCROLLBAR_HIDDEN, this, hideScroll);
+  FQTERM_ADDACTION(scrollMenu_, SCROLLBAR_RIGHT, this, rightScroll);
+  FQTERM_ADDACTION(scrollMenu_, SCROLLBAR_LEFT, this, leftScroll);
   switch(FQTermPref::getInstance()->termScrollBarPosition_) {
     case 0:
-      actionHideScrollBar_->setChecked(true);
+      getAction(FQTermShortcutHelper::SCROLLBAR_HIDDEN)->setChecked(true);
       break;
     case 1:
-      actionLeftScrollBar_->setChecked(true);
+      getAction(FQTermShortcutHelper::SCROLLBAR_LEFT)->setChecked(true);
       break;
     case 2:
-      actionRightScrollBar_->setChecked(true);
+      getAction(FQTermShortcutHelper::SCROLLBAR_RIGHT)->setChecked(true);
       break;
   }
 }
 
 void FQTermFrame::setFont() {
-  bool isEnglish =
-      ((QAction*)(sender()))->data().toBool();
-
+  bool isEnglish = (QAction*)(sender()) == getAction(FQTermShortcutHelper::ENGLISHFONT);
   windowManager_->activeWindow()->setFont(isEnglish);
 }
 
@@ -1931,7 +1709,7 @@ void FQTermFrame::loadToolBarPosition()
 void FQTermFrame::toggleAnsiColor() {
   windowManager_->activeWindow()->getSession()->param().isAnsiColor_
     = !windowManager_->activeWindow()->getSession()->param().isAnsiColor_;
-  actionToggleAnsiColor_->setChecked(
+  getAction(FQTermShortcutHelper::ANSICOLOR)->setChecked(
     windowManager_->activeWindow()->getSession()->param().isAnsiColor_);
   refreshScreen();
 }
@@ -1951,6 +1729,21 @@ bool FQTermFrame::clearUp() {
   setUseDock(false);
 
   return true;
+}
+
+void FQTermFrame::editSchema() {
+
+  schemaDialog schema(this);
+  FQ_VERIFY(connect(&schema, SIGNAL(schemaEdited()),
+                  this, SLOT(schemaUpdated())));
+  schema.exec();
+}
+
+void FQTermFrame::schemaUpdated() {
+  for (int i = 0; i < windowManager_->count(); ++i) {
+    windowManager_->nthWindow(i)->getScreen()->setSchema();
+    windowManager_->nthWindow(i)->forcedRepaintScreen();
+  }
 }
 
 TranslatorInstaller::TranslatorInstaller(const QString& language,
@@ -1980,22 +1773,6 @@ QString TranslatorInstaller::languageFormalName() {
   return language_;
 }
 
-#ifndef __APPLE__
-void FQTermMenuBar::mouseDoubleClickEvent( QMouseEvent * event )
-{
-  if (event->button() == Qt::LeftButton && event->modifiers() == Qt::NoModifier) {
-    if (parentWidget()) {
-      if (!parentWidget()->isMaximized())
-        parentWidget()->showMaximized();
-      else
-        parentWidget()->showNormal();
-    }
-  }
-}
-#endif
-FQTermMenuBar::FQTermMenuBar( QWidget * parent /*= 0*/ ) : QMenuBar(parent) {
-
-}
 }  // namespace FQTerm
 
 #include "fqterm_frame.moc"

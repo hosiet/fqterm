@@ -30,6 +30,7 @@
 #include <QTimer>
 #include <QWheelEvent>
 #include <QKeySequence>
+#include <QRegion>
 
 #include "fqterm_buffer.h"
 #include "fqterm_config.h"
@@ -55,7 +56,12 @@ FQTermScreen::FQTermScreen(QWidget *parent, FQTermSession *session)
       termBuffer_(session->getBuffer()),
       cnLetterSpacing_(0.0),
       spLetterSpacing_(0.0),
-      enLetterSpacing_(0.0){
+      enLetterSpacing_(0.0),
+      hasBackground_(false),
+      backgroundRenderOption_(0),
+      backgroundCoverage_(0),
+      backgroundAlpha_(0),
+      backgroundUseAlpha_(false) {
   termWindow_ = (FQTermWindow*)parent;
   session_ = session;
   param_ = &session->param();
@@ -166,7 +172,7 @@ void FQTermScreen::resizeEvent(QResizeEvent*) {
 
 void FQTermScreen::syncBufferAndScreen() {
   updateScrollBar();
-  setBackgroundPixmap(backgroundPixmap_, backgroundPixmapType_);
+  updateBackgroundPixmap();
 
   if (param_->isFontAutoFit_) {
     updateFont();
@@ -363,35 +369,22 @@ void FQTermScreen::setSchema() {
   colors_[14] = Qt::cyan;
   colors_[15] = Qt::white;
 
-  backgroundPixmapType_ = 0;
-
+  
+  hasBackground_ = false;
   // if we have schema defined
   if (QFile::exists(param_->schemaFileName_)) {
     FQTermConfig *pConf = new FQTermConfig(param_->schemaFileName_);
     for (int i = 0; i < 16; ++i) {
-      colors_[i].setNamedColor(pConf->getItemValue("color",
-                                                   QString("color%1").arg(i)));
+      colors_[i].setNamedColor(pConf->getItemValue("color", QString("color%1").arg(i)));
     }
+    originBackgroundPixmap_ = QPixmap(pConf->getItemValue("image", "name"));
+    //0 -- none 1 -- image
+    hasBackground_ = pConf->getItemValue("background", "type").toInt() ? 1 : 0;
+    backgroundRenderOption_ = pConf->getItemValue("image", "render").toInt();
+    backgroundCoverage_ = pConf->getItemValue("image", "cover").toInt();
+    backgroundUseAlpha_ = pConf->getItemValue("image", "usealpha").toInt();
+    backgroundAlpha_ = pConf->getItemValue("image", "alpha").toInt();
 
-    // bg type
-    QString strTmp = pConf->getItemValue("image", "type");
-    backgroundPixmapType_ = strTmp.toInt();
-
-    // fade effect
-    QColor fadecolor;
-    fadecolor.setNamedColor(pConf->getItemValue("image", "fade"));
-    strTmp = pConf->getItemValue("image", "alpha");
-    float alpha = strTmp.toFloat();
-
-    // get the image name
-    if (QFile::exists(pConf->getItemValue("image", "name"))
-        && backgroundPixmapType_ > 1) { // valid image name and type
-      backgroundPixmap_ = QPixmap(pConf->getItemValue("image", "name"));
-      QImage ima(backgroundPixmap_.toImage());
-      ima = fade(ima, alpha, fadecolor);
-      backgroundPixmap_ = QPixmap::fromImage(ima);
-
-    }
     delete pConf;
   }
 
@@ -554,7 +547,36 @@ void FQTermScreen::termSizeChanged(int column, int row) {
 
 //set pixmap background
 
-void FQTermScreen::setBackgroundPixmap(const QPixmap &pixmap, int nType) {
+void FQTermScreen::updateBackgroundPixmap() {
+  if (!hasBackground_)
+    return;
+  
+  switch (backgroundRenderOption_) {
+    case 0:
+      //tile
+      {
+      backgroundPixmap_ = QPixmap(clientRectangle_.size());
+      QPainter painter(&backgroundPixmap_);
+      painter.drawTiledPixmap(backgroundPixmap_.rect(), originBackgroundPixmap_);
+      }
+      break;
+    case 1:
+      //center
+      {
+      backgroundPixmap_ = QPixmap(clientRectangle_.size());
+      backgroundPixmap_.fill(colors_[0]);
+      QPainter painter(&backgroundPixmap_);
+      int x = (backgroundPixmap_.size() - originBackgroundPixmap_.size()).width() / 2;
+      int y = (backgroundPixmap_.size() - originBackgroundPixmap_.size()).height() / 2;
+      painter.drawPixmap(x, y, originBackgroundPixmap_);
+      }
+      break;
+    case 2:
+      //stretch
+      backgroundPixmap_ = originBackgroundPixmap_.scaled(clientRectangle_.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+      break;
+  }
+  /*
   hasBackground_ = false;
   backgroundPixmap_ = pixmap;
   backgroundPixmapType_ = nType;
@@ -574,7 +596,7 @@ void FQTermScreen::setBackgroundPixmap(const QPixmap &pixmap, int nType) {
       if (!pixmap.isNull())
         palette.setBrush(backgroundRole(), QBrush(pixmap));
       setPalette(palette);
-      // 				setBackgroundPixmap( pixmap );
+      // 				updateBackgroundPixmap( pixmap );
       hasBackground_ = true;
       break;
       //}
@@ -589,7 +611,7 @@ void FQTermScreen::setBackgroundPixmap(const QPixmap &pixmap, int nType) {
                            pixmap.width(), pixmap.height(), pixmap);
         palette.setBrush(backgroundRole(), QBrush(pxmBg));
         setPalette(palette);
-        // 				setBackgroundPixmap(pxmBg);
+        // 				updateBackgroundPixmap(pxmBg);
         hasBackground_ = true;
         break;
       }
@@ -602,7 +624,7 @@ void FQTermScreen::setBackgroundPixmap(const QPixmap &pixmap, int nType) {
         matrix.scale(sx, sy);
         palette.setBrush(backgroundRole(), QBrush(pixmap.transformed(matrix)));
         setPalette(palette);
-        // 				setBackgroundPixmap(pixmap.transformed( matrix ));
+        // 				updateBackgroundPixmap(pixmap.transformed( matrix ));
         hasBackground_ = true;
         break;
       }
@@ -612,6 +634,7 @@ void FQTermScreen::setBackgroundPixmap(const QPixmap &pixmap, int nType) {
       // 			setBackgroundColor( m_color[0] );
 
   }
+  */
 }
 
 void FQTermScreen::cursorEvent() {
@@ -733,9 +756,8 @@ void FQTermScreen::updateCursor(QPainter &painter) {
         drawLine(painter, termBuffer_->getCaretLine(), startx, endx,
                  termBuffer_->getCaretLine());
       } else {
-        painter.fillRect(mapToRect(termBuffer_->getCaretColumn(),
-                                   termBuffer_->getCaretLine(), 1, 1),
-                         colors_[0]);
+        //painter.fillRect(mapToRect(termBuffer_->getCaretColumn(), termBuffer_->getCaretLine(), 1, 1),colors_[0]);
+        drawBackground(painter, mapToRect(termBuffer_->getCaretColumn(),termBuffer_->getCaretLine(), 1, 1), 0);
       }
       return;
     }
@@ -836,8 +858,9 @@ void FQTermScreen::refreshScreen(QPainter &painter) {
     }
 
     QRect rect = mapToRect(startx, index, len, 1);
-    //rect.setBottom(rect.bottom() + 1);
-    painter.fillRect(rect ,QBrush(colors_[0]));
+    
+    //painter.fillRect(rect ,QBrush(colors_[0]));
+    drawBackground(painter, rect, 0);
     
     drawLine(painter, index, startx, endx);
 
@@ -862,14 +885,14 @@ void FQTermScreen::refreshScreen(QPainter &painter) {
 void FQTermScreen::repaintScreen(QPaintEvent *pe, QPainter &painter) {
   FQ_FUNC_TIMER("screen_paint", 5);
 
-  painter.setBackground(QBrush(colors_[0]));
+  //painter.setBackground(QBrush(colors_[0]));
 
   FQ_TRACE("screen", 5) << "Client area: " << pe->rect().width()
                         << "x" << pe->rect().height();
 
   QRect rect = pe->rect().intersect(clientRectangle_);
-  painter.eraseRect(rect);
-
+  //painter.eraseRect(rect);
+  drawBackground(painter, rect, 0);
   QPoint tlPoint = mapToChar(QPoint(rect.left(), rect.top()));
 
   QPoint brPoint = mapToChar(QPoint(rect.right(), rect.bottom()));
@@ -1140,40 +1163,27 @@ void FQTermScreen::drawStr(QPainter &painter, const QString &str,
     }
   }
 
-  if (GETBG(cp) != 0 && !transparent) {
-    painter.setBackgroundMode(Qt::OpaqueMode);
-    painter.setBackground(colors_[brush_color_index]);
-
-  } else {
-    painter.setBackgroundMode(Qt::TransparentMode);
-  }
 
   QBrush brush(colors_[brush_color_index]);
 
   // black on white without attr
   if (FQTermPref::getInstance()->isBossColor_) {
     painter.setPen(Qt::black);
-    if (GETBG(cp) != 0 && !transparent) {
-      painter.setBackgroundMode(Qt::OpaqueMode);
-    } else {
-      painter.setBackgroundMode(Qt::TransparentMode);
-    }
-    painter.setBackground(Qt::white);
     brush = QBrush(Qt::white);
-
-    
   }
 
   QPoint pt = mapToPixel(QPoint(x, y));
   QRect rcErase = mapToRect(x, y, length, 1);
 
-  if (x == 0) {
-    rcErase.setLeft(rcErase.left() - 1);
-  }
   if (!menuRect_.intersects(rcErase)){
-    //rcErase.setRight(rcErase.right() + 1);
-    painter.fillRect(rcErase, brush);
-    //rcErase.setRight(rcErase.right() - 1);
+    if (x == 0) {
+      rcErase.setLeft(rcErase.left() - 1);
+    }
+    //painter.fillRect(rcErase, brush);
+    drawBackground(painter, rcErase, brush_color_index);
+    if (x == 0) {
+      rcErase.setLeft(rcErase.left() + 1);
+    }
   } else {
     QRect rcKeep = menuRect_.intersected(rcErase);
     rcKeep.setY(rcErase.y());
@@ -1194,9 +1204,7 @@ void FQTermScreen::drawStr(QPainter &painter, const QString &str,
                        brush);
     }
   }
-  if (x == 0) {
-    rcErase.setLeft(rcErase.left() + 1);
-  }
+
   if (!(isBlinkScreen_ && GETBLINK(attr))) {
     FQ_TRACE("draw_text", 10) << "draw text: " << str;
     
@@ -1233,7 +1241,6 @@ void FQTermScreen::eraseRect(QPainter &, int, int, int, int, short){
 }
 
 void FQTermScreen::bossColor() {
-  setBackgroundPixmap(backgroundPixmap_, backgroundPixmapType_);
   if (FQTermPref::getInstance()->isBossColor_) {
     colors_[0] = Qt::white;
     colors_[7] = Qt::black;
@@ -1296,10 +1303,10 @@ QSize FQTermScreen::getScreenSize() const
 
 QPoint FQTermScreen::mapToPixel(const QPoint &point) {
   int dx = (getScreenSize().width() - clientRectangle_.width()) * FQTermPref::getInstance()->displayOffset_ / 100;
-
+  int dy = getVerticalSetting();
   QPoint pt = clientRectangle_.topLeft();
   pt.setX(pt.x() - dx);
-
+  pt.setY(pt.y() - dy);
   QPoint pxlPoint;
 
   pxlPoint.setX(point.x() *charWidth_ + pt.x());
@@ -1311,10 +1318,10 @@ QPoint FQTermScreen::mapToPixel(const QPoint &point) {
 // corresponding char position
 QPoint FQTermScreen::mapToChar(const QPoint &point) {
   int dx = (getScreenSize().width() - clientRectangle_.width()) * FQTermPref::getInstance()->displayOffset_ / 100;
-
+  int dy = getVerticalSetting();
   QPoint pt = clientRectangle_.topLeft();
   pt.setX(pt.x() - dx);
-
+  pt.setY(pt.y() - dy);
   QPoint chPoint;
   chPoint.setX(qMin(qMax(0, int((point.x() - pt.x()) / charWidth_)),
                     termBuffer_->getNumColumns() - 1));
@@ -1326,13 +1333,11 @@ QPoint FQTermScreen::mapToChar(const QPoint &point) {
 }
 
 QRect FQTermScreen::mapToRect(int x, int y, int width, int height) {
-  int dx = (getScreenSize().width() - clientRectangle_.width()) * FQTermPref::getInstance()->displayOffset_ / 100;
-
   QPoint pt = mapToPixel(QPoint(x, y));
 
   if (width == -1) {
 	// to the end
-    return QRect(pt.x() + dx, pt.y(), size().width(), charHeight_ *height);
+    return QRect(pt.x(), pt.y(), getScreenSize().width(), charHeight_ *height);
   } else {
     return QRect(pt.x(), pt.y(), width *charWidth_, charHeight_ *height);
   }
@@ -1544,12 +1549,12 @@ void FQTermScreen::widgetHideAt(const QRect& rect){
 
 void FQTermScreen::updateWidgetRect(QPainter& painter) {
 
-  painter.setBackground(QBrush(colors_[0]));
+  
 
   QRect rect = widgetRect_.intersect(clientRectangle_);
   if (rect.isEmpty())
     return;
-  painter.eraseRect(rect);
+  drawBackground(painter, rect, 0);
 
   QPoint tlPoint = mapToChar(QPoint(rect.left(), rect.top()));
 
@@ -1564,6 +1569,85 @@ void FQTermScreen::updateWidgetRect(QPainter& painter) {
     drawLine(painter, y, startx, endx);
   }
   widgetRect_ = QRect();
+}
+
+void FQTermScreen::drawBackgroundPixmap(QPainter& painter, const QRect& rect) {
+  if (!hasBackground_ ||
+      FQTermPref::getInstance()->isBossColor_ ||
+      backgroundPixmap_.isNull()) {
+      return;
+  }
+  if (backgroundCoverage_ == 1) { //Only padding, we do not draw screen background.
+    QRegion clip = rect;
+    QRect screenRect = mapToRect(0, termBuffer_->getNumLines() - termBuffer_->getNumRows(), termBuffer_->getNumColumns(), termBuffer_->getNumRows());
+    clip -= screenRect;
+    QVector<QRect> rects = clip.rects();
+    foreach(QRect r, rects) {
+      painter.drawPixmap(r, backgroundPixmap_, r);
+    }
+    return;
+  }
+  painter.drawPixmap(rect, backgroundPixmap_, rect);
+}
+
+int FQTermScreen::getVerticalSetting() const {
+  int dy = -1;
+  switch (FQTermPref::getInstance()->vsetting_)
+  {
+  case 0:
+    {
+      // Top
+      dy = 0;
+      break;
+    }
+  case 1:
+    {
+      // Middle
+      dy = (getScreenSize().height() - clientRectangle_.height()) / 2;
+      break;
+    }
+  case 2:
+    {
+      // Bottom
+      dy = (getScreenSize().height() - clientRectangle_.height());
+      break;
+    }
+  default:
+    {
+      // The logic should never get here
+      break;
+    }
+  }
+  return dy;
+}
+
+void FQTermScreen::drawBackground(QPainter& painter, const QRect& rect, int colorIndex) {
+  
+  if (FQTermPref::getInstance()->isBossColor_) {
+    painter.fillRect(rect, Qt::white);
+    return;
+  }
+  if (hasBackground_ && !backgroundPixmap_.isNull()) {
+    if (colorIndex == 0 || (backgroundCoverage_ != 1 && backgroundUseAlpha_))
+      drawBackgroundPixmap(painter, rect);
+    if (backgroundCoverage_ == 1) { //Background only padding, we draw screen background.
+      QRegion clip = rect;
+      QRect screenRect = mapToRect(0, termBuffer_->getNumLines() - termBuffer_->getNumRows(), termBuffer_->getNumColumns(), termBuffer_->getNumRows());
+      clip &= screenRect;
+      QVector<QRect> rects = clip.rects();
+      foreach(QRect r, rects) {
+        painter.fillRect(r, colors_[colorIndex]);
+      }
+    } else {
+      if (backgroundUseAlpha_)
+        painter.setOpacity(double(backgroundAlpha_) / 100);
+      if (colorIndex != 0 || backgroundUseAlpha_)
+        painter.fillRect(rect, colors_[colorIndex]);
+      painter.setOpacity(1.0);
+    }
+    return;
+  }
+  painter.fillRect(rect, colors_[colorIndex]);
 }
 PreeditLine::PreeditLine(QWidget *parent,const QColor *colors)
     : QWidget(parent),

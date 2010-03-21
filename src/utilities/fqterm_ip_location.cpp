@@ -33,8 +33,11 @@
 
 #include "fqterm_trace.h"
 #include "fqterm_ip_location.h"
+#include "fqterm_path.h"
 
 namespace FQTerm {
+
+FQTermIPLocation* FQTermIPLocation::instance_ = NULL;
 
 FQTermIPLocation::FQTermIPLocation(const QString &pathLib) {
   ipDatabase_ = new IPDatabase;
@@ -64,7 +67,7 @@ FQTermIPLocation::~FQTermIPLocation() {
   delete ipDatabase_;
 }
 
-bool FQTermIPLocation::haveFile() {
+bool FQTermIPLocation::ipDataBaseAvailable() {
   return isFileExiting_;
 }
 
@@ -226,6 +229,22 @@ bool FQTermIPLocation::getLocation(QString &url, QString &country,
   }
   // if ip_start<=ip<=ip_end
   return TRUE;
+}
+
+FQTermIPLocation* FQTermIPLocation::getInstance() {
+  if (instance_ == NULL) {
+    instance_ = new FQTermIPLocation(getPath(USER_CONFIG));
+    if (!instance_->ipDataBaseAvailable()) {
+      delete instance_;
+      instance_ = new FQTermIPLocation(getPath(RESOURCE));
+    }
+  }
+  return instance_;
+}
+
+void FQTermIPLocation::Destroy() {
+  delete instance_;
+  instance_ = NULL;
 }
 
 }  // namespace FQTerm

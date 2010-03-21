@@ -455,6 +455,7 @@ int FQTermDecode::processInput(QByteArray& result)
     {
     case FQTERM_ENCODING_GBK:
     case FQTERM_ENCODING_BIG5:
+    case FQTERM_ENCODING_HKSCS:
       expect_bytes = gdbnbig5_expected_byte_count(leftToDecode_[0]);
       break;
     case FQTERM_ENCODING_UTF8:
@@ -482,6 +483,7 @@ int FQTermDecode::processInput(QByteArray& result)
         {
         case FQTERM_ENCODING_GBK:
         case FQTERM_ENCODING_BIG5:
+        case FQTERM_ENCODING_HKSCS:
           expect_bytes = gdbnbig5_expected_byte_count(inputData_[dataIndex_ + n]);
           break;
         case FQTERM_ENCODING_UTF8:
@@ -513,6 +515,7 @@ int FQTermDecode::processInput(QByteArray& result)
     {
     case FQTERM_ENCODING_GBK:
     case FQTERM_ENCODING_BIG5:
+    case FQTERM_ENCODING_HKSCS:
       charstate |= FQTermTextLine::SECONDPART;
       break;
     case FQTERM_ENCODING_UTF8:
@@ -532,6 +535,7 @@ int FQTermDecode::processInput(QByteArray& result)
     {
     case FQTERM_ENCODING_GBK:
     case FQTERM_ENCODING_BIG5:
+    case FQTERM_ENCODING_HKSCS:
       result.push_back('?');  //make sure the attr is recorded,
       //since last -1 operation can make cstr to be empty
       charstate |= FQTermTextLine::FIRSTPART;

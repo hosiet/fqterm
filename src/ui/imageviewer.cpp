@@ -46,6 +46,7 @@
 #include <QTreeView>
 #include <QTextEdit>
 #include <QHeaderView>
+#include <QImageReader>
 
 #include "fqterm_canvas.h"
 #include "fqterm_config.h"
@@ -550,8 +551,16 @@ namespace FQTerm {
       sortPath.mkdir(path);
     }
 
-    sortPath.setNameFilters((QStringList() << "*.jpg" << "*.jpeg" << "*.png" << "*.gif"
-        << "*.bmp" << "*.tiff" << "*.mng"));
+    QStringList filters;
+    QList<QByteArray> formats = QImageReader::supportedImageFormats();
+    for (QList<QByteArray>::iterator it = formats.begin();
+         it != formats.end();
+         ++it) {
+      QString filter("*.");
+      filter.append(it->data());
+      filters << filter;
+    }
+    sortPath.setNameFilters(filters);
 
     return (sortPath.entryInfoList(QDir::Files | QDir::Readable | QDir::NoSymLinks, QDir::Time));
   }
@@ -1611,8 +1620,14 @@ namespace FQTerm {
 
 	  //insertColumn(1);
     QStringList nameFilterList;
-    nameFilterList << "*.jpg" <<  "*.jpeg" << "*.png"
-                   << "*.mng" << "*.bmp" << "*.gif";
+    QList<QByteArray> formats = QImageReader::supportedImageFormats();
+    for (QList<QByteArray>::iterator it = formats.begin();
+         it != formats.end();
+         ++it) {
+      QString filter("*.");
+      filter.append(it->data());
+      nameFilterList << filter;
+    }
     setNameFilters(nameFilterList);
     setFilter(QDir::Files);
   }
@@ -1644,7 +1659,17 @@ namespace FQTerm {
       if (path.endsWith(QDir::separator()))
         path.chop(1);
 
-      QPixmap pixmap(path);
+      QPixmap pixmap;
+      bool res = pixmap.load(path);
+      if (!res) {
+        QList<QByteArray> formats = QImageReader::supportedImageFormats();
+        for (QList<QByteArray>::iterator it = formats.begin();
+             !res && it != formats.end();
+             ++it) {
+          res = pixmap.load(path, it->data());
+        }
+      }
+
       if (pixmap.height() > 128 || pixmap.width() > 128) {
         return pixmap.scaled(128, 128,
           Qt::KeepAspectRatio, Qt::SmoothTransformation);

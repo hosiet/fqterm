@@ -26,6 +26,7 @@
 #include <QDataStream>
 #include <QUrl>
 #include <QRegExp>
+#include <QNetworkProxy>
 
 #include "fqterm.h"
 #include "fqterm_path.h"
@@ -68,6 +69,8 @@ void FQTermHttp::cancel() {
   emit done(this);
 }
 
+
+
 void FQTermHttp::getLink(const QString &url, bool preview) {
   isExisting_ = false;
   isPreview_ = preview;
@@ -97,6 +100,7 @@ void FQTermHttp::getLink(const QString &url, bool preview) {
   cacheFileName_ = QFileInfo(u.path()).fileName();
   http_.setHost(u.host(), u.port(80));
   http_.get(u.path() + "?" + u.encodedQuery());
+
 }
 /*
 static void getSaveFileName(const QString &filename, QWidget *widget, QString &fileSave) {
@@ -317,6 +321,9 @@ void FQTermHttp::httpDone(bool err) {
   emit done(this);
 }
 
+int FQTermHttp::setProxy(const QNetworkProxy & proxy) {
+  return http_.setProxy(proxy);
+}
 }  // namespace FQTerm
 
 #include "fqterm_http.moc"

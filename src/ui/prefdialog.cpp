@@ -41,12 +41,16 @@ namespace FQTerm {
 prefDialog::prefDialog(FQTermConfig * config, QWidget *parent, Qt::WFlags fl)
     : QDialog(parent, fl),
       soundButtonGroup_(this),
+      verticalSettingButtonGroup_(this),
       config_(config){
   ui_.setupUi(this);
   fileDialog_ = new FQTermFileDialog(config_);
   soundButtonGroup_.addButton(ui_.noneRadioButton, 0);
   soundButtonGroup_.addButton(ui_.beepRadioButton, 1);
   soundButtonGroup_.addButton(ui_.fileRadioButton, 2);
+  verticalSettingButtonGroup_.addButton(ui_.topRadioButton, 0);
+  verticalSettingButtonGroup_.addButton(ui_.middleRadioButton, 1);
+  verticalSettingButtonGroup_.addButton(ui_.bottomRadioButton, 2);
 
   connectSlots();
 
@@ -107,8 +111,10 @@ void prefDialog::loadSetting() {
   ui_.warnCheckBox->setChecked(strTmp != "0");
 
   strTmp = config_->getItemValue("preference", "beep");
-  qobject_cast < QRadioButton * > (soundButtonGroup_.button(strTmp.toInt()))->setChecked
-      (true);
+  qobject_cast<QRadioButton *>(soundButtonGroup_.button(strTmp.toInt()))->setChecked(true);
+
+  strTmp = config_->getItemValue("preference", "vsetting");
+  qobject_cast<QRadioButton *>(verticalSettingButtonGroup_.button(strTmp.toInt()))->setChecked(true);
 
   strTmp = config_->getItemValue("preference", "enq");
   ui_.enqCheckBox->setChecked(strTmp != "0");
@@ -204,6 +210,9 @@ void prefDialog::saveSetting() {
 
   strTmp.setNum(soundButtonGroup_.checkedId());
   config_->setItemValue("preference", "beep", strTmp);
+
+  strTmp.setNum(verticalSettingButtonGroup_.checkedId());
+  config_->setItemValue("preference", "vsetting", strTmp);
 
   if (strTmp == "2") {
     config_->setItemValue("preference", "wavefile", ui_.wavefileLineEdit->text());

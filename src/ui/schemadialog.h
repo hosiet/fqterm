@@ -22,7 +22,7 @@
 #define FQTERM_SCHEMADIALOG_H
 
 #include "ui_schemadialog.h"
-
+#include <QStringList>
 namespace FQTerm {
 
 class schemaDialog: public QDialog {
@@ -31,21 +31,12 @@ class schemaDialog: public QDialog {
   schemaDialog(QWidget *parent = 0, Qt::WFlags fl = 0);
   ~schemaDialog();
 
-  void setSchema(const QString &);
-  QString getSchema();
-
+  static QFileInfoList getSchemaList();
  protected:
   QColor colors[16];
   QPushButton * colorButtons[16];
-  QColor fade_;
-  float alpha_;
-  QString backgroundFileName_;
-  int backgroundType_;
   QString title_;
-
   QStringList fileList_;
-
-  QString currentSchemaFileName_;
 
   bool isModified_;
   int lastItemID_;
@@ -58,26 +49,30 @@ class schemaDialog: public QDialog {
 
   void loadList();
   void loadSchema(const QString &schemaFileName);
-  void saveNumSchema(int n = -1);
+  int saveNumSchema(int n = -1);
 
   void updateView();
-  void updateBgPreview();
-
-  QImage &fadeColor(QImage &, float, const QColor &);
 
  protected slots:
   void buttonClicked();
   void nameChanged(int);
-  void bgType(int);
-  void imageType(int);
   void chooseImage();
-  void fadeClicked();
-  void alphaChanged(int);
+
   void saveSchema();
   void removeSchema();
+
   void onOK();
   void onCancel();
-  void textChanged(const QString &);
+
+  void modified(const QString&) {modified();}
+  void modified(int) {modified();}
+  void modified(bool) {modified();}
+  void modified() {isModified_ = true;}
+
+  void clearModified() {isModified_ = false;}
+
+signals:
+  void schemaEdited();
 };
 
 }  // namespace FQTerm

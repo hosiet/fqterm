@@ -51,7 +51,7 @@ class FQTermCanvas: public QScrollArea {
   enum AdjustMode{Origin, Fit, Stretch, MaxFit};
 
   void updateImage(const QString& filename);
-  void loadImage(QString, bool = true);
+  void loadImage(const QString&, bool = true);
   QMenu* menu();
   QToolBar* ToolBar();
  public slots:
