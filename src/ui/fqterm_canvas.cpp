@@ -34,6 +34,7 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QUrl>
+#include <QImageReader>
 
 
 #include "fqterm_canvas.h"
@@ -197,10 +198,17 @@ void FQTermCanvas::fullScreen() {
   }
 }
 
-void FQTermCanvas::loadImage(QString name, bool performAdjust) {
-  image_.load(name);
+void FQTermCanvas::loadImage(const QString& name, bool performAdjust) {
+  bool res = image_.load(name);
+  if (!res) {
+    QList<QByteArray> formats = QImageReader::supportedImageFormats();
+    for (QList<QByteArray>::iterator it = formats.begin();
+         !res && it != formats.end();
+         ++it) {
+      res = image_.load(name, it->data());
+    }
+  }
   if (!image_.isNull()) {
-
     fileName_ = QFileInfo(name).absoluteFilePath().toLower();
     setWindowTitle(QFileInfo(name).fileName());
 
@@ -231,7 +239,7 @@ void FQTermCanvas::loadImage(QString name, bool performAdjust) {
     if (isEmbedded) {
       label->hide();
       if (performAdjust) autoAdjust();
-      else label->setPixmap(fileName_);
+      else label->setPixmap(QPixmap::fromImage(image_));
       
       label->show();
     }

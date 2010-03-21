@@ -80,6 +80,7 @@ FQTermParam::FQTermParam() {
   isAutoReconnect_ = false;
   reconnectInterval_ = 3;
   retryTimes_ = 0;
+  isAutoCloseWin_ = false;
   isAutoLoadScript_ = false;
   enableZmodem_ = true;
   autoLoadedScriptFileName_ = "";
@@ -105,6 +106,8 @@ FQTermParam::FQTermParam(const FQTermParam &param) {
 FQTermParam::~FQTermParam(){}
 
 FQTermParam &FQTermParam::operator = (const FQTermParam &param) {
+  if (this == &param)
+      return *this;
   copy(param);
   return  *this;
 }
@@ -165,6 +168,7 @@ void FQTermParam::copy(const FQTermParam& param) {
   isAutoReconnect_ = param.isAutoReconnect_;
   reconnectInterval_ = param.reconnectInterval_;
   retryTimes_ = param.retryTimes_;
+  isAutoCloseWin_ = param.isAutoCloseWin_;
   isAutoLoadScript_ = param.isAutoLoadScript_;
   enableZmodem_ = param.enableZmodem_;
   autoLoadedScriptFileName_ = param.autoLoadedScriptFileName_;
@@ -233,6 +237,7 @@ bool FQTermParam::operator==(const FQTermParam& param)
   if (isAutoReconnect_ != param.isAutoReconnect_) return false;
   if (reconnectInterval_ != param.reconnectInterval_) return false;
   if (retryTimes_ != param.retryTimes_) return false;
+  if (isAutoCloseWin_ != param.isAutoCloseWin_) return false;
   if (isAutoLoadScript_ != param.isAutoLoadScript_) return false;
   if (enableZmodem_ != param.enableZmodem_) return false;
   if (isBuzz_ != param.isBuzz_) return false;
@@ -250,9 +255,9 @@ bool FQTermParam::operator==(const FQTermParam& param)
 QString FQTermParam::getLanguageName(bool isEnglish)
 {
   if (isEnglish) {
-    return QString(QObject::tr("English"));
+    return QString(QObject::tr("&English"));
   }
-  return QString(QObject::tr("Non-English"));
+  return QString(QObject::tr("&Non-English"));
 }
 
 const FQTermParam& FQTermParam::getFQBBSParam() {

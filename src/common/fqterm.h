@@ -32,11 +32,13 @@
 namespace FQTerm {
 
 //code convert
-enum EncodingID {FQTERM_ENCODING_GBK = 0, FQTERM_ENCODING_BIG5 = 1, FQTERM_ENCODING_UTF8 = 2};
+enum EncodingID {FQTERM_ENCODING_GBK = 0, FQTERM_ENCODING_BIG5 = 1, FQTERM_ENCODING_UTF8 = 2, FQTERM_ENCODING_HKSCS = 3};
 #define G2U(s) ( QTextCodec::codecForName("GBK")->toUnicode(s) )
 #define U2G(s) ( QTextCodec::codecForName("GBK")->fromUnicode(s) )
 #define B2U(s) ( QTextCodec::codecForName("Big5")->toUnicode(s) )
 #define U2B(s) ( QTextCodec::codecForName("Big5")->fromUnicode(s) )
+#define H2U(s) ( QTextCodec::codecForName("Big5-HKSCS")->toUnicode(s) )
+#define U2H(s) ( QTextCodec::codecForName("Big5-HKSCS")->fromUnicode(s) )
 #define U2U8(s) ( s.toUtf8() )
 #define U82U(s) ( QString::fromUtf8(s) )
 
@@ -45,13 +47,12 @@ inline QByteArray unicode2encoding(const QString &text, int encoding) {
   {
   case FQTERM_ENCODING_GBK:
     return(U2G(text));
-    break;
   case FQTERM_ENCODING_BIG5:
     return(U2B(text));
-    break;
   case FQTERM_ENCODING_UTF8:
     return(U2U8(text));
-    break;
+  case FQTERM_ENCODING_HKSCS:
+    return (U2H(text));
   }
 
   return "";
@@ -62,13 +63,12 @@ inline QString encoding2unicode(const QByteArray &text, int encoding) {
   {
   case FQTERM_ENCODING_GBK:
     return(G2U(text));
-    break;
   case FQTERM_ENCODING_BIG5:
     return(B2U(text));
-    break;
   case FQTERM_ENCODING_UTF8:
     return(U82U(text));
-    break;
+  case FQTERM_ENCODING_HKSCS:
+    return (H2U(text));
   }
 
   return "";

@@ -46,7 +46,7 @@ const int addrDialog::ports[3] = {23, 22, 22};
  *  The dialog will by default be modeless, unless you set 'modal' to
  *  TRUE to construct a modal dialog.
  */
-addrDialog::addrDialog(QWidget *parent_, const FQTermParam& parameter, Qt::WFlags fl)
+addrDialog::addrDialog(QWidget *parent_, const FQTermParam& parameter, int buttons, Qt::WFlags fl)
   : QDialog(parent_, fl),
     menuButtonGroup_(this),
     param_(parameter) {
@@ -54,6 +54,10 @@ addrDialog::addrDialog(QWidget *parent_, const FQTermParam& parameter, Qt::WFlag
   menuButtonGroup_.addButton(ui_.radioButton1, 0);
   menuButtonGroup_.addButton(ui_.radioButton2, 1);
   menuButtonGroup_.addButton(ui_.radioButton3, 2);
+  if (!(buttons & SAVE))
+    ui_.savePushButton->setVisible(false);
+  if (!(buttons & APPLY))
+    ui_.applyPushButton->setVisible(false);
   QMenu *fontMenu = new QMenu(this);
   for (int i = 0; i < 2; ++i) {
     QAction *act = fontMenu->addAction(FQTermParam::getLanguageName(bool(i)) + " Font", this, SLOT(onFont()));
@@ -79,7 +83,8 @@ void addrDialog::setParamFromUI() {
   param_.isAnsiColor_ = ui_.ansicolorCheckBox->isChecked();
   param_.backgroundColor_ = ui_.fontPreviewer->palette().color(QPalette::Background);
   param_.foregroundColor_ = ui_.fontPreviewer->palette().color(QPalette::Foreground);
-  param_.schemaFileName_ = schemaFileName_;
+  param_.schemaFileName_ = ui_.schemaComboBox->currentText().isEmpty() || ui_.schemaComboBox->currentIndex() >= schemaDialog::getSchemaList().count()
+                            ? "" : schemaDialog::getSchemaList()[ui_.schemaComboBox->currentIndex()].absoluteFilePath();
   param_.virtualTermType_ = ui_.termtypeLineEdit->text();
   param_.keyboardType_ = ui_.keytypeComboBox->currentIndex();
   param_.backspaceType_ = ui_.backspace8->isChecked()?0:1;
@@ -123,6 +128,7 @@ void addrDialog::setParamFromUI() {
   param_.isAutoReconnect_ = ui_.reconnectCheckBox->isChecked();
   param_.reconnectInterval_ = ui_.reconnectLineEdit->text().toInt();
   param_.retryTimes_ = ui_.retryLineEdit->text().toInt();
+  param_.isAutoCloseWin_ = ui_.autoCloseWinCheckBox->isChecked();
   param_.isAutoLoadScript_ = ui_.scriptCheckBox->isChecked();
   param_.enableZmodem_ = ui_.zmodemCheck->isChecked();
   param_.isBeep_ = ui_.beepCheck->isChecked();
@@ -137,7 +143,8 @@ void addrDialog::setParamFromUI() {
 }
 
 void addrDialog::setUIFromParam() {
-  schemaFileName_ = param_.schemaFileName_;
+
+  updateSchemaList(param_.schemaFileName_);
   QString strTmp;
   ui_.nameLineEdit->setText(param_.name_);
   ui_.addrLineEdit->setText(param_.hostAddress_);
@@ -195,6 +202,7 @@ void addrDialog::setUIFromParam() {
   ui_.reconnectLineEdit->setText(strTmp);
   strTmp.setNum(param_.retryTimes_);
   ui_.retryLineEdit->setText(strTmp);
+  ui_.autoCloseWinCheckBox->setChecked(param_.isAutoCloseWin_);
   ui_.scriptCheckBox->setChecked(param_.isAutoLoadScript_);
   ui_.scriptLineEdit->setText(param_.autoLoadedScriptFileName_);
   ui_.zmodemCheck->setChecked(param_.enableZmodem_);
@@ -222,6 +230,10 @@ void addrDialog::onOK() {
   done(1);
 }
 
+void addrDialog::onSave() {
+  setParamFromUI();
+  done(2);
+}
 void addrDialog::onCancel() {
   done(0);
 }
@@ -241,19 +253,6 @@ void addrDialog::onBgcolor() {
   if (color.isValid() == TRUE) {
     param_.backgroundColor_ = color;
     previewFont();
-  }
-}
-
-void addrDialog::onSchema() {
-  schemaDialog schema(this);
-
-  schema.setSchema(schemaFileName_);
-
-  if (schema.exec() == 1) {
-    schemaFileName_ = schema.getSchema();
-    if (schemaFileName_.isEmpty()) {
-      schemaFileName_ = "";
-    }
   }
 }
 
@@ -338,12 +337,12 @@ void addrDialog::previewFont() {
 
 void addrDialog::connector() {
   FQ_VERIFY(connect(ui_.applyPushButton, SIGNAL(clicked()), this, SLOT(onOK())));
+  FQ_VERIFY(connect(ui_.savePushButton, SIGNAL(clicked()), this, SLOT(onSave())));
   FQ_VERIFY(connect(ui_.closePushButton, SIGNAL(clicked()), this, SLOT(onCancel())));
 
 
   FQ_VERIFY(connect(ui_.fgcolorPushButton, SIGNAL(clicked()), this, SLOT(onFgcolor())));
   FQ_VERIFY(connect(ui_.bgcolorPushButton, SIGNAL(clicked()), this, SLOT(onBgcolor())));
-  FQ_VERIFY(connect(ui_.schemaPushButton, SIGNAL(clicked()), this, SLOT(onSchema())));
 
   FQ_VERIFY(connect(ui_.protocolComboBox, SIGNAL(activated(int)), this, SLOT(onProtocol(int))));
 
@@ -375,6 +374,21 @@ void addrDialog::onFont() {
     fontSize = font.pointSize();
     previewFont();
   }
+}
+
+void addrDialog::updateSchemaList(const QString& currentSchema) {
+  ui_.schemaComboBox->clear();
+  QFileInfoList lstFile = schemaDialog::getSchemaList();
+  foreach(QFileInfo fi, lstFile) {
+    FQTermConfig *pConf = new FQTermConfig(fi.absoluteFilePath());
+    ui_.schemaComboBox->addItem(pConf->getItemValue("schema", "title"));
+    delete pConf;
+  }
+  ui_.schemaComboBox->addItem("");
+  int schemaIdx = lstFile.indexOf(currentSchema);
+  if (schemaIdx < 0)
+    schemaIdx = ui_.schemaComboBox->count() - 1;
+  ui_.schemaComboBox->setCurrentIndex(schemaIdx);
 }
 
 }  // namespace FQTerm

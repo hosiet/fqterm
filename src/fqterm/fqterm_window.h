@@ -54,7 +54,6 @@ class FQTermConfig;
 class FQTermImage;
 class FQTermFrame;
 class FQTermHttp;
-class FQTermIPLocation;
 class FQTermScreen;
 class FQTermSession;
 class FQTermSound;
@@ -103,6 +102,7 @@ class FQTermWindow : public QMainWindow,
   void viewMessages();
   void toggleAutoReply();
   void toggleAntiIdle();
+  void toggleAutoReconnect();
   void setFont(bool isEnglish);
 
   void runScript(const QString & filename);
@@ -132,7 +132,7 @@ signals:
   void resizeSignal(FQTermWindow*);
   void refreshOthers(FQTermWindow*);
   void blinkTheTab(FQTermWindow*, bool);
-
+  void connectionClosed(FQTermWindow*);
  public slots:
   // ui
   void copy();
@@ -140,12 +140,12 @@ signals:
   void openAsUrl();
   void googleIt();
   void externalEditor();
+  void fastPost();
   void copyArticle();
   void setting();
   void setColor();
   void runScript();
   void stopScript();
-  void showStatusBar(bool);
   //void reconnect();
   void sendParsedString(const char*);
   void showIP(bool show = true);
@@ -197,7 +197,7 @@ signals:
   // decode
   // void setMouseMode(bool);
   void articleCopied(int e, const QString content);
-  //void jobDone(int);
+
 
  protected:
   bool event(QEvent*);
@@ -253,11 +253,6 @@ signals:
 
   FQTermConfig *config_;
   zmodemDialog *zmodemDialog_;
-  
-  //IP location
-  QString location_;
-  FQTermIPLocation *ipDatabase_;
-
 
   //osd
   PageViewMessage *pageViewMessage_;
@@ -267,7 +262,6 @@ signals:
 
   bool isMouseClicked_;
   bool blinkStatus_;
-  bool isIpDataFileExisting_;
 
   bool isUrlUnderLined_;
 
@@ -275,7 +269,7 @@ signals:
   FQTermExternalEditor *externalEditor_;
  private:
   void addMenu();
-  void saveSetting();
+  void saveSetting(bool ask = true);
 
   void setCursorPosition(const QPoint& mousePosition);
   //set cursor type according to the content
@@ -298,6 +292,8 @@ signals:
   bool scriptKeyEvent(QKeyEvent *keyevent);
   bool scriptMouseEvent(QMouseEvent *mouseevent);
   bool scriptWheelEvent(QWheelEvent *wheelevent);
+
+  void writePasting(const QString& content);
 
 
 signals: 

@@ -46,6 +46,7 @@ target_link_libraries(fqterm.bin
   fqterm_utilities 
   fqterm_ui
   fqterm_common 
+  fqterm_unite
   ${QT_QTNETWORK_LIBRARIES}
   ${QT_QTSCRIPT_LIBRARIES}  
   ${QT_LIBRARIES}

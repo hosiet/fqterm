@@ -26,6 +26,8 @@
 #include <QMutex>
 #include <QMap>
 
+class QNetworkProxy;
+
 namespace FQTerm {
 
 class FQTermConfig;
@@ -38,7 +40,7 @@ class FQTermHttp: public QObject {
   ~FQTermHttp();
 
   void getLink(const QString &, bool);
-
+  int setProxy (const QNetworkProxy & proxy);
  signals:
   void done(QObject*);
   void message(const QString &);

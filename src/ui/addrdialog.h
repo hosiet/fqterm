@@ -33,7 +33,8 @@ class FQTermConfig;
 class addrDialog: public QDialog {
   Q_OBJECT;
  public:
-  addrDialog(QWidget *parent_ = 0, const FQTermParam& param = FQTermParam(), Qt::WFlags fl = 0);
+   enum BUTTONS{SAVE = 0x01, APPLY = 0x02};
+  addrDialog(QWidget *parent_ = 0, const FQTermParam& param = FQTermParam(), int buttons = SAVE | APPLY, Qt::WFlags fl = 0);
   ~addrDialog();
   void setParam(const FQTermParam& param) {
     param_ = param;
@@ -51,10 +52,10 @@ class addrDialog: public QDialog {
 
  protected slots:
   void onOK();
+  void onSave();
   void onCancel();
   void onFgcolor();
   void onBgcolor();
-  void onSchema();
   void onProtocol(int);
   void onChooseScript();
   void onMenuColor();
@@ -73,8 +74,9 @@ class addrDialog: public QDialog {
  private:
   
   FQTermParam param_;
-  QString schemaFileName_;
   Ui::addrDialog ui_;
+
+  void updateSchemaList(const QString& currentFile);
 };
 
 

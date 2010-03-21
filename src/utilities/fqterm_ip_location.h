@@ -32,31 +32,42 @@ namespace FQTerm {
 
 typedef unsigned long uint32;
 
-struct IPDatabase {
-  uint32 offset_first_start_ip; // first abs offset of start ip
-  uint32 offset_last_start_ip; // last abs offset of start ip
-  uint32 cur_start_ip; // start ip of current search range
-  uint32 cur_end_ip; // end ip of current search range
-  uint32 offset_cur_end_ip; // where is the current end ip saved
-  FILE *ipfp; // IO Channel to read file
-};
 
 class FQTermIPLocation {
- public:
+public:
+
+  static FQTermIPLocation* getInstance();
+  static void Destroy();
+
+  bool getLocation(QString &url, QString &country, QString &city);
+  bool ipDataBaseAvailable();
+
+
+private:
+  struct IPDatabase {
+    uint32 offset_first_start_ip; // first abs offset of start ip
+    uint32 offset_last_start_ip; // last abs offset of start ip
+    uint32 cur_start_ip; // start ip of current search range
+    uint32 cur_end_ip; // end ip of current search range
+    uint32 offset_cur_end_ip; // where is the current end ip saved
+    FILE *ipfp; // IO Channel to read file
+  };
+
   FQTermIPLocation(const QString &pathLib);
   ~FQTermIPLocation();
-  IPDatabase *ipDatabase_;
-  bool getLocation(QString &url, QString &country, QString &city);
-  bool haveFile();
- protected:
-  bool isFileExiting_;
   uint32 byteArrayToInt(char *ip, int count);
   void readFrom(FILE *fp, uint32 offset, char *buf, int len);
   int readLineFrom(FILE *fp, uint32 offset, QString &ret_str);
   uint32 getString(FILE *fp, uint32 offset, uint32 lastoffset, QString &str,
-                   unsigned int flag);
+    unsigned int flag);
   void getCountryCity(FILE *fp, uint32 offset, QString &country, QString &city);
   void setIpRange(int rec_no, IPDatabase *f);
+
+
+  IPDatabase *ipDatabase_;
+  bool isFileExiting_;
+
+  static FQTermIPLocation* instance_;
 };
 
 }  // namespace FQTerm

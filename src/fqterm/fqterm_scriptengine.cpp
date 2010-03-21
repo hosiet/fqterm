@@ -175,6 +175,7 @@ void FQTermScriptEngine::reconnect() {
   session_->reconnect();
 }
 
+//FIXME: UTF8 and HKSCS
 QString FQTermScriptEngine::getBBSCodec() {
   return session_->param().serverEncodingID_ == 0 ? "GBK" : "Big5";
 }

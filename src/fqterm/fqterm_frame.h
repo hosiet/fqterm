@@ -37,6 +37,7 @@ class QString;
 
 namespace FQTerm {
 
+class IPLookupDialog;
 class FQTermImage;
 class FQTermParam;
 class FQTermConfig;
@@ -81,14 +82,13 @@ class FQTermFrame: public QMainWindow {
   void installTranslator(const QString& lang);
   FQTermConfig * config() const { return config_; }
 
-  static const int translatedModule = 3;
+  static const int translatedModule = 4;
   static const QString qmPrefix[translatedModule];
   static const QString qmPostfix;
 
  signals:
   void bossColor();
   void updateScroll();
-  void updateStatusBar(bool);
   void changeLanguage();
   void fontAntiAliasing(bool);
 
@@ -127,6 +127,7 @@ class FQTermFrame: public QMainWindow {
   void paste();
   void googleIt();
   void externalEditor();
+  void fastPost();
   void copyRect();
   void copyColor();
   void copyArticle();
@@ -136,13 +137,10 @@ class FQTermFrame: public QMainWindow {
   void escEsc();
   void uEsc();
   void customEsc();
-  void gbkCodec();
-  void big5Codec();
   void hideScroll();
   void leftScroll();
   void rightScroll();
   void showSwitchBar();
-  void showStatusBar();
   void setFont();
   void setColor();
   void refreshScreen();
@@ -158,6 +156,7 @@ class FQTermFrame: public QMainWindow {
   void beep();
   void reconnect();
   void keySetup();
+  void ipLookup();
 
   void scrollMenuAboutToShow();
   void themesMenuAboutToShow();
@@ -165,7 +164,6 @@ class FQTermFrame: public QMainWindow {
   void windowsMenuAboutToShow();
   void connectMenuActivated();
   void popupConnectMenu();
-  void connectMenuAboutToHide();
   void trayActived(QSystemTrayIcon::ActivationReason);
  
   //void trayClicked(const QPoint &, int);
@@ -174,80 +172,30 @@ class FQTermFrame: public QMainWindow {
   void trayShow();
   void buildTrayMenu();
 
-  void paintEvent(QPaintEvent*);
-
   void reloadConfig();
 
   void saveSetting();
+  void schemaUpdated();
+  void editSchema();
  private:
 
   FQTermWndMgr *windowManager_;
   // image viewer
-  FQTermImage *image_;
+  FQTermImage *imageViewer_;
 
   FQTermTimeLabel *labelTime_;
 
   QString theme_;
 
   QActionGroup *escapeGroup;
-  QActionGroup *codecGroup;
   QActionGroup *languageGroup;
   QMenu *menuWindows_;
   QMenu *menuThemes_;
   QMenu *scrollMenu_;
   QMenu *menuFont_;
-
   QMenu *menuFile_;
-  //  QMenu *menuEscape_;
   QMenu *menuLanguage_;
   QMenu *menuConnect_;
-  // 	File
-  QAction *actionDisconnect_;
-  QAction *actionQuickConnect_;
-  // 	Edit
-  QAction *actionCopy_;
-  QAction *actionPaste_;
-  QAction *actionColorCopy_; //used
-  QAction *actionRectangleSelect_; //used
-  QAction *actionAutoCopy_; //used
-  QAction *actionWordWrap_; //used
-  QAction *actionNoEscape_; //used
-  QAction *actionEscEscape_; //used
-  QAction *actionUEscape_; //used
-  QAction *actionCustomEscape_; //used
-  QAction *actionGBK_; //used
-  QAction *actionBIG5_; //used
-  QAction *actionHideScrollBar_; //used
-  QAction *actionLeftScrollBar_; //used
-  QAction *actionRightScrollBar_; //used
-  QAction *actionEnglish_;
-  QAction *actionStatus_;
-  QAction *actionSwitch_; //used
-  // 	View
-  QAction *actionToggleAnsiColor_;
-  QAction *actionFullScreen_;
-  QAction *actionBossColor_;
-  QAction *actionAntiIdle_;
-  QAction *actionAutoReply_;
-  QAction *actionMouse_;
-  QAction *actionBeep_;
-  QAction *actionReconnect_;
-  QAction *actionColor_;
-  QAction *actionRefresh_;
-
-  QAction *actionCurrentSession_;
-  QAction *actionCopyArticle_;
-  QAction *actionRunScript_;
-  QAction *actionStopScript_;
-  QAction *actionViewMessage_;
-  QAction *actionViewImage_;
-
-  QAction *actionNextWindow_;
-  QAction *actionPrevWindow_;
-
-  QAction *actionGoogleIt_;
-  QAction *actionExternalEditor_;
-
   QSignalMapper* windowMapper_;
 
   FQTerm::StatusBar *statusBar_;
@@ -268,19 +216,17 @@ class FQTermFrame: public QMainWindow {
 
   QSystemTrayIcon *tray;
 
-  QMenu *menuTray_;
+  QMenu *trayMenu_;
 
   QTranslator * translator[translatedModule];
   QList<TranslatorInstaller*> installerList_;
 
   FQTermConfig * config_;
   FQTermShortcutHelper * shortcutHelper_;
-  QString getShortcutText(int shortcut);
-
+  QAction* getAction(int shortcut);
   FQTermMiniServerThread* serverThread_;
+  IPLookupDialog* ipLookupDialog_;
 
-  //function
-  //FQTermWindow * newWindow( const FQTermParam& param, int index=-1 );
 private:
   void newWindow(const FQTermParam &param, int index = -1);
 
@@ -298,8 +244,7 @@ private:
 
   bool eventFilter(QObject *, QEvent*);
 
-  QString valueToString(bool, int, int, bool, int);
-  void insertThemeItem(QString);
+  void insertThemeItem(const QString&);
   void setUseDock(bool);
 
   void initAdditionalActions();
@@ -318,10 +263,10 @@ public:
   FQTermPythonHelper* getPythonHelper() {
     return pythonHelper_;
   }
-//protected slots:
+
+  //protected slots:
 private:
   FQTermPythonHelper* pythonHelper_;
-  QAction* actionRunPythonScript_;
 #endif //HAVE_PYTHON
 };
 
@@ -344,16 +289,6 @@ protected:
   QString languageName_;
 };
 
-class FQTermMenuBar : public QMenuBar {
-  Q_OBJECT;
-public:
-  FQTermMenuBar(QWidget * parent = 0);
-#ifndef __APPLE__
-protected:
-  virtual void mouseDoubleClickEvent(QMouseEvent * event);
-#endif
-
-};
 
 }  // namespace FQTerm
 

@@ -79,7 +79,6 @@ class FQTermScreen: public QWidget {
 
   QFont termFont(bool isEnglish);
 
-  void setBackgroundPixmap(const QPixmap &pixmap, int nType = 0);
 
   void setPaintState(PaintState ps) {
     paintState_ |= ps;
@@ -105,7 +104,7 @@ class FQTermScreen: public QWidget {
   QPoint mapToChar(const QPoint &);
 
   // Buffer cell coordinate to screen pixel.
-  QRect mapToRect(int, int, int, int);
+  QRect mapToRect(int x, int y, int width, int height);
   QRect mapToRect(const QRect &);
  private:
   int paintState_;
@@ -115,6 +114,10 @@ class FQTermScreen: public QWidget {
   void updateCursor(QPainter &painter);
   void repaintScreen(QPaintEvent *pe, QPainter &painter);
   void syncBufferAndScreen();
+  void updateBackgroundPixmap();
+  void drawBackground(QPainter& painter, const QRect& rect, int colorIndex);
+  void drawBackgroundPixmap(QPainter& painter, const QRect& rect);
+  int getVerticalSetting() const;
 
  signals:
   // 0 - enter  1 - press  2 - move  3 - release 4 - leave
@@ -234,7 +237,14 @@ class FQTermScreen: public QWidget {
   // background
   bool hasBackground_;
   QPixmap backgroundPixmap_;
-  int backgroundPixmapType_;
+  QPixmap originBackgroundPixmap_;
+  //0 -- tile 1 -- center 2 -- stretch
+  int backgroundRenderOption_;
+  //0 -- Whole screen, 1 -- Only padding
+  int backgroundCoverage_;
+  bool backgroundUseAlpha_;
+  int backgroundAlpha_;
+  
 
   // the range of the buffer's lines to be displayed
   int bufferStart_;

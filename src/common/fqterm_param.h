@@ -39,6 +39,7 @@ struct FQTermPref {
     return pThis;
   }
   int displayOffset_;
+  int vsetting_;
   int imeEncodingID_; //	0--GBK	1--BIG5
   int widthToWrapWord_;
   // bool bSmartWW;
@@ -67,8 +68,6 @@ struct FQTermPref {
   //global settings
   bool isBossColor_;
   QString escapeString_;
-  int clipboardEncodingID_; // 0--GBK 1--BIG5
-  bool isStatusBarShown_;
   int termScrollBarPosition_; // 0--hide 1--LEFT 2--RIGHT
   bool runServer_;
 };
@@ -107,7 +106,7 @@ class FQTermParam {
   QString postLoginCommand_;
 
   // Display
-  // {FQTERM_ENCODING_GBK = 0, FQTERM_ENCODING_BIG5 = 1, FQTERM_ENCODING_UTF8 = 2};
+  // {FQTERM_ENCODING_GBK = 0, FQTERM_ENCODING_BIG5 = 1, FQTERM_ENCODING_UTF8 = 2, FQTERM_ENCODING_HKSCS = 3};
   int serverEncodingID_;
 
   // Auto Change Font When Window Resized
@@ -188,6 +187,8 @@ class FQTermParam {
   int reconnectInterval_;
   // Retry times
   int retryTimes_; // -1 -- infinite
+  // Close Window When Disconnected By Host
+  bool isAutoCloseWin_;
 
   bool isBeep_;
   bool isBuzz_;

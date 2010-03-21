@@ -56,6 +56,7 @@ class prefDialog: public QDialog {
  private:
   Ui::prefDialog ui_;
   QButtonGroup soundButtonGroup_;
+  QButtonGroup verticalSettingButtonGroup_;
   FQTermConfig * config_;
   FQTermFileDialog *fileDialog_;
 };

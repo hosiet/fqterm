@@ -25,10 +25,24 @@
 #include <QObject>
 #include <QString>
 #include <QMap>
+
+class QWidget;
+class QAction;
 namespace FQTerm
 {
 class FQTermConfig;
-  
+
+
+#define FQTERM_ADDACTION(WIDGET, NAME, RECEIVER, FUNCTION) \
+  do{ \
+  QAction *action = getAction((FQTermShortcutHelper::NAME));\
+  QObject::disconnect(action, SIGNAL(triggered()), (RECEIVER), SLOT(FUNCTION())); \
+  FQ_VERIFY(connect(action, SIGNAL(triggered()), (RECEIVER), SLOT(FUNCTION()))); \
+  (WIDGET)->addAction(action);\
+  } while(0)
+
+
+
 class FQTermShortcutHelper : public QObject
 {
   Q_OBJECT;
@@ -54,18 +68,20 @@ public:
     UIFONT,
     FULLSCREEN,   //F6
     BOSSCOLOR,    //F12
-    STATUSBAR,
     SWITCHBAR,
     GOOGLEIT,       //Ctrl+Alt+G
-    EXTERNALEDITOR,
+    EXTERNALEDITOR,   //Ctrl+Alt+E
+    FASTPOST,   //Ctrl+Alt+F
     CURRENTSETTING,
     DEFAULTSETTING,
     PREFERENCE,
     SHORTCUTSETTING,
+    EDITSCHEMA,
     COPYARTICLE,  //F9
     ANTIIDLE, 
     AUTOREPLY,
     VIEWMESSAGE,  //F10
+    IPLOOKUP,
     BEEP,
     MOUSESUPPORT,
     IMAGEVIEWER,
@@ -74,33 +90,43 @@ public:
     RUNPYTHONSCRIPT, //Ctrl+F1
     ABOUT,        //F1
     HOMEPAGE,
+    CASCADEWINDOWS,
+    TILEWINDOWS,
+    EXIT,
+    COLORCTL_NO,
+    COLORCTL_SMTH,
+    COLORCTL_PTT,
+    COLORCTL_CUSTOM,
+    AUTORECONNECT,
+    SCROLLBAR_LEFT,
+    SCROLLBAR_RIGHT,
+    SCROLLBAR_HIDDEN,
+    LANGUAGE_ENGLISH,
+    NEXTWINDOW,
+    PREVWINDOW,
     FQTERM_SHORTCUT_MAX_GUARD
   };
 
 
 public:
-  FQTermShortcutHelper(FQTermConfig* config);
+  FQTermShortcutHelper(FQTermConfig* config, QWidget* actionParent);
   ~FQTermShortcutHelper();
   
 private:
   struct ShortcutDescriptionEntry
   {
-    ShortcutDescriptionEntry(const QString& key = QString(""), const QString& defaultshortcuttext = QString(""), const QString& description = QString("")) : 
-      key_(key),
-      defaultshortcuttext_(defaultshortcuttext),
-      description_(description)
-    {}
+    ShortcutDescriptionEntry(const QString& key = QString(""), const QString& defaultshortcuttext = QString(""), const QString& description = QString(""));
+    ~ShortcutDescriptionEntry();
     QString key_;
     QString defaultshortcuttext_;
     QString description_;
+    QAction* action_;
   };
   void initShortcutDescriptionTable();
   FQTermConfig* config_;
+  QWidget* actionParent_;
   QMap<int, ShortcutDescriptionEntry> shortcutDescriptionTable_;
-  void initShortcutDescriptionTableEntry(int index, const QString& key, const QString& defaultshortcuttext, const QString& description) {
-    shortcutDescriptionTable_[index] = ShortcutDescriptionEntry(key, defaultshortcuttext, description);
-  }
-  
+  void initShortcutDescriptionTableEntry(int index, const QString& key, const QString& defaultshortcuttext, const QString& description, const QString& actionSkin = QString::null);
   
 public:
 
@@ -114,7 +140,11 @@ public:
   void setShortcutText(int shortcut, const QString& text);
   void resetShortcutText(int shortcut);
   void resetAllShortcutText();
-  
+
+  QAction* getAction(int shortcut) {
+    return shortcutDescriptionTable_[shortcut].action_;
+  }
+  void retranslateActions();
 private:
   //These functions are used to save shortcut
   QString getShortcutSection() {

@@ -24,6 +24,7 @@ qt4_add_translation(fqterm_qm_files
   ${CMAKE_SOURCE_DIR}/res/dict/fqterm_zh_CN.ts
   ${CMAKE_SOURCE_DIR}/res/dict/ui_zh_CN.ts
   ${CMAKE_SOURCE_DIR}/res/dict/protocol_zh_CN.ts
+  ${CMAKE_SOURCE_DIR}/res/dict/common_zh_CN.ts
 )
 
 add_custom_target(fqterm_qm_target

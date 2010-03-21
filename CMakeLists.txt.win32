@@ -7,6 +7,10 @@ set(OPENSSL_LIBRARIES
 "C:/openssl/lib/ssleay32.lib"
 )
 
+set(NETWORK_LIBRARIES
+"ws2_32.lib"
+)
+
 SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/Zi /Od /MD")
 
 ADD_DEFINITIONS(/D _CRT_SECURE_NO_DEPRECATE)
@@ -52,10 +56,6 @@ if(FQTERM_USE_STATIC_QT)
   )
   set(SOUND_LIBRARIES
   "winmm.lib"
-  )
-
-  set(NETWORK_LIBRARIES
-  "ws2_32.lib"
   )
 
   set(IME_LIBRARIES

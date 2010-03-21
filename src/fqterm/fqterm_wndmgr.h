@@ -28,7 +28,8 @@
 #include <QMdiArea>
 #include <QMdiSubWindow>
 #include <QTabBar>
-//class QTab;
+
+class QEvent;
 class QIcon;
 class QSize;
 class FQTermConfig;
@@ -58,7 +59,6 @@ class FQTermWndMgr: public QMdiArea {
   QTabBar* tabBar() {return tabBar_;}
   
   FQTermWindow* newWindow(const FQTermParam &param, FQTermConfig* config, QIcon* icon, int index = -1);
-  bool closeWindow(FQTermWindow *mw);
   bool closeAllWindow();
 
 
@@ -70,10 +70,6 @@ class FQTermWndMgr: public QMdiArea {
   FQTermWindow *nthWindow(int n);
   int count();
 
-
-
-
-
   //sub-window position & size
 
   bool getSubWindowMax() const { return subWindowMax_; }
@@ -82,6 +78,7 @@ class FQTermWndMgr: public QMdiArea {
   void setSubWindowSize(QSize val) { subWindowSize_ = val; }
 
  public slots:
+   bool closeWindow(FQTermWindow *mw);
    void onSubWindowClosed(QObject* obj);
    //record subwindows' size changes
    void subWindowResized(FQTermWindow *);
@@ -93,27 +90,24 @@ class FQTermWndMgr: public QMdiArea {
    void cascade();
    void tile();
 
- protected:
+protected:
 
   QList<QIcon *> icons_;
   FQTermFrame *termFrame_;
   bool isAfterRemoved_;
   QSize subWindowSize_;
   bool subWindowMax_;
- FQTermTabBar* tabBar_;
+  FQTermTabBar* tabBar_;
 
- typedef std::pair<QMdiSubWindow*, int> mdi_info_t;
- typedef std::map<FQTermWindow*, mdi_info_t> window_map_t;
- typedef std::map<FQTermWindow*, mdi_info_t>::iterator window_map_iterator_t;
- window_map_t windowMap_;
- FQTermWindow* MDIToFQ(QMdiSubWindow* subWindow);
- QMdiSubWindow* FQToMDI(FQTermWindow* window);
- int FQToIndex(FQTermWindow* window);
- bool afterRemove();
- protected slots:
-   void onSubWindowActivated(QMdiSubWindow * subWindow);
-   void onTabRightClicked(int index, const QPoint& p);
-   void onTabDoubleClicked(int index, const QPoint& p);
+  FQTermWindow* MDIToFQ(QMdiSubWindow* subWindow);
+  QMdiSubWindow* FQToMDI(FQTermWindow* window);
+  int FQToIndex(FQTermWindow* window);
+  bool afterRemove();
+  bool event(QEvent* e);
+protected slots:
+  void onSubWindowActivated(QMdiSubWindow * subWindow);
+  void onTabRightClicked(int index, const QPoint& p);
+  void onTabDoubleClicked(int index, const QPoint& p);
 };
 
 }  // namespace FQTerm
