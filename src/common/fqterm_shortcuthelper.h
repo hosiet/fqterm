@@ -49,7 +49,7 @@ class FQTermShortcutHelper : public QObject
 public:
   enum FQTERM_SHORTCUT
   {
-    FQTERM_SHORTCUT_ZERO_GUARD = 0,
+    FQTERM_APPLICATION_SHORTCUT_START = 0,
     CONNECT,
     DISCONNECT,
     ADDRESSBOOK,  //F2
@@ -96,6 +96,7 @@ public:
     COLORCTL_NO,
     COLORCTL_SMTH,
     COLORCTL_PTT,
+    COLORCTL_OLD_CUSTOM,
     COLORCTL_CUSTOM,
     AUTORECONNECT,
     SCROLLBAR_LEFT,
@@ -104,7 +105,8 @@ public:
     LANGUAGE_ENGLISH,
     NEXTWINDOW,
     PREVWINDOW,
-    FQTERM_SHORTCUT_MAX_GUARD
+    GLOBAL_SHOW_FQTERM,
+    FQTERM_APPLICATION_SHORTCUT_END,
   };
 
 
@@ -156,6 +158,7 @@ private:
   
   QString getShortcutConfig(int shortcut);
   void setShortcutConfig(int shortcut, const QString& text);
+  void retranslateAction(int shortcut, const QString& text);
 };
   
   

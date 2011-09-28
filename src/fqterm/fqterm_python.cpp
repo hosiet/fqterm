@@ -800,7 +800,7 @@ FQTermPythonHelper::FQTermPythonHelper()
     QString pathCmd;
     pathCmd = "sys.path.insert(0,'";
     pathCmd += getPath(RESOURCE)+"script')";
-    PyRun_SimpleString(strdup(pathCmd.toUtf8().data()));
+    PyRun_SimpleString(fq_strdup(pathCmd.toUtf8().data()));
     
     Py_InitModule4("fqterm", fqterm_methods,
 			NULL,(PyObject*)NULL,PYTHON_API_VERSION);

@@ -31,10 +31,27 @@
 
 namespace FQTerm {
 
+#if defined(WIN32) && (_MSC_VER >= 1400)
+  //Using vc2005 or +
+#define fq_strdup _strdup
+#else
+#define fq_strdup strdup
+#endif
+
+#define USE_GLOBAL_HOTKEY
+
+
 //code convert
 enum EncodingID {FQTERM_ENCODING_GBK = 0, FQTERM_ENCODING_BIG5 = 1, FQTERM_ENCODING_UTF8 = 2, FQTERM_ENCODING_HKSCS = 3};
-#define G2U(s) ( QTextCodec::codecForName("GBK")->toUnicode(s) )
-#define U2G(s) ( QTextCodec::codecForName("GBK")->fromUnicode(s) )
+
+#if QT_VERSION >= 0X040700
+#define GBK_CODECS_NAME "GB18030"
+#else
+#define GBK_CODECS_NAME "GBK"
+#endif
+
+#define G2U(s) ( QTextCodec::codecForName(GBK_CODECS_NAME)->toUnicode(s) )
+#define U2G(s) ( QTextCodec::codecForName(GBK_CODECS_NAME)->fromUnicode(s) )
 #define B2U(s) ( QTextCodec::codecForName("Big5")->toUnicode(s) )
 #define U2B(s) ( QTextCodec::codecForName("Big5")->fromUnicode(s) )
 #define H2U(s) ( QTextCodec::codecForName("Big5-HKSCS")->toUnicode(s) )

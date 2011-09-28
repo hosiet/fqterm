@@ -22,7 +22,7 @@
 #include <unistd.h>
 #endif
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__GLIBC__)
 #include <QLocale>
 #endif
 
@@ -81,6 +81,16 @@
 #include "schemadialog.h"
 #include "fqterm_ip_location.h"
 #include "iplookup.h"
+#include "defineescape.h"
+
+#ifdef USE_DOTNET_STYLE
+#include "dotnetstyle.h"
+#endif //USE_DOTNET_STYLE
+
+#ifdef USE_GLOBAL_HOTKEY
+#include "qxtglobalshortcut.h"
+#endif //USE_GLOBAL_HOTKEY
+
 namespace FQTerm {
 
 
@@ -91,13 +101,16 @@ const QString FQTermFrame::qmPostfix = ".qm";
 //constructor
 FQTermFrame::FQTermFrame()
     : QMainWindow(0), 
-      tray(0),
+      tray_(0),
       trayMenu_(0), 
 #ifdef HAVE_PYTHON
       pythonHelper_(0),
 #endif
-      shortcutHelper_(0),
-      ipLookupDialog_(0){
+#ifdef USE_GLOBAL_HOTKEY
+      globalHotkey_(0),
+#endif //USE_GLOBAL_HOTKEY
+      shortcutHelper_(0)
+{
   setAttribute(Qt::WA_DeleteOnClose);
 
 /*#ifndef __APPLE__
@@ -178,10 +191,20 @@ FQTermFrame::FQTermFrame()
 #ifdef HAVE_PYTHON
   pythonHelper_ = new FQTermPythonHelper;
 #endif
+#ifdef USE_GLOBAL_HOTKEY
+  globalHotkey_ = new QxtGlobalShortcut(shortcutHelper_->getAction(FQTermShortcutHelper::GLOBAL_SHOW_FQTERM)->shortcut(), this);
+  FQ_VERIFY(connect(shortcutHelper_->getAction(FQTermShortcutHelper::GLOBAL_SHOW_FQTERM), SIGNAL(changed()),
+                    this, SLOT(globalHotkeyChanged())));
+  FQ_VERIFY(connect(globalHotkey_, SIGNAL(activated()),
+    this, SLOT(globalHotkeyTriggered())));
+#endif //USE_GLOBAL_HOTKEY
 }
 
 //destructor
 FQTermFrame::~FQTermFrame() {
+#ifdef USE_GLOBAL_HOTKEY
+  delete globalHotkey_;
+#endif //USE_GLOBAL_HOTKEY
 #ifdef HAVE_PYTHON
   delete pythonHelper_;
 #endif //HAVE_PYTHON
@@ -194,7 +217,6 @@ FQTermFrame::~FQTermFrame() {
   serverThread_->quit();
   serverThread_->wait(1000);
   delete serverThread_;
-
 }
 
 //initialize setting from fqterm.cfg
@@ -203,11 +225,9 @@ void FQTermFrame::iniSetting() {
 
   strTmp = config_->getItemValue("global", "fullscreen");
   if (strTmp == "1") {
-    isFullScreen_ = true;
     getAction(FQTermShortcutHelper::FULLSCREEN)->setChecked(true);
     showFullScreen();
   } else {
-    isFullScreen_ = false;
     //window size
     strTmp = config_->getItemValue("global", "max");
     if (strTmp == "1") {
@@ -224,7 +244,14 @@ void FQTermFrame::iniSetting() {
   }
 
   theme_ = config_->getItemValue("global", "theme");
-  QStyle *style = QStyleFactory::create(theme_);
+  QStyle *style;
+#ifdef USE_DOTNET_STYLE
+  //javaboy@newsmth.org
+  if (theme_ == "Office")
+    style = new DotNetStyle(DotNetStyle::Office);
+  else
+#endif //USE_DOTNET_STYLE
+    style = QStyleFactory::create(theme_);
   if (style) {
     qApp->setStyle(style);
   }
@@ -237,21 +264,32 @@ void FQTermFrame::iniSetting() {
   FQTermPref::getInstance()->escapeString_ = config_->getItemValue("global", "escstr");
   if (FQTermPref::getInstance()->escapeString_ == "") {
     getAction(FQTermShortcutHelper::COLORCTL_NO)->setChecked(true);
+    getAction(FQTermShortcutHelper::COLORCTL_OLD_CUSTOM)->setVisible(false);
   } else if (FQTermPref::getInstance()->escapeString_ == "^[^[[") {
     getAction(FQTermShortcutHelper::COLORCTL_SMTH)->setChecked(true);
+    getAction(FQTermShortcutHelper::COLORCTL_OLD_CUSTOM)->setVisible(false);
   } else if (FQTermPref::getInstance()->escapeString_ == "^u[") {
     getAction(FQTermShortcutHelper::COLORCTL_PTT)->setChecked(true);
+    getAction(FQTermShortcutHelper::COLORCTL_OLD_CUSTOM)->setVisible(false);
   } else {
-    getAction(FQTermShortcutHelper::COLORCTL_CUSTOM)->setChecked(true);
+    QAction *pAction = getAction(FQTermShortcutHelper::COLORCTL_OLD_CUSTOM);
+    QString transStrEsc;
+    transEscapeStr(transStrEsc, FQTermPref::getInstance()->escapeString_);
+    pAction->setText(transStrEsc);
+    pAction->setVisible(true);
+    pAction->setChecked(true);
   }
 
   strTmp = config_->getItemValue("global", "vscrollpos");
   if (strTmp == "0") {
     FQTermPref::getInstance()->termScrollBarPosition_ = 0;
+    getAction(FQTermShortcutHelper::SCROLLBAR_HIDDEN)->setChecked(true);
   } else if (strTmp == "1") {
     FQTermPref::getInstance()->termScrollBarPosition_ = 1;
+    getAction(FQTermShortcutHelper::SCROLLBAR_LEFT)->setChecked(true);
   } else {
     FQTermPref::getInstance()->termScrollBarPosition_ = 2;
+    getAction(FQTermShortcutHelper::SCROLLBAR_RIGHT)->setChecked(true);
   }
   strTmp = config_->getItemValue("global", "switchbar");
   isTabBarShown_ = (strTmp != "0");
@@ -327,7 +365,7 @@ void FQTermFrame::loadPref() {
   FQTermPref::getInstance()->replyENQ_ = (strTmp != "0");
   strTmp = config_->getItemValue("preference", "tray");
   if (strTmp.isEmpty()) {
-#if defined(__APPLE__) || defined(__linux__)
+#if defined(__APPLE__) || defined(__linux__) || defined(__GLIBC__)
     FQTermPref::getInstance()->openMinimizeToTray_ = false;
 #else
     FQTermPref::getInstance()->openMinimizeToTray_ = true;    
@@ -388,7 +426,7 @@ void FQTermFrame::saveSetting() {
     config_->setItemValue("global", "max", "0");
   }
 
-  if (isFullScreen_) {
+  if (windowState() & Qt::WindowFullScreen) {
     config_->setItemValue("global", "fullscreen", "1");
   } else {
     config_->setItemValue("global", "fullscreen", "0");
@@ -696,33 +734,190 @@ void FQTermFrame::wordWrap() {
 void FQTermFrame::noEsc() {
   FQTermPref::getInstance()->escapeString_ = "";
   getAction(FQTermShortcutHelper::COLORCTL_NO)->setChecked(true);
+  getAction(FQTermShortcutHelper::COLORCTL_OLD_CUSTOM)->setVisible(false);
 }
 
 void FQTermFrame::escEsc() {
   FQTermPref::getInstance()->escapeString_ = "^[^[[";
   getAction(FQTermShortcutHelper::COLORCTL_SMTH)->setChecked(true);
+  getAction(FQTermShortcutHelper::COLORCTL_OLD_CUSTOM)->setVisible(false);
 }
 
 void FQTermFrame::uEsc() {
   FQTermPref::getInstance()->escapeString_ = "^u[";
   getAction(FQTermShortcutHelper::COLORCTL_PTT)->setChecked(true);
+  getAction(FQTermShortcutHelper::COLORCTL_OLD_CUSTOM)->setVisible(false);
+}
+
+void FQTermFrame::oldCustomEsc() {
 }
 
 void FQTermFrame::customEsc() {
-  bool ok;
-  QString strEsc = QInputDialog::getText(this, "define escape",
-                                         "scape string *[", QLineEdit::Normal,
-                                         FQTermPref::getInstance()->escapeString_, &ok);
-  if (ok) {
+  QString strEsc(FQTermPref::getInstance()->escapeString_);
+  DefineEscapeDialog defineEscapeDialog_(strEsc, this);
+  if (defineEscapeDialog_.exec() == 1)
+  {
     FQTermPref::getInstance()->escapeString_ = strEsc;
-    getAction(FQTermShortcutHelper::COLORCTL_CUSTOM)->setChecked(true);
+    QAction *pAction = getAction(FQTermShortcutHelper::COLORCTL_OLD_CUSTOM);
+    if (strEsc != QString("") && strEsc != QString("^[^[[") && strEsc != QString("^u["))
+    {
+      QString transStrEsc;
+      transEscapeStr(transStrEsc, strEsc);
+      pAction->setText(transStrEsc);
+      pAction->setVisible(true);
+      pAction->setChecked(true);
+    }
+    else
+    {
+      pAction->setVisible(false);
+    }
   }
 }
 
+bool FQTermFrame::isDelimiterExistedBefore(const QString& str,
+                                           const std::vector<QString>& existingDelimiters) {
+  for (std::vector<QString>::const_iterator cit = existingDelimiters.begin();
+       cit != existingDelimiters.end();
+       ++cit)
+  {
+    if (str.right(cit->length()) == *cit)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+int FQTermFrame::isDelimiterExistedAfter(const QString& str,
+                                         const std::vector<QString>& existingDelimiters) {
+  for (std::vector<QString>::const_iterator cit = existingDelimiters.begin();
+       cit != existingDelimiters.end();
+       ++cit)
+  {
+    if (str.left(cit->length()) == *cit)
+    {
+      return cit->length();
+    }
+  }
+  return 0;
+}
+
+bool FQTermFrame::uppercaseCharFollowingCtrl(QString& str,
+                                             int& i,
+                                             const QString& after) {
+  if (after == QString("Ctrl") &&
+      str[i] > 'a' - 1 &&
+      str[i] < 'z' - 1)
+  {
+    str[i] = str[i].toUpper();
+    ++i;
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+void FQTermFrame::replaceEscapeString(QString& str,
+                                      const QString& before,
+                                      const QString& after,
+                                      const QString& delimiter,
+                                      const std::vector<QString> *existingDelimiters /* = NULL */) {
+  bool preMatched = false;
+  int i = 0;
+  while (i < str.length())
+  {
+    bool matched = true;
+    for (int j = 0; j < before.length(); ++j)
+    {
+      if (str[i + j] != before[j])
+      {
+        matched = false;
+        break;
+      }
+    }// end of for
+    if (matched)
+    {
+      if (i == 0)
+      {
+        // the matched string is the head of the string
+        str = after + delimiter + str.right(str.length() - before.length());
+        i = after.length() + delimiter.length();
+        bool changed = uppercaseCharFollowingCtrl(str, i, after);
+        preMatched = !changed;
+      }
+      else if (i == str.length() - before.length())
+      {
+        // the matched string is the tail of the string
+        if (existingDelimiters != NULL &&
+            isDelimiterExistedBefore(str.left(i), *existingDelimiters))
+        {
+          preMatched = true;
+        }
+
+        if (preMatched)
+        {
+          str = str.left(i) + after;
+        }
+        else
+        {
+          str = str.left(i) + delimiter + after;
+        }
+        break;
+      }
+      else
+      {
+        // the matched string is at the middle of the string
+        if (existingDelimiters != NULL &&
+            isDelimiterExistedBefore(str.left(i), *existingDelimiters))
+        {
+          preMatched = true;
+        }
+
+        if (preMatched)
+        {
+          str = str.left(i) + after + delimiter + str.right(str.length() - i - before.length());
+          i += after.length() + delimiter.length();
+        }
+        else
+        {
+          str = str.left(i) + delimiter + after + delimiter + str.right(str.length() - i - before.length());
+          i += after.length() + 2 * delimiter.length();
+        }
+        bool changed = uppercaseCharFollowingCtrl(str, i, after);
+        preMatched = !changed;
+      }
+      if (preMatched)
+      {
+        int len;
+        if (existingDelimiters != NULL &&
+            (len = isDelimiterExistedAfter(str.right(str.length() - i), *existingDelimiters)) != 0)
+        {
+          str = str.left(i) + str.right(str.length() - i - len);
+        }
+      }
+    }
+    else
+    {
+      preMatched = false;
+      ++i;
+    }
+  }// end of while
+}
+
+void FQTermFrame::transEscapeStr(QString& target, const QString& source) {
+  const QChar cSpecial(17);
+  target = source;
+  replaceEscapeString(target, QString("^["), QString("ESC"), QString(cSpecial));
+  std::vector<QString> existingDelimiters;
+  existingDelimiters.push_back(QString(cSpecial));
+  replaceEscapeString(target, QString("^"), QString("Ctrl"), QString("+"), &existingDelimiters);
+  target.replace(cSpecial, QChar(' '));
+}
 
 void FQTermFrame::setColor() {
   windowManager_->activeWindow()->setColor();
-
 }
 
 void FQTermFrame::refreshScreen() {
@@ -748,9 +943,9 @@ void FQTermFrame::uiFont() {
 }
 
 void FQTermFrame::fullscreen() {
-  isFullScreen_ = !isFullScreen_;
 
-  if (isFullScreen_) {
+
+  if (!(windowState() & Qt::WindowFullScreen)) {
     menuBar()->hide();
     toolBarMdiTools_->hide();
     toolBarMdiConnectTools_->hide();
@@ -805,11 +1000,21 @@ void FQTermFrame::themesMenuAboutToShow() {
     }
     insertThemeItem(strTheme);
   }
+#ifdef USE_DOTNET_STYLE
+  insertThemeItem("Office");  //javaboy@newsmth.org
+#endif //USE_DOTNET_STYLE
 }
 
 void FQTermFrame::themesMenuActivated() {
   theme_ = ((QAction*)QObject::sender())->text().remove(QChar('&'));
-  QStyle *style = QStyleFactory::create(theme_);
+  QStyle *style;
+#ifdef USE_DOTNET_STYLE
+  //javaboy@newsmth.org
+  if (theme_ == "Office")
+    style = new DotNetStyle(DotNetStyle::Office);
+  else
+#endif //USE_DOTNET_STYLE
+    style = QStyleFactory::create(theme_);
   if (style) {
     qApp->setStyle(style);
   }
@@ -901,9 +1106,8 @@ void FQTermFrame::keySetup() {
 
 
 void FQTermFrame::ipLookup() {
-  if (!ipLookupDialog_)
-    ipLookupDialog_ = new IPLookupDialog(this);
-  ipLookupDialog_->show();
+  IPLookupDialog ipLookupDialog_(this);
+  ipLookupDialog_.exec();
 }
 
 void FQTermFrame::antiIdle() {
@@ -989,10 +1193,16 @@ void FQTermFrame::runPyScript() {
 bool FQTermFrame::event(QEvent *e) {
 
   static bool shown = false;
-  if (e->type() == QEvent::WindowStateChange 
-    && (((QWindowStateChangeEvent*)(e))->oldState() & Qt::WindowMinimized)
-    && !(windowState() & Qt::WindowMinimized)) {
-    shown = true;
+  if (e->type() == QEvent::WindowStateChange) {
+    if ((((QWindowStateChangeEvent*)(e))->oldState() & Qt::WindowMinimized)
+         && !(windowState() & Qt::WindowMinimized)) {
+      shown = true;
+    }
+    if (!(windowState() & Qt::WindowMinimized))
+    {
+      config_->setItemValue("global", "max", (windowState() & Qt::WindowMaximized) ? "1" : "0");
+      config_->setItemValue("global", "fullscreen", (windowState() & Qt::WindowFullScreen) ? "1" : "0");
+    }
   }
   if (e->type() == QEvent::Paint && shown) {
     shown = false;
@@ -1174,6 +1384,8 @@ void FQTermFrame::addMainMenu() {
   escapeGroup->addAction(getAction(FQTermShortcutHelper::COLORCTL_SMTH));
   FQTERM_ADDACTION(escapeMenu, COLORCTL_PTT,this, uEsc);
   escapeGroup->addAction(getAction(FQTermShortcutHelper::COLORCTL_PTT));
+  FQTERM_ADDACTION(escapeMenu, COLORCTL_OLD_CUSTOM,this, oldCustomEsc);
+  escapeGroup->addAction(getAction(FQTermShortcutHelper::COLORCTL_OLD_CUSTOM));
   FQTERM_ADDACTION(escapeMenu, COLORCTL_CUSTOM,this, customEsc);
   escapeGroup->addAction(getAction(FQTermShortcutHelper::COLORCTL_CUSTOM));
 
@@ -1222,8 +1434,15 @@ void FQTermFrame::addMainMenu() {
 
   view->addSeparator();
 
-  scrollMenu_ = view->addMenu(tr("&ScrollBar"));
-  FQ_VERIFY(connect(scrollMenu_, SIGNAL(aboutToShow()), this, SLOT(scrollMenuAboutToShow())));
+  QMenu *scrollMenu = view->addMenu(tr("&ScrollBar"));  
+  scrollGroup = new QActionGroup(this);
+  FQTERM_ADDACTION(scrollMenu, SCROLLBAR_HIDDEN,this, hideScroll);
+  scrollGroup->addAction(getAction(FQTermShortcutHelper::SCROLLBAR_HIDDEN));
+  FQTERM_ADDACTION(scrollMenu, SCROLLBAR_RIGHT,this, rightScroll);
+  scrollGroup->addAction(getAction(FQTermShortcutHelper::SCROLLBAR_RIGHT));
+  FQTERM_ADDACTION(scrollMenu, SCROLLBAR_LEFT,this, leftScroll);
+  scrollGroup->addAction(getAction(FQTermShortcutHelper::SCROLLBAR_LEFT));
+
   FQTERM_ADDACTION(view, SWITCHBAR, this, showSwitchBar);
 
   // Option Menu
@@ -1287,7 +1506,7 @@ void FQTermFrame::updateMenuToolBar() {
   getAction(FQTermShortcutHelper::RECTANGLESELECTION)->setChecked(window->getSession()->param().isRectSelect_);
   getAction(FQTermShortcutHelper::AUTOCOPYSELECTION)->setChecked(window->getSession()->param().isAutoCopy_);
   getAction(FQTermShortcutHelper::PASTEWORDWRAP)->setChecked(window->getSession()->param().isAutoWrap_);
-  getAction(FQTermShortcutHelper::FULLSCREEN)->setChecked(isFullScreen_);
+  getAction(FQTermShortcutHelper::FULLSCREEN)->setChecked(windowState() & Qt::WindowFullScreen);
   getAction(FQTermShortcutHelper::ANSICOLOR)->setChecked(window->getSession()->param().isAnsiColor_);
   getAction(FQTermShortcutHelper::ANTIIDLE)->setChecked(window->getSession()->isAntiIdle());
   getAction(FQTermShortcutHelper::AUTOREPLY)->setChecked(window->getSession()->isAutoReply());
@@ -1396,29 +1615,29 @@ void FQTermFrame::insertThemeItem(const QString& themeitem) {
 
 void FQTermFrame::setUseDock(bool use) {
   if (use == false) {
-    if (tray) {
-      tray->hide();
-      delete tray;
-      tray = 0;
+    if (tray_) {
+      tray_->hide();
+      delete tray_;
+      tray_ = 0;
       //delete menuTray_;
       //menuTray_ = 0;
     }
     return ;
   }
 
-  if (tray || !QSystemTrayIcon::isSystemTrayAvailable()) {
+  if (tray_ || !QSystemTrayIcon::isSystemTrayAvailable()) {
     return ;
   }
 
   trayMenu_ = new QMenu;
   FQ_VERIFY(connect(trayMenu_, SIGNAL(aboutToShow()), SLOT(buildTrayMenu())));
 
-  tray = new QSystemTrayIcon(this);
-  tray->setIcon(QPixmap(getPath(RESOURCE) + "pic/fqterm_tray.png"));
-  tray->setContextMenu(trayMenu_);
-  FQ_VERIFY(connect(tray, SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
+  tray_ = new QSystemTrayIcon(this);
+  tray_->setIcon(QPixmap(getPath(RESOURCE) + "pic/fqterm_tray.png"));
+  tray_->setContextMenu(trayMenu_);
+  FQ_VERIFY(connect(tray_, SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
                     SLOT(trayActived(QSystemTrayIcon::ActivationReason))));
-  tray->show();
+  tray_->show();
 }
 
 void FQTermFrame::buildTrayMenu() {
@@ -1483,8 +1702,8 @@ void FQTermFrame::trayHide() {
     showTip = false;
   }
   hide();
-  if (showTip) {
-    tray->showMessage(tr("FQTerm"),
+  if (showTip && tray_) {
+    tray_->showMessage(tr("FQTerm"),
                       tr("FQTerm will keep running in the system tray.\n"
                          "To terminate the program, "
                          "choose exit in the tray menu."));
@@ -1622,7 +1841,7 @@ void FQTermFrame::initTranslator() {
   if (!langList.contains(lang)) {
     lang = QLocale::system().name();
   }
-#if defined(__linux__)
+#if defined(__linux__) || defined(__GLIBC__)
   if (QLocale::system().language() == QLocale::English)
     lang = QLocale::system().name();
 #endif
@@ -1649,24 +1868,6 @@ void FQTermFrame::updateLanguageMenu() {
   if (!installerList_.isEmpty() &&
       (strTmp == "en_US" || i == installerList_.size())) {
     languageGroup->actions().at(0)->setChecked(true);
-  }
-}
-
-void FQTermFrame::scrollMenuAboutToShow() {
-  scrollMenu_->clear();
-  FQTERM_ADDACTION(scrollMenu_, SCROLLBAR_HIDDEN, this, hideScroll);
-  FQTERM_ADDACTION(scrollMenu_, SCROLLBAR_RIGHT, this, rightScroll);
-  FQTERM_ADDACTION(scrollMenu_, SCROLLBAR_LEFT, this, leftScroll);
-  switch(FQTermPref::getInstance()->termScrollBarPosition_) {
-    case 0:
-      getAction(FQTermShortcutHelper::SCROLLBAR_HIDDEN)->setChecked(true);
-      break;
-    case 1:
-      getAction(FQTermShortcutHelper::SCROLLBAR_LEFT)->setChecked(true);
-      break;
-    case 2:
-      getAction(FQTermShortcutHelper::SCROLLBAR_RIGHT)->setChecked(true);
-      break;
   }
 }
 
@@ -1744,6 +1945,31 @@ void FQTermFrame::schemaUpdated() {
     windowManager_->nthWindow(i)->getScreen()->setSchema();
     windowManager_->nthWindow(i)->forcedRepaintScreen();
   }
+}
+
+
+void FQTermFrame::globalHotkeyTriggered() {
+  if (isActiveWindow() && !isMinimized() && isVisible())
+  {
+    showMinimized();
+    return;
+  }
+  show();
+  if (config_->getItemValue("global", "fullscreen") == "1")
+    showFullScreen();
+  else if (config_->getItemValue("global", "max") == "1")
+    showMaximized();
+  else 
+    showNormal();
+  raise();
+  activateWindow();
+}
+
+void FQTermFrame::globalHotkeyChanged()
+{
+#ifdef USE_GLOBAL_HOTKEY
+  globalHotkey_->setShortcut(shortcutHelper_->getAction(FQTermShortcutHelper::GLOBAL_SHOW_FQTERM)->shortcut());
+#endif //USE_GLOBAL_HOTKEY
 }
 
 TranslatorInstaller::TranslatorInstaller(const QString& language,

@@ -292,6 +292,8 @@ void FQTermTextLine::insertWhiteSpace(unsigned count, unsigned cell_begin,
 void FQTermTextLine::replaceWithWhiteSpace(
     unsigned count, unsigned cell_begin, unsigned cell_end,
     unsigned char color, unsigned char attr, UTF16 space) {
+  if(cell_end>cells_.size() || cell_begin>=cell_end)
+    return;
   deleteText(cell_begin, cell_end);
   insertWhiteSpace(count, cell_begin, color, attr, space);
 }

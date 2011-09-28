@@ -18,39 +18,27 @@
 *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
 ***************************************************************************/
 
-#include "iplookup.h"
-#include "fqterm_ip_location.h"
-#include "fqterm.h"
+#ifndef __FQTERM_DEFINEESCAPE__
+#define __FQTERM_DEFINEESCAPE__
+
+#include <QDialog>
+#include "ui_defineescape.h"
 namespace FQTerm {
 
+class DefineEscapeDialog : public QDialog {
+  Q_OBJECT;
+public:
+  DefineEscapeDialog(QString& strEsc, QWidget *parent_ = 0, Qt::WFlags fl = 0);
+  ~DefineEscapeDialog();
 
+protected slots:
+  void onOK();
+  void onCancel();
+private:
+  QString& strEsc_;
+  Ui::dlgDefineEscape ui_;
+};
 
-IPLookupDialog::~IPLookupDialog(){
-
-}
-
-IPLookupDialog::IPLookupDialog( QWidget *parent_ /*= 0*/, Qt::WFlags fl /*= 0*/ )  : QDialog(parent_, fl) {
-  ui_.setupUi(this);
-  FQ_VERIFY(connect(ui_.lookupPushButton, SIGNAL(clicked()), this, SLOT(onLookup())));
-  FQ_VERIFY(connect(ui_.finishedPushButton, SIGNAL(clicked()), this, SLOT(onFinished())));
-}
-
-void IPLookupDialog::onLookup() {
-  QString country, city;
-  QString ip = ui_.ipLineEdit->text();
-  FQTermIPLocation *ipLocation = FQTermIPLocation::getInstance();
-  if (ipLocation == NULL) {
-    ui_.addressLineEdit->setText(QApplication::translate("IPLookupDialog", "IP database file does NOT exist", 0, QApplication::UnicodeUTF8));
-  } else if (!ipLocation->getLocation(ip, country, city)) {
-    ui_.addressLineEdit->setText(QApplication::translate("IPLookupDialog", "Invalid IP", 0, QApplication::UnicodeUTF8));
-  } else {
-    ui_.addressLineEdit->setText(country + " " + city);
-  }
-}
-
-void IPLookupDialog::onFinished() {
-  done(0);
-}
 } //namespace FQTerm
 
-#include "iplookup.moc"
+#endif //__FQTERM_DEFINEESCAPE__

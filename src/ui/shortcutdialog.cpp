@@ -41,7 +41,7 @@ FQTermShortcutDialog::FQTermShortcutDialog(FQTermShortcutHelper* helper, QWidget
   if (helper_)
   {
     QSignalMapper* signalMapper = new QSignalMapper(this);
-    int row = FQTermShortcutHelper::FQTERM_SHORTCUT_MAX_GUARD - FQTermShortcutHelper::FQTERM_SHORTCUT_ZERO_GUARD - 1;
+    int row = FQTermShortcutHelper::FQTERM_APPLICATION_SHORTCUT_END - FQTermShortcutHelper::FQTERM_APPLICATION_SHORTCUT_START - 1;
     int column = 3;
     table_ = new QTableWidget(row, column, this);
     table_->clear();
@@ -123,14 +123,14 @@ void FQTermShortcutDialog::cancelBtnClicked() {
 }
 
 void FQTermShortcutDialog::resetBtnClicked() {
-  int row = FQTermShortcutHelper::FQTERM_SHORTCUT_MAX_GUARD - FQTermShortcutHelper::FQTERM_SHORTCUT_ZERO_GUARD - 1;
+  int row = FQTermShortcutHelper::FQTERM_APPLICATION_SHORTCUT_END - FQTermShortcutHelper::FQTERM_APPLICATION_SHORTCUT_START - 1;
   for (int i = 0; i < row; ++i) {
     ((QLineEdit*)table_->cellWidget(i, 1))->setText(helper_->getShortcutDefaultText(i + 1));
   }
 }
 
 void FQTermShortcutDialog::applyChanges() {
-  int row = FQTermShortcutHelper::FQTERM_SHORTCUT_MAX_GUARD - FQTermShortcutHelper::FQTERM_SHORTCUT_ZERO_GUARD - 1;
+  int row = FQTermShortcutHelper::FQTERM_APPLICATION_SHORTCUT_END - FQTermShortcutHelper::FQTERM_APPLICATION_SHORTCUT_START - 1;
   for (int i = 0; i < row; ++i) {
     helper_->setShortcutText(i + 1, ((QLineEdit*)table_->cellWidget(i, 1))->text());
   }

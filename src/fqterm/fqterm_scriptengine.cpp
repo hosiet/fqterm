@@ -369,16 +369,16 @@ bool FQTermScriptEngine::scriptCallback( const QString& func, const QScriptValue
   QScriptValue f = engine_->globalObject().property("fqterm").property(func);
   if (f.isFunction()) {
     QScriptValue res = f.call(QScriptValue(), args);
-    if (engine_->hasUncaughtException()) {
-      return false;
+    if (!engine_->hasUncaughtException() && res.isBool()) {
+      return res.toBool();
     } else {
-      return true;
+      return false;
     }
   }
   return false;
 }
 
-bool FQTermScriptEngine::import( const QString& filename ) {
+bool FQTermScriptEngine::importFile( const QString& filename ) {
   QFileInfo fileInfo(filename);
   if (!fileInfo.isAbsolute()) {
     //first search current running path.

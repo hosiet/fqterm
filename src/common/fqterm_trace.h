@@ -266,7 +266,7 @@ class FQTermTimerTrace {
 
 // Some macros work in both debug & release version.
 #define FQ_FATAL(file, line, func)                                      \
-  do {FQTerm::soft_break(); qFatal((QString(file) + ": %1 " + QString(func)).arg(line).toUtf8().constData());} while(false)
+  do {FQTerm::soft_break(); qFatal("%s", (QString(file) + ": %1 " + QString(func)).arg(line).toUtf8().constData());} while(false)
 
 #define FQ_VERIFY(expr) do {                        \
     if(!(expr)) {                                   \

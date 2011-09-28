@@ -46,12 +46,25 @@ namespace FQTerm {
 
 class FQTermScriptEventListener {
 public:
+  bool postScriptCallback(const QString& func, 
+#ifdef HAVE_PYTHON
+                          PyObject* pArgs, 
+#endif //HAVE_PYTHON
+                          const QScriptValueList & args = QScriptValueList())
+  {
+    bool res = postQtScriptCallback(func, args);
+#ifdef HAVE_PYTHON
+    res = postPythonCallback(func, pArgs) || res;
+#endif //HAVE_PYTHON
+    return res;
+  }
+  virtual long windowID() = 0;
+  virtual ~FQTermScriptEventListener() {}
+private:
   virtual bool postQtScriptCallback(const QString& func, const QScriptValueList & args = QScriptValueList()) = 0;
 #ifdef HAVE_PYTHON
   virtual bool postPythonCallback(const QString& func, PyObject* pArgs) = 0;
 #endif //HAVE_PYTHON
-  virtual long windowID() = 0;
-  virtual ~FQTermScriptEventListener() {}
 };
  
 struct LineColorInfo {
@@ -224,6 +237,7 @@ class FQTermSession: public QObject {
   void sessionUpdated();
   void connectionClosed();
   void bellReceived();
+  void onTitleSet(const QString&);
   void startAlert();
   void stopAlert();
 

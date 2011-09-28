@@ -24,7 +24,9 @@
 #include <QMainWindow>
 #include <QSystemTrayIcon>
 #include <QMenuBar>
-#include <QApplication>
+
+#include <vector>
+
 class QWidget;
 class QLineEdit;
 class QToolButton;
@@ -35,9 +37,14 @@ class QFontDialog;
 class QActionGroup;
 class QString;
 
+#ifdef USE_GLOBAL_HOTKEY
+class QxtGlobalShortcut;
+#endif //USE_GLOBAL_HOTKEY
+
 namespace FQTerm {
 
 class IPLookupDialog;
+class DefineEscapeDialog;
 class FQTermImage;
 class FQTermParam;
 class FQTermConfig;
@@ -52,19 +59,6 @@ class FQTermShortcutHelper;
 #ifdef HAVE_PYTHON
 class FQTermPythonHelper;
 #endif //HAVE_PYTHON
-
-class FQTermApplication : public QApplication {
-  Q_OBJECT;
-public:
-  FQTermApplication(int & argc, char ** argv) : QApplication(argc, argv) {}
-protected:
-  virtual void commitData(QSessionManager & manager) {emit saveData();}
-signals:
-  void saveData();
-protected slots:
-  void mainWindowDestroyed(QObject* obj) {quit();}
-};
-
 
 class FQTermFrame: public QMainWindow {
   Q_OBJECT;
@@ -136,6 +130,7 @@ class FQTermFrame: public QMainWindow {
   void noEsc();
   void escEsc();
   void uEsc();
+  void oldCustomEsc();
   void customEsc();
   void hideScroll();
   void leftScroll();
@@ -158,7 +153,6 @@ class FQTermFrame: public QMainWindow {
   void keySetup();
   void ipLookup();
 
-  void scrollMenuAboutToShow();
   void themesMenuAboutToShow();
   void themesMenuActivated();
   void windowsMenuAboutToShow();
@@ -189,9 +183,9 @@ class FQTermFrame: public QMainWindow {
 
   QActionGroup *escapeGroup;
   QActionGroup *languageGroup;
+  QActionGroup *scrollGroup;
   QMenu *menuWindows_;
   QMenu *menuThemes_;
-  QMenu *scrollMenu_;
   QMenu *menuFont_;
   QMenu *menuFile_;
   QMenu *menuLanguage_;
@@ -211,10 +205,9 @@ class FQTermFrame: public QMainWindow {
   QToolBar *toolBarMdiTools_;
   QToolBar *toolBarSetupKeys_;
 
-  bool isFullScreen_;
   bool isTabBarShown_;
 
-  QSystemTrayIcon *tray;
+  QSystemTrayIcon *tray_;
 
   QMenu *trayMenu_;
 
@@ -225,7 +218,6 @@ class FQTermFrame: public QMainWindow {
   FQTermShortcutHelper * shortcutHelper_;
   QAction* getAction(int shortcut);
   FQTermMiniServerThread* serverThread_;
-  IPLookupDialog* ipLookupDialog_;
 
 private:
   void newWindow(const FQTermParam &param, int index = -1);
@@ -258,6 +250,20 @@ private:
   void refreshStyleSheet();
   void clearStyleSheet();
 
+  bool isDelimiterExistedBefore(const QString& str,
+                                const std::vector<QString>& existingDelimiters);
+  int isDelimiterExistedAfter(const QString& str,
+                              const std::vector<QString>& existingDelimiters);
+  bool uppercaseCharFollowingCtrl(QString& str,
+                                  int& i,
+                                  const QString& after);
+  void replaceEscapeString(QString& str,
+                           const QString& before,
+                           const QString& after,
+                           const QString& delimiter,
+                           const std::vector<QString> *existingDelimiters = NULL);
+  void transEscapeStr(QString& target, const QString& source);
+
 #ifdef HAVE_PYTHON
 public:
   FQTermPythonHelper* getPythonHelper() {
@@ -268,6 +274,13 @@ public:
 private:
   FQTermPythonHelper* pythonHelper_;
 #endif //HAVE_PYTHON
+
+#ifdef USE_GLOBAL_HOTKEY
+  QxtGlobalShortcut* globalHotkey_;
+#endif //USE_GLOBAL_HOTKEY
+private slots:
+  void globalHotkeyTriggered();
+  void globalHotkeyChanged();
 };
 
 class TranslatorInstaller : public QObject

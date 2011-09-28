@@ -49,6 +49,8 @@ set(fqterm_ui_SRCS
   sitemanager.cpp
   iplookup.h
   iplookup.cpp
+  defineescape.h
+  defineescape.cpp
 )
 
 set(fqterm_ui_gen_HS
@@ -65,6 +67,7 @@ set(fqterm_ui_gen_HS
   ui_sshlogin.h
   ui_zmodemdialog.h
   ui_iplookup.h
+  ui_defineescape.h
 )
 
 set(fqterm_ui_UIS
@@ -81,6 +84,7 @@ set(fqterm_ui_UIS
   sshlogin.ui
   zmodemdialog.ui
   iplookup.ui
+  defineescape.ui
 )
 
 qt4_wrap_ui(fqterm_ui_UIS_H

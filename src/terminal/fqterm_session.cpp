@@ -112,6 +112,7 @@ FQTermSession::FQTermSession(FQTermConfig *config, FQTermParam param) {
   zmodem_ = new FQTermZmodem(config, telnet_, param.protocolType_, param.serverEncodingID_);
   decoder_ = new FQTermDecode(termBuffer_, param.serverEncodingID_);
   FQ_VERIFY(connect(decoder_, SIGNAL(enqReceived()), this, SLOT(onEnqReceived())));
+  FQ_VERIFY(connect(decoder_, SIGNAL(onTitleSet(const QString&)), this, SIGNAL(onTitleSet(const QString&))));
 
   isConnected_ = false;
 #ifndef _NO_SSH_COMPILED
@@ -328,7 +329,12 @@ FQTermSession::CursorType FQTermSession::getCursorType(const QPoint &pt) {
   CursorType nCursorType = kNormal;
   switch (pageState_) {
     case Undefined:  // not recognized
-      nCursorType = kNormal;
+      if (rc.contains(pt)) {
+        //HAND
+        nCursorType = kRight;
+      } else {
+        nCursorType = kNormal;
+      }
       break;
     case Menu:
     case MailMenu:
@@ -388,19 +394,28 @@ FQTermSession::CursorType FQTermSession::getCursorType(const QPoint &pt) {
                  > termBuffer_->getNumRows() / 2) {
         // PAGEDOWN
         nCursorType = kPageDown;
+      } else if (rc.contains(pt)) {
+        //HAND
+        nCursorType = kRight;
       } else {
         nCursorType = kNormal;
       }
       break;
     case Edit:
       // TODO: add action for kEdit state.
+      if (rc.contains(pt)) {
+        //HAND
+        nCursorType = kRight;
+      } else {
+        nCursorType = kNormal;
+      }
       break;
     case TOP10:
       if (pt.x() < 12) {
         nCursorType = kLeft;
-        } else if (rc.contains(pt)){
-          nCursorType = kRight;
-          }
+      } else if (rc.contains(pt)){
+        nCursorType = kRight;
+      }
       break;
     default:
       FQ_TRACE("error", 2) << "Error, wrong PageState.";
@@ -451,10 +466,11 @@ QRect FQTermSession::detectMenuRect() {
   menuRect_ = rect;
   if (scriptListener_) 
   {
-    bool res = scriptListener_->postQtScriptCallback(SFN_DETECT_MENU);
-  #ifdef HAVE_PYTHON
-    res = scriptListener_->postPythonCallback(SFN_DETECT_MENU, Py_BuildValue("l", scriptListener_->windowID())) || res;
-  #endif  //HAVE_PYTHON
+    bool res = scriptListener_->postScriptCallback(SFN_DETECT_MENU
+#ifdef HAVE_PYTHON
+                                                   ,Py_BuildValue("l", scriptListener_->windowID())
+#endif  //HAVE_PYTHON
+                                                   );
     if (res) return menuRect_;
   }
   // current screen scrolled
@@ -849,10 +865,11 @@ void FQTermSession::autoReplyMessage() {
   }
   if (scriptListener_) 
   {
-    bool res = scriptListener_->postQtScriptCallback(SFN_AUTO_REPLY);
+    bool res = scriptListener_->postScriptCallback(SFN_AUTO_REPLY
 #ifdef HAVE_PYTHON
-    res = scriptListener_->postPythonCallback(SFN_AUTO_REPLY, Py_BuildValue("l", scriptListener_->windowID())) || res;
+                                                     ,Py_BuildValue("l", scriptListener_->windowID())
 #endif  //HAVE_PYTHON
+                                                     );
     if (res) return;
   }
   QByteArray cstrTmp = param_.replyKeyCombination_.toLocal8Bit();
@@ -1033,10 +1050,11 @@ void FQTermSession::readReady(int size, int raw_size) {
 
       bool bellConsumed = false;
       if (scriptListener_) {
-        bellConsumed = scriptListener_->postQtScriptCallback(SFN_ON_BELL);
+        bellConsumed = scriptListener_->postScriptCallback(SFN_ON_BELL
 #ifdef HAVE_PYTHON
-        bellConsumed = scriptListener_->postPythonCallback(SFN_ON_BELL, Py_BuildValue("l", scriptListener_->windowID())) || bellConsumed;
-#endif
+                                                             ,Py_BuildValue("l", scriptListener_->windowID())
+#endif  //HAVE_PYTHON
+                                                             );
       }
 
       if (isAutoReply() && !bellConsumed) {
@@ -1052,10 +1070,11 @@ void FQTermSession::readReady(int size, int raw_size) {
     // set page state
     detectPageState();
     if (scriptListener_) {
-      scriptListener_->postQtScriptCallback(SFN_DATA_EVENT);
+      scriptListener_->postScriptCallback(SFN_DATA_EVENT
 #ifdef HAVE_PYTHON
-      scriptListener_->postPythonCallback(SFN_DATA_EVENT, Py_BuildValue("l", scriptListener_->windowID()));
-#endif
+                                            ,Py_BuildValue("l", scriptListener_->windowID())
+#endif  //HAVE_PYTHON
+                                            );
     }
     emit sessionUpdated();
   }
@@ -1292,10 +1311,11 @@ void FQTermSession::onIdle() {
   isIdling_ = true;
   // system script can handle that
   if (scriptListener_) {
-    bool res = scriptListener_->postQtScriptCallback(SFN_ANTI_IDLE);
+    bool res = scriptListener_->postScriptCallback(SFN_ANTI_IDLE
 #ifdef HAVE_PYTHON
-    res = scriptListener_->postPythonCallback(SFN_ANTI_IDLE, Py_BuildValue("l", scriptListener_->windowID())) || res;
-#endif
+                                                     ,Py_BuildValue("l", scriptListener_->windowID())
+#endif  //HAVE_PYTHON
+                                                     );
     if (res)
       return;
   }
@@ -1523,12 +1543,22 @@ void ArticleCopyThread::run() {
   typedef std::vector<QString> Page;
   const FQTermBuffer *buffer = session_.getBuffer();;
   Page page;
-  bool MultiPage = false;
 
   QString firstPageLastLine;
   buffer->getTextLineInTerm(buffer->getNumRows() - 1)->getAllPlainText(firstPageLastLine);
-  if (firstPageLastLine.indexOf("%") != -1) {
-    MultiPage = true;
+  bool MultiPage = (firstPageLastLine.indexOf("%") != -1);
+  if (!MultiPage) {
+    emit writeSession("q");
+    emit writeSession("\n");
+    if (!waitCondition_.wait(&lock_, 10000)) {
+      emit articleCopied(DAE_TIMEOUT, "");
+      return;
+    }
+    buffer->getTextLineInTerm(buffer->getNumRows() - 1)->getAllPlainText(firstPageLastLine);
+    MultiPage = (firstPageLastLine.indexOf("%") != -1);
+  }
+
+  if (MultiPage) {
     //session_.write("e", 1);
     emit writeSession("e");
     if (!waitCondition_.wait(&lock_, 10000)) {

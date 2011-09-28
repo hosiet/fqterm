@@ -62,84 +62,16 @@ please close all windows and restart.</source>
         <translation>断开连接</translation>
     </message>
     <message>
-        <source>Reconnect When Disconnected By Host</source>
-        <translation>当主机断开时自动重连</translation>
-    </message>
-    <message>
         <source>&amp;File</source>
         <translation>文件(&amp;F)</translation>
-    </message>
-    <message>
-        <source>&amp;Connect</source>
-        <translation>连接(&amp;C)</translation>
-    </message>
-    <message>
-        <source>&amp;Disconnect</source>
-        <translation>断开连接(&amp;D)</translation>
-    </message>
-    <message>
-        <source>&amp;Address book</source>
-        <translation>地址簿(&amp;A)</translation>
-    </message>
-    <message>
-        <source>&amp;Quick login</source>
-        <translation>快速连接(&amp;Q)</translation>
-    </message>
-    <message>
-        <source>Quick login</source>
-        <translation type="obsolete">快速连接</translation>
-    </message>
-    <message>
-        <source>&amp;Exit</source>
-        <translation>退出(&amp;E)</translation>
     </message>
     <message>
         <source>&amp;Edit</source>
         <translation>编辑(&amp;E)</translation>
     </message>
     <message>
-        <source>&amp;Copy</source>
-        <translation>复制(&amp;C)</translation>
-    </message>
-    <message>
-        <source>&amp;Paste</source>
-        <translation>粘贴(&amp;P)</translation>
-    </message>
-    <message>
-        <source>C&amp;opy with color</source>
-        <translation>彩色复制(&amp;o)</translation>
-    </message>
-    <message>
-        <source>&amp;Rectangle select</source>
-        <translation>矩形选择(&amp;R)</translation>
-    </message>
-    <message>
-        <source>Auto copy &amp;select</source>
-        <translation>自动复制(&amp;s)</translation>
-    </message>
-    <message>
-        <source>P&amp;aste with wordwrap</source>
-        <translation>自动换行粘贴(&amp;a)</translation>
-    </message>
-    <message>
-        <source>Paste &amp;with color</source>
-        <translation>彩色粘贴(&amp;w)</translation>
-    </message>
-    <message>
-        <source>&amp;None</source>
-        <translation>&amp;None</translation>
-    </message>
-    <message>
-        <source>&amp;ESC ESC [</source>
-        <translation>&amp;ESC ESC [</translation>
-    </message>
-    <message>
-        <source>Ctrl+&amp;U [</source>
-        <translation>Ctrl+&amp;U [</translation>
-    </message>
-    <message>
-        <source>&amp;Custom...</source>
-        <translation>自定义(&amp;C)...</translation>
+        <source>Control sequence in clipboar&amp;d</source>
+        <translation>剪贴板中的控制序列(&amp;d)</translation>
     </message>
     <message>
         <source>Clipboard &amp;encoding</source>
@@ -166,10 +98,6 @@ please close all windows and restart.</source>
         <translation type="obsolete">颜色(&amp;C)</translation>
     </message>
     <message>
-        <source>&amp;Refresh</source>
-        <translation>刷新(&amp;R)</translation>
-    </message>
-    <message>
         <source>&amp;Language</source>
         <translation>语言(&amp;L)</translation>
     </message>
@@ -186,104 +114,24 @@ please close all windows and restart.</source>
         <translation type="obsolete">繁體中文(&amp;T)</translation>
     </message>
     <message>
-        <source>&amp;UI font</source>
-        <translation>界面字体(&amp;U)</translation>
-    </message>
-    <message>
         <source>&amp;Themes</source>
         <translation>主题(&amp;T)</translation>
-    </message>
-    <message>
-        <source>&amp;Fullscreen</source>
-        <translation>全屏(&amp;F)</translation>
-    </message>
-    <message>
-        <source>Boss &amp;Color</source>
-        <translation>保护色(&amp;C)</translation>
     </message>
     <message>
         <source>&amp;ScrollBar</source>
         <translation>滚动条(&amp;S)</translation>
     </message>
     <message>
-        <source>&amp;Hide</source>
-        <translation>隐藏(&amp;H)</translation>
-    </message>
-    <message>
-        <source>&amp;Left</source>
-        <translation>左侧(&amp;L)</translation>
-    </message>
-    <message>
-        <source>&amp;Right</source>
-        <translation>右侧(&amp;R)</translation>
-    </message>
-    <message>
-        <source>Status &amp;Bar</source>
-        <translation>状态条(&amp;B)</translation>
-    </message>
-    <message>
-        <source>S&amp;witch Bar</source>
-        <translation>任务栏(&amp;w)</translation>
-    </message>
-    <message>
         <source>&amp;Option</source>
         <translation>选项(&amp;O)</translation>
-    </message>
-    <message>
-        <source>&amp;Setting for currrent session</source>
-        <translation type="obsolete">当前连接属性(&amp;S)</translation>
-    </message>
-    <message>
-        <source>&amp;Default setting</source>
-        <translation>缺省设置(&amp;D)</translation>
-    </message>
-    <message>
-        <source>&amp;Preference</source>
-        <translation type="obsolete">偏好(&amp;P)</translation>
     </message>
     <message>
         <source>&amp;Special</source>
         <translation>特殊(&amp;S)</translation>
     </message>
     <message>
-        <source>&amp;Copy article</source>
-        <translation>全文下载(&amp;C)</translation>
-    </message>
-    <message>
-        <source>Anti &amp;idle</source>
-        <translation>防发呆(&amp;i)</translation>
-    </message>
-    <message>
-        <source>Auto &amp;reply</source>
-        <translation>自动回复(&amp;r)</translation>
-    </message>
-    <message>
-        <source>&amp;View messages</source>
-        <translation>查看即时消息(&amp;V)</translation>
-    </message>
-    <message>
-        <source>&amp;Beep </source>
-        <translation>蜂鸣(&amp;B) </translation>
-    </message>
-    <message>
-        <source>&amp;Mouse support</source>
-        <translation>鼠标支持(&amp;M)</translation>
-    </message>
-    <message>
-        <source>&amp;Image viewer</source>
-        <translation>图像预览器(&amp;I)</translation>
-    </message>
-    <message>
         <source>Scrip&amp;t</source>
         <translation>脚本(&amp;t)</translation>
-    </message>
-    <message>
-        <source>&amp;Run...</source>
-        <translation>运行(&amp;R)...</translation>
-    </message>
-    <message>
-        <source>&amp;Stop</source>
-        <translation>停止(&amp;S)</translation>
     </message>
     <message>
         <source>&amp;Windows</source>
@@ -292,14 +140,6 @@ please close all windows and restart.</source>
     <message>
         <source>&amp;Help</source>
         <translation>帮助(&amp;H)</translation>
-    </message>
-    <message>
-        <source>About &amp;FQTerm</source>
-        <translation>关于FQTerm(&amp;Q)</translation>
-    </message>
-    <message>
-        <source>FQTerm&amp;apos;s &amp;Homepage</source>
-        <translation type="obsolete">主页(&amp;H)</translation>
     </message>
     <message>
         <source>Key Setup</source>
@@ -420,38 +260,6 @@ please close all windows and restart.</source>
     <message>
         <source> Font</source>
         <translation>字体</translation>
-    </message>
-    <message>
-        <source>&amp;Color Setting</source>
-        <translation>颜色设置(&amp;C)</translation>
-    </message>
-    <message>
-        <source>&amp;Use ANSI Color</source>
-        <translation>使用ANSI颜色(&amp;U)</translation>
-    </message>
-    <message>
-        <source>&amp;Setting for current session</source>
-        <translation>当前连接属性(&amp;S)</translation>
-    </message>
-    <message>
-        <source>Google It</source>
-        <translation>Google一下</translation>
-    </message>
-    <message>
-        <source>External Editor</source>
-        <translation>外部编辑器</translation>
-    </message>
-    <message>
-        <source>&amp;Preferences...</source>
-        <translation>偏好(&amp;P)...</translation>
-    </message>
-    <message>
-        <source>&amp;Shortcut Setting</source>
-        <translation>快捷键设置(&amp;S)</translation>
-    </message>
-    <message>
-        <source>Run &amp;Python...</source>
-        <translation>执行Python脚本(&amp;P)...</translation>
     </message>
 </context>
 <context>
@@ -818,6 +626,14 @@ please close all windows and restart.</source>
     <message>
         <source>Font Selector</source>
         <translation>字体选择</translation>
+    </message>
+    <message>
+        <source>IP database file does NOT exist</source>
+        <translation>IP数据库文件不存在</translation>
+    </message>
+    <message>
+        <source>Invalid IP</source>
+        <translation>非法IP</translation>
     </message>
 </context>
 </TS>

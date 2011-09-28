@@ -64,6 +64,7 @@ class FQTermDecode: public QObject {
  signals:
   void mouseMode(bool);
   void enqReceived();
+  void onTitleSet(const QString&);
   public slots:
     void onCaretChangeRow();
  private:
@@ -113,6 +114,11 @@ class FQTermDecode: public QObject {
   // other escape sequence actions
   void normalInput();
 
+  //title settings
+  void setTitle();
+  void collectText();
+  void clearText();
+
   // action parameters
   void clearParam();
   void paramDigit();
@@ -151,7 +157,8 @@ class FQTermDecode: public QObject {
 
   struct VT100StateMachine {
     static StateOption normal_state_[], esc_state_[], bracket_state_[];
-    static StateOption private_state_[], title_state_[], sharp_state_[];
+    static StateOption private_state_[], sharp_state_[];
+    static StateOption title_state_[], title_text_state_[];
     static StateOption select_g0_charset_state_[], select_g1_charset_state_[];
   };
 
@@ -168,6 +175,8 @@ class FQTermDecode: public QObject {
 
   int paramIndex_, param_[30];
   bool isParamAvailable_;
+
+  QByteArray textParam_;
 
   bool savedMode_[30];
   bool currentMode_[30];

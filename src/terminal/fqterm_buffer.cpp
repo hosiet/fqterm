@@ -257,9 +257,15 @@ void FQTermBuffer::writeText(const QString &str, int charstate) {
     }
     moveCaretOffset(width, 0);
 
+	if (element_consumed == 0)
+	{
+		element_consumed = 1;
+	}
+
     if (element_consumed == cstr.size()) {
       break;
     }
+	
     cstr.remove(0, element_consumed);
   }
 }
@@ -674,6 +680,11 @@ void FQTermBuffer::clearArea(int startColumn, int startRow,
       int endX = startColumn + w;
       if (endX > (int)line->getWidth()) {
         endX = line->getWidth();
+      }
+
+      if(startColumn>=endX)
+      {
+          continue;
       }
 
       line->replaceWithWhiteSpace(w, startColumn, endX, color, attr);

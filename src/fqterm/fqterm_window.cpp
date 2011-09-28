@@ -178,6 +178,8 @@ FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam
   FQ_VERIFY(connect(session_, SIGNAL(sessionUpdated()),
                     this, SLOT(sessionUpdated())));
   FQ_VERIFY(connect(session_, SIGNAL(bellReceived()), this, SLOT(beep())));
+  FQ_VERIFY(connect(session_, SIGNAL(onTitleSet(const QString&)), this, SLOT(onTitleSet(const QString&))));
+
   FQ_VERIFY(connect(session_, SIGNAL(messageAutoReplied()),
                     this, SLOT(messageAutoReplied())));
   FQ_VERIFY(connect(session_, SIGNAL(telnetStateChanged(int)),
@@ -422,11 +424,13 @@ bool FQTermWindow::event(QEvent *qevent) {
 }
 
 void FQTermWindow::mouseDoubleClickEvent(QMouseEvent *mouseevent) {
-  scriptMouseEvent(mouseevent);
+  if (scriptMouseEvent(mouseevent))
+    return;
 }
 
 void FQTermWindow::mousePressEvent(QMouseEvent *mouseevent) {
-  scriptMouseEvent(mouseevent);
+  if (scriptMouseEvent(mouseevent))
+    return;
   // stop  the tab blinking
   stopBlink();
 
@@ -482,39 +486,41 @@ void FQTermWindow::mousePressEvent(QMouseEvent *mouseevent) {
 
 
 void FQTermWindow::mouseMoveEvent(QMouseEvent *mouseevent) {
-  (scriptMouseEvent(mouseevent));
-
+  bool mouseEventConsumed = scriptMouseEvent(mouseevent);
   QPoint position = mouseevent->pos();
+  if (!mouseEventConsumed)
+  {
 
-  // selecting by leftbutton
-  if ((mouseevent->buttons() &Qt::LeftButton) && isSelecting_) {
-    onSelecting(position);
+    // selecting by leftbutton
+    if ((mouseevent->buttons() &Qt::LeftButton) && isSelecting_) {
+      onSelecting(position);
+    }
   }
-
   if (!(session_->param().isSupportMouse_ && isConnected())) {
     return;
   }
 
   setCursorPosition(position);
-
   setCursorType(position);
 
 
-
-  if (!isUrlUnderLined_ && session_->urlStartPoint() != session_->urlEndPoint()) {
-    isUrlUnderLined_ = true;
-    urlStartPoint_ = session_->urlStartPoint();
-    urlEndPoint_ = session_->urlEndPoint();
-	  clientRect_ = QRect(QPoint(0, urlStartPoint_.y()), QSize(session_->getBuffer()->getNumColumns(), urlEndPoint_.y() - urlStartPoint_.y() + 1));
-	  repaintScreen();
+  if (!mouseEventConsumed)
+  {
+    if (!isUrlUnderLined_ && session_->urlStartPoint() != session_->urlEndPoint()) {
+      isUrlUnderLined_ = true;
+      urlStartPoint_ = session_->urlStartPoint();
+      urlEndPoint_ = session_->urlEndPoint();
+	    clientRect_ = QRect(QPoint(0, urlStartPoint_.y()), QSize(session_->getBuffer()->getNumColumns(), urlEndPoint_.y() - urlStartPoint_.y() + 1));
+	    repaintScreen();
 	  
-  } else if (isUrlUnderLined_ && (session_->urlStartPoint() != urlStartPoint_ || session_->urlEndPoint() != urlEndPoint_)) {
-    clientRect_ = QRect(QPoint(0, urlStartPoint_.y()), QSize(session_->getBuffer()->getNumColumns(), urlEndPoint_.y() - urlStartPoint_.y() + 1));
-    urlStartPoint_ = QPoint();
-    urlEndPoint_ = QPoint();
-	  repaintScreen();
-	  isUrlUnderLined_ = false;
+    } else if (isUrlUnderLined_ && (session_->urlStartPoint() != urlStartPoint_ || session_->urlEndPoint() != urlEndPoint_)) {
+      clientRect_ = QRect(QPoint(0, urlStartPoint_.y()), QSize(session_->getBuffer()->getNumColumns(), urlEndPoint_.y() - urlStartPoint_.y() + 1));
+      urlStartPoint_ = QPoint();
+      urlEndPoint_ = QPoint();
+	    repaintScreen();
+	    isUrlUnderLined_ = false;
 
+    }
   }
 }
 
@@ -526,7 +532,8 @@ static bool isSupportedImage(const QString &name) {
 }
 
 void FQTermWindow::mouseReleaseEvent(QMouseEvent *mouseevent) {
-  bool scriptMouseSupport = (scriptMouseEvent(mouseevent));
+  if (scriptMouseEvent(mouseevent))
+    return;
   if (!isMouseClicked_) {
     return ;
   }
@@ -547,7 +554,7 @@ void FQTermWindow::mouseReleaseEvent(QMouseEvent *mouseevent) {
   }
   isSelecting_ = false;
 
-  if (!session_->param().isSupportMouse_ || !isConnected() || scriptMouseSupport) {
+  if (!session_->param().isSupportMouse_ || !isConnected()) {
     return ;
   }
 
@@ -585,7 +592,8 @@ void FQTermWindow::keyPressEvent(QKeyEvent *keyevent) {
     keyevent->accept();
     return;
   }
-  scriptKeyEvent(keyevent);
+  if (scriptKeyEvent(keyevent))
+    return;
 
   keyevent->accept();
 
@@ -987,46 +995,50 @@ void FQTermWindow::showIP(bool show) {
   }
   QString country, city;
   QString url = session_->getIP();
-  if (FQTermIPLocation::getInstance()->getLocation(url, country, city)) {
+  FQTermIPLocation *ipLocation = FQTermIPLocation::getInstance();
 
-    QRect screenRect = screen_->rect();
-    QPoint messagePos;
-    QRect globalIPRectangle = QRect(screen_->mapToRect(ipRectangle_));
-    QFontMetrics fm(qApp->font());
-    int charHeight = fm.height();
+  QRect screenRect = screen_->rect();
+  QPoint messagePos;
+  QRect globalIPRectangle = QRect(screen_->mapToRect(ipRectangle_));
+  QFontMetrics fm(qApp->font());
+  int charHeight = fm.height();
 
-    int midLine = (screenRect.top() + screenRect.bottom()) / 2;
-    int ipMidLine = (globalIPRectangle.top() + globalIPRectangle.bottom()) / 2;
-    if (ipMidLine < midLine) {
-      // "There is Plenty of Room at the Bottom." -- Feyman, 1959
-      messagePos.setY(globalIPRectangle.bottom() + 0.618 * charHeight);
-    } else {
-      messagePos.setY(globalIPRectangle.top()
-                      - 0.618 * charHeight
-                      - pageViewMessage_->size().height());
-    }
-
-    QString displayText = encoding2unicode((country + city).toLatin1(), FQTERM_ENCODING_GBK);
-
-    QRect messageSize(
-        pageViewMessage_->displayCheck(
-        displayText,
-        PageViewMessage::Info));
-    PageViewMessage::Alignment ali;
-    if (messageSize.width() + globalIPRectangle.left() >= screenRect.right()) {
-      //"But There is No Room at the Right" -- Curvelet, 2007
-      messagePos.setX(globalIPRectangle.right());
-      ali = PageViewMessage::TopRight;
-    } else {
-      messagePos.setX(globalIPRectangle.left());
-      ali = PageViewMessage::TopLeft;
-    }
-
-    pageViewMessage_->display(
-        displayText,
-        PageViewMessage::Info,
-        0, messagePos, ali);
+  int midLine = (screenRect.top() + screenRect.bottom()) / 2;
+  int ipMidLine = (globalIPRectangle.top() + globalIPRectangle.bottom()) / 2;
+  if (ipMidLine < midLine) {
+    // "There is Plenty of Room at the Bottom." -- Feyman, 1959
+    messagePos.setY(globalIPRectangle.bottom() + 0.618 * charHeight);
+  } else {
+    messagePos.setY(globalIPRectangle.top()
+                    - 0.618 * charHeight
+                    - pageViewMessage_->size().height());
   }
+
+  QString displayText;
+  if (ipLocation == NULL) {
+    displayText = tr("IP database file does NOT exist");
+  } else if (!ipLocation->getLocation(url, country, city)) {
+    displayText = tr("Invalid IP");
+  } else {
+    displayText = country + " " + city;
+  }
+
+  QRect messageSize(pageViewMessage_->displayCheck(displayText,
+                                                   PageViewMessage::Info));
+  PageViewMessage::Alignment ali;
+  if (messageSize.width() + globalIPRectangle.left() >= screenRect.right()) {
+    //"But There is No Room at the Right" -- Curvelet, 2007
+    messagePos.setX(globalIPRectangle.right());
+    ali = PageViewMessage::TopRight;
+  } else {
+    messagePos.setX(globalIPRectangle.left());
+    ali = PageViewMessage::TopLeft;
+  }
+
+  pageViewMessage_->display(
+      displayText,
+      PageViewMessage::Info,
+      0, messagePos, ali);
 }
 
 void FQTermWindow::runScript() {
@@ -1262,6 +1274,13 @@ bool FQTermWindow::postQtScriptCallback(const QString& func, const QScriptValueL
   return script_engine_->scriptCallback(func, args);
 }
 
+#ifdef HAVE_PYTHON
+bool FQTermWindow::postPythonCallback( const QString& func, PyObject* pArgs )
+{
+  return pythonCallback(func, pArgs);
+}
+#endif //HAVE_PYTHON
+
 // void FQTermWindow::setMouseMode(bool on) {
 //   isMouseX11_ = on;
 // }
@@ -1328,7 +1347,7 @@ void FQTermWindow::runPythonScript() {
 
 void FQTermWindow::runPythonScriptFile(const QString& file) {
   QString str(QString("%1").arg(long(this)));
-	char* lp = strdup(str.toUtf8().data());
+	char* lp = fq_strdup(str.toUtf8().data());
 	char *argv[2]={lp,NULL};
     // get the global python thread lock
     PyEval_AcquireLock();
@@ -1380,14 +1399,16 @@ bool FQTermWindow::pythonCallback(const QString & func, PyObject* pArgs) {
 		Py_DECREF(pArgs);
 		if (pValue != NULL) 
 		{
-			done = true;
+      if (PyBool_Check(pValue) && pValue == Py_True)
+			  done = true;
 			Py_DECREF(pValue);
 		}
 		else 
 		{
-			QMessageBox::warning(this,"Python script error", getException());
+			//QMessageBox::warning(this,"Python script error", getException());
+      printf("%p: Python script error\n", this, getException().toUtf8().data());
 		}
-      }
+  }
 	else 
 	{
 		PyErr_Print();
@@ -1738,6 +1759,12 @@ void FQTermWindow::beep() {
   session_->setSendingMessage();
 }
 
+
+void FQTermWindow::onTitleSet(const QString& title) {
+  setWindowTitle(title);
+}
+
+
 void FQTermWindow::startBlink() {
   if (FQTermPref::getInstance()->openTabBlinking_) {
     if (!tabBlinkTimer_->isActive()) {
@@ -1757,7 +1784,7 @@ void FQTermWindow::setCursorType(const QPoint& mousePosition) {
   QRect rcOld;
   bool isUrl = false;
   if (FQTermPref::getInstance()->openUrlCheck_) {
-    showIP(FQTermIPLocation::getInstance()->ipDataBaseAvailable() && session_->isIP(ipRectangle_, rcOld));
+    showIP(session_->isIP(ipRectangle_, rcOld));
     if (session_->isUrl(urlRectangle_, rcOld)) {
       setCursor(Qt::PointingHandCursor);
       isUrl = true;
@@ -2317,11 +2344,11 @@ bool FQTermWindow::scriptKeyEvent( QKeyEvent *keyevent ){
   int state = 0;
   state |= translateQtModifiers(keyevent->modifiers());
 
+  res = postScriptCallback(SFN_KEY_EVENT
 #ifdef HAVE_PYTHON
-  res = pythonCallback(
-    SFN_KEY_EVENT, Py_BuildValue("liii", this, SKET_KEY_PRESS, state, keyevent->key()));
+                           ,Py_BuildValue("liii", this, SKET_KEY_PRESS, state, keyevent->key())
 #endif //HAVE_PYTHON
-  res = postQtScriptCallback(SFN_KEY_EVENT, QScriptValueList() << SKET_KEY_PRESS << state << keyevent->key()) || res;
+                           ,QScriptValueList() << SKET_KEY_PRESS << state << keyevent->key());
   return res;
 }
 
@@ -2351,11 +2378,11 @@ bool FQTermWindow::scriptMouseEvent(QMouseEvent *mouseevent){
 
   QPoint ptc = screen_->mapToChar(mouseevent->pos());
   ptc.setY(ptc.y() - screen_->getBufferStart());
-  int res = false;
+  int res = postScriptCallback(SFN_MOUSE_EVENT
 #ifdef HAVE_PYTHON
-  res = pythonCallback(SFN_MOUSE_EVENT, Py_BuildValue("liiiii", this, type, state, ptc.x(), ptc.y(),delta));
+                               ,Py_BuildValue("liiiii", this, type, state, ptc.x(), ptc.y(),delta)
 #endif //HAVE_PYTHON
-  res = postQtScriptCallback(SFN_MOUSE_EVENT, QScriptValueList() << type << state << ptc.x() << ptc.y() << delta) || res;
+                               ,QScriptValueList() << type << state << ptc.x() << ptc.y() << delta);
   return res;
 }
 
@@ -2366,11 +2393,11 @@ bool FQTermWindow::scriptWheelEvent( QWheelEvent *wheelevent ) {
   state |= translateQtModifiers(wheelevent->modifiers());
   QPoint ptc = screen_->mapToChar(wheelevent->pos());
   ptc.setY(ptc.y() - screen_->getBufferStart());
-  int res = false;
+  int res = postScriptCallback(SFN_MOUSE_EVENT
 #ifdef HAVE_PYTHON
-  res = pythonCallback(SFN_MOUSE_EVENT, Py_BuildValue("liiiii", this, type, state, ptc.x(), ptc.y(),wheelevent->delta()));
+                               ,Py_BuildValue("liiiii", this, type, state, ptc.x(), ptc.y(),wheelevent->delta())
 #endif //HAVE_PYTHON
-  res = postQtScriptCallback(SFN_MOUSE_EVENT, QScriptValueList() << type << state << ptc.x() << ptc.y() << wheelevent->delta()) || res;
+                               ,QScriptValueList() << type << state << ptc.x() << ptc.y() << wheelevent->delta());
   return res;
 }
 
