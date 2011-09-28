@@ -1,4 +1,4 @@
-fqterm (0.9.6.9-1) natty; urgency=low
+fqterm (0.9.6.9-1) unstable; urgency=low
 
   * new upstream release. (closes: #558722, #643379)
   * debian/control:
@@ -7,7 +7,7 @@ fqterm (0.9.6.9-1) natty; urgency=low
     - bump standards version to 3.8.4.
     - build depends on libx11-dev. 
 
- -- LI Daobing <lidaobing@debian.org>  Wed, 28 Sep 2011 23:51:06 +0800
+ -- LI Daobing <lidaobing@debian.org>  Thu, 29 Sep 2011 00:19:40 +0800
 
 fqterm (0.9.6.8-1) unstable; urgency=low
 
