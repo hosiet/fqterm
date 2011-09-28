@@ -34,6 +34,7 @@
 #include "fqterm_trace.h"
 #include "fqterm_ip_location.h"
 #include "fqterm_path.h"
+#include "fqterm.h"
 
 namespace FQTerm {
 
@@ -50,7 +51,7 @@ FQTermIPLocation::FQTermIPLocation(const QString &pathLib) {
   QStringList files = dir.entryList(QStringList(
                                         "[Qq][Qq][Ww][Rr][Yy].[Dd][Aa][Tt]"), QDir::Files);
   if (!files.isEmpty()) {
-    if ((ipDatabase_->ipfp = fopen((pathLib + (files.at(0))).toLocal8Bit(), "r")) == NULL) {
+    if ((ipDatabase_->ipfp = fopen((pathLib + (files.at(0))).toLocal8Bit(), "rb")) == NULL) {
       FQ_TRACE("iplocation", 0) << "Can't open ip database file!";
       isFileExiting_ = false;
     }
@@ -65,10 +66,6 @@ FQTermIPLocation::~FQTermIPLocation() {
     fclose(ipDatabase_->ipfp);
   }
   delete ipDatabase_;
-}
-
-bool FQTermIPLocation::ipDataBaseAvailable() {
-  return isFileExiting_;
 }
 
 uint32 FQTermIPLocation::byteArrayToInt(char *ip, int count) {
@@ -98,24 +95,26 @@ void FQTermIPLocation::readFrom(FILE *fp, uint32 offset, char *buf, int len) {
   return ;
 }
 
-int FQTermIPLocation::readLineFrom(FILE *fp, uint32 offset, QString &ret_str) {
+int FQTermIPLocation::readLineFrom(FILE *fp, uint32 offset, QByteArray &ret_str) {
   char str[512];
   if (fseek(fp, (long)offset, SEEK_SET) == -1) {
     FQ_TRACE("iplocation", 0) << "readLineFrom error 1";
-    ret_str = QString();
+    ret_str = QByteArray();
     return -1;
   }
   if (fgets((char*)str, 512, fp) == NULL) {
     FQ_TRACE("iplocation", 0) << "readLineFrom error 2";
-    ret_str = QString();
+    ret_str = QByteArray();
     return -1;
   }
-  ret_str = QString::fromLatin1(str);
+  ret_str = QByteArray(str);
   return (ret_str.length());
 }
 
 uint32 FQTermIPLocation::getString(FILE *fp, uint32 offset, uint32 lastoffset,
-                                   QString &ret, unsigned int flag) {
+                                   QByteArray &ret, unsigned int flag, int maxRecursiveDepth) {
+  if (maxRecursiveDepth <= 0)
+    return 0;
   unsigned int fg;
   if (fp == NULL) {
     return 0;
@@ -125,7 +124,7 @@ uint32 FQTermIPLocation::getString(FILE *fp, uint32 offset, uint32 lastoffset,
   if (buf[0] == 0x01 || buf[0] == 0x02) {
     fg = buf[0];
     readFrom(fp, offset + 1, buf, 3);
-    return getString(fp, byteArrayToInt(buf, 3), offset, ret, fg);
+    return getString(fp, byteArrayToInt(buf, 3), offset, ret, fg, maxRecursiveDepth - 1);
   } else {
     readLineFrom(fp, offset, ret);
   }
@@ -135,13 +134,13 @@ uint32 FQTermIPLocation::getString(FILE *fp, uint32 offset, uint32 lastoffset,
     case 0x02:
       return lastoffset + 4;
     default:
-      return offset + strlen(ret.toLatin1()) + 1;
+      return offset + ret.length() + 1;
   }
 }
 
 
-void FQTermIPLocation::getCountryCity(FILE *fp, uint32 offset, QString &country,
-                                      QString &city) {
+void FQTermIPLocation::getCountryCity(FILE *fp, uint32 offset, QByteArray &country,
+                                      QByteArray &city) {
   uint32 next_offset;
   if (fp == NULL) {
     return ;
@@ -171,8 +170,17 @@ void FQTermIPLocation::setIpRange(int rec_no, IPDatabase *f) {
 
 }
 
-bool FQTermIPLocation::getLocation(QString &url, QString &country,
-                                   QString &city) {
+bool FQTermIPLocation::getLocation(QString &url, QString &country, QString &city)
+{
+  QByteArray gbCountry, gbCity;
+  bool result = getLocation(url, gbCountry, gbCity);
+  country = encoding2unicode(gbCountry, FQTERM_ENCODING_GBK);
+  city = encoding2unicode(gbCity, FQTERM_ENCODING_GBK);
+  return result;
+}
+
+bool FQTermIPLocation::getLocation(QString &url, QByteArray &country,
+                                   QByteArray &city) {
   int rec, record_count, B, E;
   uint32 ip;
 #ifdef Q_OS_WIN32
@@ -218,8 +226,11 @@ bool FQTermIPLocation::getLocation(QString &url, QString &country,
   if (ipDatabase_->cur_start_ip <= ip && ip <= ipDatabase_->cur_end_ip) {
     getCountryCity(ipDatabase_->ipfp, ipDatabase_->offset_cur_end_ip + 4, country, city);
     //country.replace( country.find( "CZ88.NET", 0, FALSE ), 8, "" );
-    if ((rec = city.indexOf("CZ88.NET", 0, Qt::CaseInsensitive)) >= 0) {
-      city.replace(rec, 8, "");
+    if ((rec = country.toUpper().indexOf("CZ88.NET", 0)) >= 0) {
+      country.replace(rec, 8, "********");
+    }
+    if ((rec = city.toUpper().indexOf("CZ88.NET", 0)) >= 0) {
+      city.replace(rec, 8, "********");
     }
 
   } else {
@@ -234,9 +245,13 @@ bool FQTermIPLocation::getLocation(QString &url, QString &country,
 FQTermIPLocation* FQTermIPLocation::getInstance() {
   if (instance_ == NULL) {
     instance_ = new FQTermIPLocation(getPath(USER_CONFIG));
-    if (!instance_->ipDataBaseAvailable()) {
+    if (instance_->isFileExiting_ == NULL) {
       delete instance_;
       instance_ = new FQTermIPLocation(getPath(RESOURCE));
+      if (instance_->isFileExiting_ == NULL) {
+        delete instance_;
+        instance_ = NULL;
+      }
     }
   }
   return instance_;

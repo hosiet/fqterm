@@ -53,7 +53,7 @@ aboutDialog::aboutDialog(QWidget *parent, Qt::WFlags fl)
     file.close();
   }
 
-  ui_.TextLabel->setText("FQTerm "  + QString(FQTERM_VERSION_STRING) + QString("\n Built with Qt") + QT_VERSION_STR + QString("\n Running with Qt ") + qVersion());
+   ui_.TextLabel->setText("FQTerm "  + QString(FQTERM_VERSION_STRING) + QString("\nSVN revision ") + QString(FQTERM_SVN_REVISION) + QString("\n Built with Qt") + QT_VERSION_STR + QString("\n Running with Qt ") + qVersion());
 }
 
 /*

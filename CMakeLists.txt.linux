@@ -23,6 +23,7 @@ endif(ALSA_FOUND)
 ADD_DEFINITIONS(-Wall)
 ADD_DEFINITIONS(-D_OS_LINUX_)
 ADD_DEFINITIONS(-D "FQTERM_VERSION_STRING=\\\"${FQTERM_VERSION}\\\"")
+ADD_DEFINITIONS(-D "FQTERM_SVN_REVISION=\\\"${MCGSVN_WC_REVISION}\\\"")
 
 add_subdirectory(src)
 
@@ -77,6 +78,7 @@ target_link_libraries(fqterm.bin
   ${AUDIO_LIBRARY}
   ${PYTHON_LIB}
   crypto
+  X11
 )
 
 add_dependencies(fqterm.bin

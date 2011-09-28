@@ -164,6 +164,56 @@
     </message>
 </context>
 <context>
+    <name>IPLookupDialog</name>
+    <message>
+        <source>IP Lookup</source>
+        <translation>查询IP</translation>
+    </message>
+    <message>
+        <source>IP Address</source>
+        <translation>IP地址</translation>
+    </message>
+    <message>
+        <source>Physical Address</source>
+        <translation>实际地址</translation>
+    </message>
+    <message>
+        <source>Lookup</source>
+        <translation>查询</translation>
+    </message>
+    <message>
+        <source>Finished</source>
+        <translation>完成</translation>
+    </message>
+    <message>
+        <source>IP database file does NOT exist</source>
+        <translation>IP数据库文件不存在</translation>
+    </message>
+    <message>
+        <source>Invalid IP</source>
+        <translation>非法IP</translation>
+    </message>
+</context>
+<context>
+    <name>dlgDefineEscape</name>
+    <message>
+        <source>Define Escape</source>
+        <translation>定义逃逸</translation>
+    </message>
+    <message>
+        <source>Escape String *[</source>
+        <translation>逃逸串 *[</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+</context>
+<context>
     <name>FQTerm::FQTermImage</name>
     <message>
         <source>Hide &amp;Browser</source>
@@ -837,6 +887,10 @@ p, li { white-space: pre-wrap; }
         <translation>装载控制脚本</translation>
     </message>
     <message>
+        <source>When disconnected, close window automatically</source>
+        <translation>当连接断开时，自动关闭窗口</translation>
+    </message>
+    <message>
         <source>Autoreply Message</source>
         <translation>自动回复消息</translation>
     </message>
@@ -915,6 +969,14 @@ p, li { white-space: pre-wrap; }
     <message>
         <source>&amp;OK</source>
         <translation>确认(&amp;O)</translation>
+    </message>
+    <message>
+        <source>Apply (&amp;Temporarily)</source>
+        <translation>应用 (临时&amp;T)</translation>
+    </message>
+    <message>
+        <source>&amp;Apply (Save)</source>
+        <translation>应用 (保存&amp;A)</translation>
     </message>
     <message>
         <source>&amp;Cancel</source>
@@ -1165,10 +1227,6 @@ p, li { white-space: pre-wrap; }
         <translation type="obsolete">退出时清理ZModem和HTTP目录</translation>
     </message>
     <message>
-        <source>AntiAlias</source>
-        <translation>AntiAlias</translation>
-    </message>
-    <message>
         <source>Show as tray when close</source>
         <translation type="obsolete">关闭至系统托盘</translation>
     </message>
@@ -1251,6 +1309,26 @@ p, li { white-space: pre-wrap; }
     <message>
         <source>Editor &amp; Args</source>
         <translation>编辑器及运行参数</translation>
+    </message>
+    <message>
+        <source>AntiAlias</source>
+        <translation>反别名</translation>
+    </message>
+    <message>
+        <source>Vertical Display</source>
+        <translation>垂直显示</translation>
+    </message>
+    <message>
+        <source>Top</source>
+        <translation>居顶</translation>
+    </message>
+    <message>
+        <source>Middle</source>
+        <translation>居中</translation>
+    </message>
+    <message>
+        <source>Bottom</source>
+        <translation>居底</translation>
     </message>
 </context>
 <context>
@@ -1389,6 +1467,34 @@ p, li { white-space: pre-wrap; }
     <message>
         <source>Transparent</source>
         <translation>透明</translation>
+    </message>
+    <message>
+        <source>Render</source>
+        <translation>渲染</translation>
+    </message>
+    <message>
+        <source>Coverage</source>
+        <translation>覆盖范围</translation>
+    </message>
+    <message>
+        <source>Whole</source>
+        <translation>整体</translation>
+    </message>
+    <message>
+        <source>Padding</source>
+        <translation>平直</translation>
+    </message>
+    <message>
+        <source>Note:
+ Alpha will only apply on background
+ If Coverage is set to Padding
+ Alpha will take no effect
+</source>
+        <translation>请注意：
+ Alpha仅应用于背景色
+ 若“覆盖范围”被设置为“平直”
+ Alpha将不会生效
+</translation>
     </message>
 </context>
 <context>

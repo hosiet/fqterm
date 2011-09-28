@@ -1,10 +1,12 @@
 set(fqterm_SRCS
+  fqterm_app.h
   fqterm_autoupdate.h
   fqterm_frame.h
   fqterm_screen.h
   fqterm_window.h
   fqterm_wndmgr.h
   fqterm_autoupdate.cpp
+  fqterm_app.cpp
   fqterm_frame.cpp
   fqterm_screen.cpp
   fqterm_window.cpp
@@ -15,7 +17,32 @@ set(fqterm_SRCS
   fqterm_scriptengine.cpp
 )
 
-qt4_automoc(${fqterm_SRCS})
+
+IF(WIN32)
+  set(global_shortcut_impl_SRCS 3rdparty/qxtglobalshortcut_win.cpp)
+ELSE(WIN32)
+  IF(APPLE)
+    set(global_shortcut_impl_SRCS 3rdparty/qxtglobalshortcut_mac.cpp)
+  ELSE(APPLE)
+    set(global_shortcut_impl_SRCS 3rdparty/qxtglobalshortcut_x11.cpp)
+  ENDIF(APPLE)
+ENDIF(WIN32)
+
+  
+
+set(3rdparty_SRCS
+  3rdparty/dotnetstyle.cpp
+  3rdparty/dotnetstyle.h
+  3rdparty/qxtglobalshortcut.cpp
+  3rdparty/qxtglobalshortcut.h
+  3rdparty/qxtglobalshortcut_p.h
+  3rdparty/qxtglobal.h
+  ${global_shortcut_impl_SRCS}
+)
+
+qt4_automoc(${fqterm_SRCS}
+            ${3rdparty_SRCS}
+)
 
 qt4_create_translation(fqterm_qm_file
   ${fqterm_SRCS}
@@ -34,12 +61,14 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/../utilities
   ${CMAKE_CURRENT_SOURCE_DIR}/../unite
   ${CMAKE_CURRENT_SOURCE_DIR}/../ui
+  ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
   ${CMAKE_CURRENT_BINARY_DIR}/../ui
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 add_library(fqterm_main
   ${fqterm_SRCS}
+  ${3rdparty_SRCS}
 )
 
 add_dependencies(fqterm_main

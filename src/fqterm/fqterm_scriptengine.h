@@ -100,7 +100,7 @@ public slots: //script apis
 
   void setMenuRect(int row, int col, int len);
 
-  bool import(const QString& filename);
+  bool importFile(const QString& filename);
 
   bool isAntiIdle();
   bool isAutoReply();

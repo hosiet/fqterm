@@ -71,6 +71,7 @@
 #include <QTextCodec>
 
 #include "fqterm.h"
+#include "fqterm_app.h"
 #include "fqterm_frame.h"
 #include "fqterm_path.h"
 #include "fqterm_trace.h"

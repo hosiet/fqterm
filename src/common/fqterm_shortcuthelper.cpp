@@ -107,7 +107,7 @@ void FQTermShortcutHelper::initShortcutDescriptionTable()
 #ifdef HAVE_PYTHON
   initShortcutDescriptionTableEntry(RUNPYTHONSCRIPT, "runpythonscript", tr("Ctrl+F1"), tr("Run Python Script")); 
 #endif //HAVE_PYTHON
-  initShortcutDescriptionTableEntry(ABOUT, "about", tr("F1"), tr("About"));  
+  initShortcutDescriptionTableEntry(ABOUT, "about", tr("Shift+F1"), tr("About"));  
   initShortcutDescriptionTableEntry(HOMEPAGE, "homepage", tr(""), tr("Homepage"));  
   initShortcutDescriptionTableEntry(EXIT, "exit", tr(""), tr("Exit FQTerm")); 
   initShortcutDescriptionTableEntry(COLORCTL_NO, "colorctlno", tr(""), tr("Set Color Ctrl to None")); 
@@ -116,8 +116,10 @@ void FQTermShortcutHelper::initShortcutDescriptionTable()
   getAction(COLORCTL_SMTH)->setCheckable(true);
   initShortcutDescriptionTableEntry(COLORCTL_PTT, "colorctlptt", tr(""), tr("Set Color Ctrl to ^u[")); 
   getAction(COLORCTL_PTT)->setCheckable(true);
+  initShortcutDescriptionTableEntry(COLORCTL_OLD_CUSTOM, "colorctloldcustom", tr(""), tr("Set Color Ctrl to old custom")); 
+  getAction(COLORCTL_OLD_CUSTOM)->setCheckable(true);
   initShortcutDescriptionTableEntry(COLORCTL_CUSTOM, "colorctlcustom", tr(""), tr("Set Color Ctrl to custom")); 
-  getAction(COLORCTL_CUSTOM)->setCheckable(true);
+  getAction(COLORCTL_CUSTOM)->setCheckable(false);
   initShortcutDescriptionTableEntry(AUTORECONNECT, "autoreconnect", tr(""), tr("Toggle Auto Reconnect"), "auto_reconnect"); 
   getAction(AUTORECONNECT)->setCheckable(true);
   initShortcutDescriptionTableEntry(SCROLLBAR_LEFT, "scrollbarleft", tr(""), tr("Set Scrollbar to Left")); 
@@ -137,68 +139,80 @@ void FQTermShortcutHelper::initShortcutDescriptionTable()
 
   initShortcutDescriptionTableEntry(NEXTWINDOW, "nextwindow", opt + tr("+Right"), tr("Next Window"));
   initShortcutDescriptionTableEntry(PREVWINDOW, "prevwindow", opt + tr("+Left"), tr("Prev Window"));
+
+  initShortcutDescriptionTableEntry(GLOBAL_SHOW_FQTERM, "showfqterm", tr("Ctrl+Alt+Q"), tr("Show FQTerm"));
   //index, key, default shortcut, descritption
 
   retranslateActions();
 }
 
+void FQTermShortcutHelper::retranslateAction(int shortcut, const QString& text)
+{
+  if (getAction(shortcut))
+    getAction(shortcut)->setText(text);
+}
+
 void FQTermShortcutHelper::retranslateActions() {
-  getAction(CONNECT)->setText(tr("&Connect"));
-  getAction(DISCONNECT)->setText(tr("&Disconnect"));
-  getAction(ADDRESSBOOK)->setText(tr("&Address book"));
-  getAction(QUICKLOGIN)->setText(tr("&Quick login"));
-  getAction(COPY)->setText(tr("&Copy"));
-  getAction(PASTE)->setText(tr("&Paste"));
-  getAction(COPYWITHCOLOR)->setText(tr("C&opy with color"));
-  getAction(RECTANGLESELECTION)->setText(tr("&Rectangle select"));
-  getAction(AUTOCOPYSELECTION)->setText(tr("Auto copy &select"));
-  getAction(PASTEWORDWRAP)->setText(tr("P&aste with wordwrap"));
-  getAction(ENGLISHFONT)->setText(tr("&English Font"));
-  getAction(NONENGLISHFONT)->setText(tr("&Non-English Font"));
-  getAction(COLORSETTING)->setText(tr("&Color Setting"));
-  getAction(ANSICOLOR)->setText(tr("&Use ANSI Color"));
-  getAction(REFRESHSCREEN)->setText(tr("&Refresh"));
-  getAction(UIFONT)->setText(tr("U&I font"));
-  getAction(FULLSCREEN)->setText(tr("Fullscree&n"));
-  getAction(BOSSCOLOR)->setText(tr("B&oss Color"));
-  getAction(SWITCHBAR)->setText(tr("S&witch Bar"));
-  getAction(GOOGLEIT)->setText(tr("&Google It"));
-  getAction(EXTERNALEDITOR)->setText(tr("E&xternal Editor"));
-  getAction(FASTPOST)->setText(tr("&Fast Post"));
-  getAction(CURRENTSETTING)->setText(tr("&Setting for current session"));
-  getAction(DEFAULTSETTING)->setText(tr("&Default setting"));
-  getAction(PREFERENCE)->setText(tr("&Preferences..."));
-  getAction(SHORTCUTSETTING)->setText(tr("Short&cut Setting"));
-  getAction(EDITSCHEMA)->setText(tr("&Edit Schema"));
-  getAction(COPYARTICLE)->setText(tr("&Copy article"));
-  getAction(ANTIIDLE)->setText(tr("Anti &idle"));
-  getAction(AUTOREPLY)->setText(tr("Auto &reply"));
-  getAction(VIEWMESSAGE)->setText(tr("&View messages"));
-  getAction(IPLOOKUP)->setText(tr("I&P Lookup"));
-  getAction(BEEP)->setText(tr("&Beep"));
-  getAction(MOUSESUPPORT)->setText(tr("&Mouse support"));
-  getAction(IMAGEVIEWER)->setText(tr("Ima&ge viewer"));
-  getAction(RUNSCRIPT)->setText(tr("&Run..."));
-  getAction(STOPSCRIPT)->setText(tr("&Stop"));
-  getAction(RUNPYTHONSCRIPT)->setText(tr("Run &Python..."));
-  getAction(ABOUT)->setText(tr("About &FQTerm"));
-  getAction(HOMEPAGE)->setText(tr("FQTerm's &Homepage"));
-  getAction(CASCADEWINDOWS)->setText(tr("&Cascade"));
-  getAction(TILEWINDOWS)->setText(tr("&Tile"));
-  getAction(EXIT)->setText(tr("&Exit"));
-  getAction(COLORCTL_NO)->setText(tr("&None"));
-  getAction(COLORCTL_SMTH)->setText(tr("&ESC ESC ["));
-  getAction(COLORCTL_PTT)->setText(tr("Ctrl+&U ["));
-  getAction(COLORCTL_CUSTOM)->setText(tr("&Custom.."));
-  getAction(AUTORECONNECT)->setText(tr("Reconnect When Disconnected By Host"));
-  getAction(NEXTWINDOW)->setText(tr("Next Window"));
-  getAction(PREVWINDOW)->setText(tr("Prev Window"));
+  retranslateAction(CONNECT, tr("&Connect"));
+  retranslateAction(DISCONNECT, tr("&Disconnect"));
+  retranslateAction(ADDRESSBOOK, tr("&Address book"));
+  retranslateAction(QUICKLOGIN, tr("&Quick login"));
+  retranslateAction(COPY, tr("&Copy"));
+  retranslateAction(PASTE, tr("&Paste"));
+  retranslateAction(COPYWITHCOLOR, tr("C&opy with color"));
+  retranslateAction(RECTANGLESELECTION, tr("&Rectangle select"));
+  retranslateAction(AUTOCOPYSELECTION, tr("Auto copy &select"));
+  retranslateAction(PASTEWORDWRAP, tr("P&aste with wordwrap"));
+  retranslateAction(ENGLISHFONT, tr("&English Font"));
+  retranslateAction(NONENGLISHFONT, tr("&Non-English Font"));
+  retranslateAction(COLORSETTING, tr("&Color Setting"));
+  retranslateAction(ANSICOLOR, tr("&Use ANSI Color"));
+  retranslateAction(REFRESHSCREEN, tr("&Refresh"));
+  retranslateAction(UIFONT, tr("U&I font"));
+  retranslateAction(FULLSCREEN, tr("Fullscree&n"));
+  retranslateAction(BOSSCOLOR, tr("B&oss Color"));
+  retranslateAction(SWITCHBAR, tr("S&witch Bar"));
+  retranslateAction(GOOGLEIT, tr("&Google It"));
+  retranslateAction(EXTERNALEDITOR, tr("E&xternal Editor"));
+  retranslateAction(FASTPOST, tr("&Fast Post"));
+  retranslateAction(CURRENTSETTING, tr("&Setting for current session"));
+  retranslateAction(DEFAULTSETTING, tr("&Default setting"));
+  retranslateAction(PREFERENCE, tr("&Preferences..."));
+  retranslateAction(SHORTCUTSETTING, tr("Short&cut Setting"));
+  retranslateAction(EDITSCHEMA, tr("&Edit Schema"));
+  retranslateAction(COPYARTICLE, tr("&Copy article"));
+  retranslateAction(ANTIIDLE, tr("Anti &idle"));
+  retranslateAction(AUTOREPLY, tr("Auto &reply"));
+  retranslateAction(VIEWMESSAGE, tr("&View messages"));
+  retranslateAction(IPLOOKUP, tr("I&P Lookup"));
+  retranslateAction(BEEP, tr("&Beep"));
+  retranslateAction(MOUSESUPPORT, tr("&Mouse support"));
+  retranslateAction(IMAGEVIEWER, tr("Ima&ge viewer"));
+  retranslateAction(RUNSCRIPT, tr("&Run..."));
+  retranslateAction(STOPSCRIPT, tr("&Stop"));
+  retranslateAction(RUNPYTHONSCRIPT, tr("Run &Python..."));
+  retranslateAction(ABOUT, tr("About &FQTerm"));
+  retranslateAction(HOMEPAGE, tr("FQTerm's &Homepage"));
+  retranslateAction(CASCADEWINDOWS, tr("&Cascade"));
+  retranslateAction(TILEWINDOWS, tr("&Tile"));
+  retranslateAction(EXIT, tr("&Exit"));
+  retranslateAction(COLORCTL_NO, tr("&None"));
+  retranslateAction(COLORCTL_SMTH, tr("&ESC ESC ["));
+  retranslateAction(COLORCTL_PTT, tr("Ctrl+&U["));
+  retranslateAction(COLORCTL_CUSTOM, tr("&Custom..."));
+  retranslateAction(AUTORECONNECT, tr("Reconnect When Disconnected By Host"));
+  retranslateAction(NEXTWINDOW, tr("Next Window"));
+  retranslateAction(PREVWINDOW, tr("Prev Window"));
+  retranslateAction(LANGUAGE_ENGLISH, tr("&English"));
+  retranslateAction(SCROLLBAR_HIDDEN, tr("&Hide"));
+  retranslateAction(SCROLLBAR_RIGHT, tr("&Right"));
+  retranslateAction(SCROLLBAR_LEFT, tr("&Left"));
 }
 
 
 void FQTermShortcutHelper::resetAllShortcutText()
 {
-  for (int i = FQTERM_SHORTCUT_ZERO_GUARD + 1; i < FQTERM_SHORTCUT_MAX_GUARD; ++i)
+  for (int i = FQTERM_APPLICATION_SHORTCUT_START + 1; i < FQTERM_APPLICATION_SHORTCUT_END; ++i)
   {
     resetShortcutText(i);
   }
@@ -219,7 +233,8 @@ void FQTermShortcutHelper::setShortcutText(int shortcut, const QString& text)
   if (val == "")
     val = "Undefined";
   setShortcutConfig(shortcut, val);
-  getAction(shortcut)->setShortcut(val);
+  if (getAction(shortcut))
+    getAction(shortcut)->setShortcut(val);
 }
 
 FQTermShortcutHelper::~FQTermShortcutHelper()

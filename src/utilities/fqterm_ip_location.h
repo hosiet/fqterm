@@ -28,20 +28,18 @@ class QString;
 
 namespace FQTerm {
 
-#define DEFAULT_IP_LOCATION_FILE "QQWry.dat"
+#define MAX_RECURSIVE_IP_DATA_DEPTH 100
 
 typedef unsigned long uint32;
 
 
 class FQTermIPLocation {
 public:
-
   static FQTermIPLocation* getInstance();
   static void Destroy();
 
   bool getLocation(QString &url, QString &country, QString &city);
-  bool ipDataBaseAvailable();
-
+  bool getLocation(QString &url, QByteArray &country, QByteArray &city);
 
 private:
   struct IPDatabase {
@@ -57,10 +55,10 @@ private:
   ~FQTermIPLocation();
   uint32 byteArrayToInt(char *ip, int count);
   void readFrom(FILE *fp, uint32 offset, char *buf, int len);
-  int readLineFrom(FILE *fp, uint32 offset, QString &ret_str);
-  uint32 getString(FILE *fp, uint32 offset, uint32 lastoffset, QString &str,
-    unsigned int flag);
-  void getCountryCity(FILE *fp, uint32 offset, QString &country, QString &city);
+  int readLineFrom(FILE *fp, uint32 offset, QByteArray &ret_str);
+  uint32 getString(FILE *fp, uint32 offset, uint32 lastoffset, QByteArray &str,
+    unsigned int flag, int maxRecursiveDepth = MAX_RECURSIVE_IP_DATA_DEPTH);
+  void getCountryCity(FILE *fp, uint32 offset, QByteArray &country, QByteArray &city);
   void setIpRange(int rec_no, IPDatabase *f);
 
 

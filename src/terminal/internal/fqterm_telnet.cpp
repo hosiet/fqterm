@@ -193,7 +193,7 @@ FQTermTelnet::FQTermTelnet(const QString &strTermType, int rows, int columns,
     term[i] = '\000';
   }
   // TODO: clean up, need???
-  sprintf(term, strTermType.toLatin1());
+  snprintf(term, sizeof(term), "%s", strTermType.toLatin1().constData());
 
   wx = columns;
   wy = rows;

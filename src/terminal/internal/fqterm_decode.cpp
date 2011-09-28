@@ -76,7 +76,7 @@ StateOption FQTermDecode::VT100StateMachine::esc_state_[] =  {
   }, {
     '[', &FQTermDecode::clearParam, bracket_state_
   }, {
-    ']', 0, title_state_
+    ']', &FQTermDecode::clearParam, title_state_
   }, {
     '(', 0, select_g0_charset_state_
   }, {
@@ -282,9 +282,31 @@ StateOption FQTermDecode::VT100StateMachine::sharp_state_[] =  {
 // Currently we just ignore this.
 StateOption FQTermDecode::VT100StateMachine::title_state_[] =  {
   {
-    CHAR_BELL, 0, normal_state_
+    '0', &FQTermDecode::paramDigit, title_state_
   }, {
-    CHAR_NORMAL, 0, title_state_
+    '1', &FQTermDecode::paramDigit, title_state_
+  }, {
+    '2', &FQTermDecode::paramDigit, title_state_
+  }, {
+    '4', &FQTermDecode::paramDigit, title_state_
+  }, {
+    '5', &FQTermDecode::paramDigit, title_state_
+  }, {
+    '6', &FQTermDecode::paramDigit, title_state_
+  }, {
+    ';', &FQTermDecode::clearText, title_text_state_
+  }, {
+    CHAR_NORMAL, 0, normal_state_
+  }
+};
+
+StateOption FQTermDecode::VT100StateMachine::title_text_state_[] = {
+  {
+    CHAR_ESC, 0, esc_state_
+  }, {
+    CHAR_BELL, &FQTermDecode::setTitle, normal_state_
+  }, {
+    CHAR_NORMAL, &FQTermDecode::collectText, title_state_
   }
 };
 
@@ -1206,6 +1228,47 @@ void FQTermDecode::logParam() const {
 void FQTermDecode::onCaretChangeRow() {
   leftToDecode_.clear();
 }
+
+void FQTermDecode::setTitle() {
+  if (!isParamAvailable_) {
+    return;
+  }
+  switch(param_[0])
+  {
+  case 0:
+    //icon and text
+    break;
+  case 1:
+    //icon
+    break;
+  case 2:
+    //text
+    emit onTitleSet(bbs2unicode(textParam_));
+    break;
+  case 46:
+    //log file
+    break;
+  case 50:
+    //font
+    break;
+  default:
+    break;
+  }
+}
+
+void FQTermDecode::collectText() {
+  FQ_FUNC_TRACE("ansi", 10);
+  if (textParam_.length() < 4096)
+    textParam_ += inputData_[dataIndex_];
+}
+
+void FQTermDecode::clearText() {
+  FQ_FUNC_TRACE("ansi", 10);
+  textParam_.clear();
+}
+
+
+
 
 }  // namespace FQTerm
 

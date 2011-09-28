@@ -30,7 +30,7 @@ shortcut0=
 shortcut1=Ctrl+Alt+R
 
 [preference]
-antialias=0
+antialias=1
 beep=1
 blinktab=1
 clearpool=0

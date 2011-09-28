@@ -117,14 +117,15 @@ class FQTermWindow : public QMainWindow,
   FQTermScreen * getScreen() const {return screen_;}
   QPoint getUrlStartPoint() const { return urlStartPoint_; }
   QPoint getUrlEndPoint() const { return urlEndPoint_; }
-public:
+
   //FQTermScriptEventListener
+private:
   virtual bool postQtScriptCallback(const QString& func, const QScriptValueList & args = QScriptValueList());
 #ifdef HAVE_PYTHON
-  virtual bool postPythonCallback(const QString& func, PyObject* pArgs) {
-    return pythonCallback(func, pArgs);
-  }
+  virtual bool postPythonCallback(const QString& func, PyObject* pArgs);
 #endif //HAVE_PYTHON
+
+public:
   virtual long windowID() {return long(this);}
   //end FQTermScriptEventListener
 
@@ -153,6 +154,7 @@ signals:
   void beep();
   void startBlink();
   void stopBlink();
+  void onTitleSet(const QString& title);
 
   void connectionClosed();
 
