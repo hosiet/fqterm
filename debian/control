@@ -5,7 +5,7 @@ Maintainer: Debian Chinese Team <chinese-developers@lists.alioth.debian.org>
 Uploaders:
  LI Daobing <lidaobing@debian.org>
 Build-Depends: cdbs, debhelper (>= 5), libqt4-dev, cmake,
- libglib2.0-dev, libssl-dev
+ libglib2.0-dev, libssl-dev, libx11-dev
 Standards-Version: 3.9.2
 Homepage: http://code.google.com/p/fqterm
 Vcs-Browser: http://git.debian.org/?p=chinese/fqterm.git

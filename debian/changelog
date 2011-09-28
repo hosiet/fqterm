@@ -5,8 +5,9 @@ fqterm (0.9.6.9-1) natty; urgency=low
     - update description (closes: #602603)
     - team maintain.
     - bump standards version to 3.8.4.
+    - build depends on libx11-dev. 
 
- -- LI Daobing <lidaobing@debian.org>  Wed, 28 Sep 2011 23:41:50 +0800
+ -- LI Daobing <lidaobing@debian.org>  Wed, 28 Sep 2011 23:51:06 +0800
 
 fqterm (0.9.6.8-1) unstable; urgency=low
 
