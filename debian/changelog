@@ -3,8 +3,9 @@ fqterm (0.9.6.9-1) natty; urgency=low
   * new upstream release. (closes: #558722, #643379)
   * debian/control:
     - update description (closes: #602603)
+    - team maintain. 
 
- -- LI Daobing <lidaobing@debian.org>  Wed, 28 Sep 2011 23:38:48 +0800
+ -- LI Daobing <lidaobing@debian.org>  Wed, 28 Sep 2011 23:41:07 +0800
 
 fqterm (0.9.6.8-1) unstable; urgency=low
 
