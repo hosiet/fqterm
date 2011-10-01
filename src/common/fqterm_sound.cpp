@@ -32,11 +32,8 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 
-#ifdef _OS_FREEBSD_
+#if defined(_OS_FREEBSD_) || defined(_OS_LINUX_)
 #include <sys/soundcard.h>
-#define FQ_AUDIO_DEV    "/dev/dsp"
-#elif defined _OS_LINUX_
-#include <linux/soundcard.h>
 #define FQ_AUDIO_DEV    "/dev/dsp"
 #else
 #include <machine/soundcard.h>
