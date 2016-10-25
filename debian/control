@@ -3,18 +3,26 @@ Section: x11
 Priority: optional
 Maintainer: Debian Chinese Team <chinese-developers@lists.alioth.debian.org>
 Uploaders:
- LI Daobing <lidaobing@debian.org>
-Build-Depends: cdbs, debhelper (>= 5), libqt4-dev, cmake,
- libglib2.0-dev, libssl-dev, libx11-dev
-Standards-Version: 3.9.2
-Homepage: http://code.google.com/p/fqterm
-Vcs-Browser: http://git.debian.org/?p=chinese/fqterm.git
-Vcs-Git: git://git.debian.org/git/chinese/fqterm.git
+ Boyuan Yang <073plan@gmail.com>,
+Build-Depends:
+ cdbs,
+ cmake,
+ debhelper (>= 5),
+ libglib2.0-dev,
+ libqt4-dev,
+ libssl-dev (<< 1.1.0),
+ libx11-dev,
+Standards-Version: 3.9.8
+Homepage: https://github.com/mytbk/fqterm
+Vcs-Browser: https://anonscm.debian.org/git/chinese/fqterm.git
+Vcs-Git: https://anonscm.debian.org/git/git/chinese/fqterm.git
 
 Package: fqterm
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: BBS client written in QT4
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+Description: BBS client written in Qt
  FQTerm is one of the most widely used BBS client in China, it
  supports Telnet/SSH1/SSH2 protocols and can process ANSI control
  sequences. It can be used to login BBS sites or *NIX hosts.

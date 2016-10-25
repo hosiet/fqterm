@@ -1,3 +1,22 @@
+fqterm (0.9.8.3.r4-1) unstable; urgency=medium
+
+  * Team upload.
+  * Add myself into uploaders list.
+  * New upstream release.
+    - Fix build failure with GCC 6. (Closes: #811872)
+  * Remove LI Daobing from uploader list.
+    Thanks for all your contribution! (Closes: #841806)
+  * Bump Standards-Version to 3.9.8, no change needed.
+  * d/control: Move project homepage from Google Code to GitHub.
+  * d/control: Fix debian/watch file url.
+  * d/control: Make Vcs field canonical.
+  * d/copyright: Update information and grammar fix.
+  * debian: Remove legacy menu file.
+  * debian: Apply `wrap-and-sort -abst'.
+  * d/patches: Drop outdated gcc-4.7 related patch.
+
+ -- Boyuan Yang <073plan@gmail.com>  Wed, 26 Oct 2016 00:49:00 +0800
+
 fqterm (0.9.6.10-1.1) unstable; urgency=low
 
   * Non maintainer upload.
