@@ -18,6 +18,8 @@
  *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
+
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -68,8 +70,13 @@
 #include "sshlogindialog.h"
 #include "statusBar.h"
 #include "zmodemdialog.h"
+#ifdef HAVE_PYTHON
+#include <Python.h>
 #include "fqterm_python.h"
+#endif //HAVE_PYTHON
 #include "fqterm_scriptengine.h"
+
+
 namespace FQTerm {
 
 char FQTermWindow::directions_[][5] =  {
@@ -84,7 +91,7 @@ char FQTermWindow::directions_[][5] =  {
   "\x1b[D",  // 6 LEFT
   "\x1b[C" // 7 RIGHT
 };
-
+/*
 class FAQ: public QObject {
   Q_OBJECT;
  public slots:
@@ -95,12 +102,12 @@ class FAQ: public QObject {
  private:
   int a;
 };
-
+*/
 
 //constructor
 FQTermWindow::FQTermWindow(FQTermConfig *config, FQTermFrame *frame, FQTermParam param,
                            int addressIndex, QWidget *parent,
-                           const char *name, Qt::WFlags wflags)
+                           const char *name, Qt::WindowFlags wflags)
     : QMainWindow(parent, wflags),
       frame_(frame),
       isSelecting_(false),
@@ -262,7 +269,8 @@ void FQTermWindow::addMenu() {
   urlMenu_->addAction(tr("Open link"), this, SLOT(openLink()));
   urlMenu_->addAction(tr("Save As..."), this, SLOT(saveLink()));
   urlMenu_->addAction(tr("Copy link address"), this, SLOT(copyLink()));
-
+  urlMenu_->addSeparator();
+  urlMenu_->addAction(tr("Share Selected Text and URL!"), this, SLOT(shareIt()));
   const QString &resource_dir = getPath(RESOURCE);
 
   menu_ = new QMenu(screen_);
@@ -302,7 +310,8 @@ void FQTermWindow::addMenu() {
                    this, SLOT(setting()));
   menu_->addSeparator();
   menu_->addAction(tr("Open Selected As Url"), this, SLOT(openAsUrl()));
-  menu_->addAction(tr("Google Selected Text!"), this, SLOT(googleIt()));
+  menu_->addAction(tr("Search Selected Text!"), this, SLOT(searchIt()));
+  menu_->addAction(tr("Share Selected Text and URL!"), this, SLOT(shareIt()));
 }
 
 void FQTermWindow::recreateMenu() {
@@ -313,19 +322,24 @@ void FQTermWindow::recreateMenu() {
 
 //close event received
 void FQTermWindow::closeEvent(QCloseEvent *clse) {
+  bool toClose = true;
   if (isConnected() && FQTermPref::getInstance()->openWarnOnClose_) {
     QMessageBox mb(tr("FQTerm"),
                    tr("Still connected, do you really want to exit?"),
                    QMessageBox::Warning, QMessageBox::Yes|QMessageBox::Default,
                    QMessageBox::No | QMessageBox::Escape, 0, this);
-    if (mb.exec() == QMessageBox::Yes) {
-      session_->close();
-    } else {
-      clse->ignore();
-      return;
+    if (mb.exec() != QMessageBox::Yes) {
+      toClose = false;
     }
   }
-  saveSetting();
+  if (toClose) {
+    session_->close();
+  } else {
+    clse->ignore();
+    return;
+  }
+  //We no longer save setting on close from r1036.
+  //saveSetting();
 }
 
 void FQTermWindow::blinkTab() {
@@ -577,7 +591,7 @@ void FQTermWindow::wheelEvent(QWheelEvent *wheelevent) {
   int j = wheelevent->delta() > 0 ? 4 : 5;
   if (!(wheelevent->modifiers())) {
     if (FQTermPref::getInstance()->isWheelSupported_ && isConnected()) {
-      session_->write(directions_[j], sizeof(directions_[j]));
+      session_->writeStr(directions_[j]);
     }
     return ;
   }
@@ -600,6 +614,8 @@ void FQTermWindow::keyPressEvent(QKeyEvent *keyevent) {
   if (!isConnected()) {
     if (keyevent->key() == Qt::Key_Return || keyevent->key() == Qt::Key_Enter) {
       session_->reconnect();
+    } else if (keyevent->key() == Qt::Key_Space) {
+        emit(connectionClosed(this));
     }
     return ;
   }
@@ -924,15 +940,26 @@ void FQTermWindow::openAsUrl() {
   openUrl(selected_text);
 }
 
-void FQTermWindow::googleIt()
+void FQTermWindow::searchIt()
 {
-	QString selected_text = session_->getBuffer()->getTextSelected(
-		session_->param().isRectSelect_,
-		session_->param().isColorCopy_,
-		parseString((const char*)session_->param().escapeString_.toLatin1()));
-	QString googleUrl = "http://www.google.com/search?client=fqterm&rls=en&q=" + selected_text + "&sourceid=fqterm";
-	QByteArray url = QUrl(googleUrl).toEncoded();
-	openUrlImpl(url);
+  script_engine_->runScript(getPath(RESOURCE) + "script/search.js");
+  QScriptValueList qvl;
+  qvl << FQTermPref::getInstance()->searchEngine_;
+  if (!script_engine_->scriptCallback("searchSelected", qvl)) {
+    //fall back to google.
+    QString selected_text = session_->getBuffer()->getTextSelected(
+      session_->param().isRectSelect_,
+      session_->param().isColorCopy_,
+      parseString((const char*)session_->param().escapeString_.toLatin1()));
+    QString searchUrl = "http://www.google.com/search?client=fqterm&rls=en&q=" + selected_text + "&sourceid=fqterm";
+    QByteArray url = QUrl(searchUrl).toEncoded();
+    openUrlImpl(url);
+  }
+}
+
+void FQTermWindow::shareIt()
+{
+  script_engine_->runScript(getPath(RESOURCE) + "script/weiboshare.js");
 }
 
 void FQTermWindow::fastPost()
@@ -1046,7 +1073,7 @@ void FQTermWindow::runScript() {
   QStringList fileList;
   FQTermFileDialog fileDialog(config_);
 
-  fileList = fileDialog.getOpenNames("Choose a JAVA script file", "JavaScript File (*.js)");
+  fileList = fileDialog.getOpenNames("Choose a Javascript file", "JavaScript File (*.js)");
 
   if (!fileList.isEmpty() && fileList.count() == 1) {
     runScript(fileList.at(0));
@@ -1648,7 +1675,6 @@ void FQTermWindow::getHttpHelper(const QString &url, bool preview) {
     bool auth = getSession()->param().isAuthentation_;
     QString user = auth ? getSession()->param().proxyUserName_ : QString();
     QString pass = auth ? getSession()->param().proxyPassword_ : QString();
-    int ret = 0;
     switch (getSession()->param().proxyType_)
     {
     case 1:
@@ -1657,10 +1683,10 @@ void FQTermWindow::getHttpHelper(const QString &url, bool preview) {
       FQ_TRACE("network", 0) << "proxy type not supported by qt, download will not use proxy.";
       break;
     case 3:
-      ret = http->setProxy(QNetworkProxy(QNetworkProxy::Socks5Proxy, host, port, user, pass));
+      http->setProxy(QNetworkProxy(QNetworkProxy::Socks5Proxy, host, port, user, pass));
       break;
     case 4:
-      ret = http->setProxy(QNetworkProxy(QNetworkProxy::HttpProxy, host, port, user, pass));
+      http->setProxy(QNetworkProxy(QNetworkProxy::HttpProxy, host, port, user, pass));
       break;
     }
   }
@@ -1776,7 +1802,7 @@ void FQTermWindow::startBlink() {
 void FQTermWindow::stopBlink() {
   if (tabBlinkTimer_->isActive()) {
     tabBlinkTimer_->stop();
-    emit blinkTheTab(this, TRUE);
+    emit blinkTheTab(this, true);
   }
 }
 
@@ -1878,12 +1904,12 @@ void FQTermWindow::processLClick(const QPoint& cellClicked) {
     case FQTermSession::kEnd:
     case FQTermSession::kPageUp:
     case FQTermSession::kPageDown:
-      session_->write(directions_[cursorType], 4);
+      session_->writeStr(directions_[cursorType]);
       break;
     case FQTermSession::kUp:
     case FQTermSession::kDown:
     case FQTermSession::kLeft:
-      session_->write(directions_[cursorType], 3);
+      session_->writeStr(directions_[cursorType]);
       break;
     case FQTermSession::kRight:  //Hand
       enterMenuItem();
@@ -2272,8 +2298,8 @@ void FQTermWindow::updateSetting(const FQTermParam& param) {
                        QFont(param.englishFontName_,
                              param.englishFontSize_));
   screen_->setTermFont(false,
-                       QFont(param.nonEnglishFontName_,
-                             param.nonEnglishFontSize_));
+                       QFont(param.otherFontName_,
+                             param.otherFontSize_));
   screen_->setSchema();
 
   setWindowTitle(param.name_);
@@ -2290,8 +2316,8 @@ void FQTermWindow::setFont()
 
 void FQTermWindow::setFont(bool isEnglish) {
   bool ok;
-  QString& fontName = isEnglish?session_->param().englishFontName_:session_->param().nonEnglishFontName_;
-  int& fontSize = isEnglish?session_->param().englishFontSize_:session_->param().nonEnglishFontSize_;
+  QString& fontName = isEnglish?session_->param().englishFontName_:session_->param().otherFontName_;
+  int& fontSize = isEnglish?session_->param().englishFontSize_:session_->param().otherFontSize_;
   QFont font(fontName, fontSize);
   font = QFontDialog::getFont(&ok, font, this, tr("Font Selector")
 #ifdef __APPLE__
@@ -2308,6 +2334,7 @@ void FQTermWindow::setFont(bool isEnglish) {
     forcedRepaintScreen();
   }
 }
+
 
 void FQTermWindow::runScript(const QString &filename) {
   script_engine_->runScript(filename);
@@ -2401,7 +2428,9 @@ bool FQTermWindow::scriptWheelEvent( QWheelEvent *wheelevent ) {
   return res;
 }
 
-FQTermExternalEditor::FQTermExternalEditor(QObject* parent) 
+const QString FQTermExternalEditor::textEditName_ =  "external editor input";
+
+FQTermExternalEditor::FQTermExternalEditor(QWidget* parent) 
 : QObject(parent),
   editorProcess_(NULL),
   started_(false) {
@@ -2417,9 +2446,48 @@ FQTermExternalEditor::~FQTermExternalEditor() {
   delete editorProcess_;
 }
 
+void FQTermExternalEditor::execDialog() {
+  QDialog *dialog = new QDialog((QWidget *)parent());
+  QGridLayout *layout = new QGridLayout(dialog);
+  QTextEdit *text = new QTextEdit(dialog);
+  text->setObjectName(textEditName_);
+  layout->addWidget(text);
+  QBoxLayout  *rowLayout = new QBoxLayout(QBoxLayout::LeftToRight, dialog);
+  layout->addLayout(rowLayout, 1, 0, Qt::AlignHCenter);
+  QPushButton *ok = new QPushButton(tr("OK"), dialog);
+  QPushButton *cancel = new QPushButton(tr("Cancel"), dialog);
+  rowLayout->addWidget(ok);
+  rowLayout->addWidget(cancel);
+  FQ_VERIFY(connect(ok, SIGNAL(clicked()),
+    dialog, SLOT(accept())));
+  FQ_VERIFY(connect(cancel, SIGNAL(clicked()),
+    dialog, SLOT(reject())));
+  FQ_VERIFY(connect(dialog, SIGNAL(accepted()),
+    this, SLOT(readDialogData())));
+  FQ_VERIFY(connect(dialog, SIGNAL(rejected()),
+    this, SLOT(closeDialog())));
+  dialog->setModal(true);
+  dialog->exec();
+}
+
+void FQTermExternalEditor::readDialogData() {
+  QDialog *dialog = (QDialog*)sender();
+  QTextEdit* edit = (QTextEdit*)dialog->findChild<QTextEdit*>(textEditName_);
+  if (edit) {
+    emit done(edit->toPlainText());
+  }
+  closeDialog();
+}
+
+void FQTermExternalEditor::closeDialog() {
+  sender()->deleteLater();
+}
+
 void FQTermExternalEditor::start() {
-  if (FQTermPref::getInstance()->externalEditor_.isEmpty())
+  if (FQTermPref::getInstance()->externalEditor_.isEmpty()) {
+    execDialog();
     return;
+  }
   if (started_)
     return;
   started_ = true;
@@ -2433,7 +2501,11 @@ void FQTermExternalEditor::start() {
 
 
 QString FQTermExternalEditor::getTempFilename() {
-  return getPath(USER_CONFIG) + "tmp_do_not_use.txt";
+    #ifndef WIN32
+    return "/tmp/.fqterm_tmp.txt";
+    #else
+    return getPath(USER_CONFIG) + "tmp_do_not_use.txt";
+    #endif
 }
 
 void FQTermExternalEditor::clearTempFileContent() {

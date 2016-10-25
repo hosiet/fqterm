@@ -33,9 +33,10 @@
 #include "fqterm_param.h"
 #include "fqterm_path.h"
 #include "fqterm_font.h"
+#include "../protocol/fqterm_local_socket.h"
 
 namespace FQTerm {
-
+QString* FQTermLocalSocket::shell_bin_ = NULL;
 static QString getUserDataDir();
 static QString getInstallPrefix();
 static QString getResourceDir(const QString &prefix);
@@ -74,7 +75,7 @@ void clearDir(const QString &path) {
 bool checkPath(const QString &path) {
   QDir dir(path);
   if (!dir.exists()) {
-    if (!dir.mkdir(path)) {
+    if (!dir.mkpath(path)) {
       FQ_TRACE("path", 0) << "Failed to create directory " << path;
       return false;
     }
@@ -126,6 +127,25 @@ bool iniSettings() {
     return false;
   }
 
+  //Copy schema files
+  if (checkPath(getPath(USER_CONFIG) + "schema")) {
+    checkFile(getPath(RESOURCE) + "schema/default.schema", 
+      getPath(USER_CONFIG) + "schema/default.schema");
+
+    checkFile(getPath(RESOURCE) + "schema/Linux.schema", 
+      getPath(USER_CONFIG) + "schema/Linux.schema");
+
+    checkFile(getPath(RESOURCE) + "schema/Softness.schema", 
+      getPath(USER_CONFIG) + "schema/Softness.schema");
+
+    checkFile(getPath(RESOURCE) + "schema/VIM.schema", 
+      getPath(USER_CONFIG) + "schema/VIM.schema");
+
+    checkFile(getPath(RESOURCE) + "schema/XTerm.schema", 
+      getPath(USER_CONFIG) + "schema/XTerm.schema");
+  }
+
+
   //read settings from fqterm.cfg
   FQTermConfig *conf = new FQTermConfig(getPath(USER_CONFIG) + "fqterm.cfg");
 
@@ -173,6 +193,12 @@ bool iniSettings() {
 
   if (!checkPath(pathPool) || !checkPath(pathCache)) {
     return false;
+  }
+
+  // fqterm local socket cmdline
+  QString externSSH = conf->getItemValue("global", "externSSH");
+  if (!externSSH.isEmpty()) {
+    FQTermLocalSocket::shell_bin_ = new QString(externSSH);
   }
 
   delete conf;
@@ -239,7 +265,13 @@ bool loadAddress(FQTermConfig *pConf, int n, FQTermParam &param) {
   strTmp = pConf->getItemValue(strSection, "bbscode");
   param.serverEncodingID_ = strTmp.toInt();
   strTmp = pConf->getItemValue(strSection, "autofont");
-  param.isFontAutoFit_ = (strTmp != "0");
+  if (strTmp == "0") {
+    param.isFontAutoFit_ = 0;
+  } else if (strTmp == "2") {
+    param.isFontAutoFit_ = 2;
+  } else {
+    param.isFontAutoFit_ = 1;
+  }
   strTmp = pConf->getItemValue(strSection, "alwayshighlight");
   param.isAlwaysHighlight_ = (strTmp != "0");
   strTmp = pConf->getItemValue(strSection, "ansicolor");
@@ -247,7 +279,7 @@ bool loadAddress(FQTermConfig *pConf, int n, FQTermParam &param) {
   QString language;
   QString font_name;
   QString font_size;
-  language = FQTermParam::getLanguageName(true); 
+  language = FQTermParam::getLanguageName(true, false); 
   font_name = pConf->getItemValue(strSection, language + "fontname");
   font_size = pConf->getItemValue(strSection, language + "fontsize");
   if (!font_name.isEmpty()) {
@@ -256,15 +288,34 @@ bool loadAddress(FQTermConfig *pConf, int n, FQTermParam &param) {
   if (!font_size.isEmpty()) {
     param.englishFontSize_ = font_size.toInt();
   }
-  language = FQTermParam::getLanguageName(false); 
+  //FIXME: Should be removed in next release!!!!! (Since 0.9.7)
+  if (font_name.isEmpty()) {
+    language = FQTermParam::getLanguageName(true); 
+    font_name = pConf->getItemValue(strSection, language + "fontname");
+    if (!font_name.isEmpty()) {
+      param.englishFontName_ = font_name;
+    }
+  }
+
+  language = FQTermParam::getLanguageName(false, false); 
   font_name = pConf->getItemValue(strSection, language + "fontname");
   font_size = pConf->getItemValue(strSection, language + "fontsize");
   if (!font_name.isEmpty()) {
-    param.nonEnglishFontName_ = font_name;
+    param.otherFontName_ = font_name;
   }
   if (!font_size.isEmpty()) {
-    param.nonEnglishFontSize_ = font_size.toInt();
+    param.otherFontSize_ = font_size.toInt();
   }
+
+  //FIXME: Should be removed in next release!!!!!
+  if (font_name.isEmpty()) {
+    language = FQTermParam::getLanguageName(false); 
+    font_name = pConf->getItemValue(strSection, language + "fontname");
+    if (!font_name.isEmpty()) {
+      param.englishFontName_ = font_name;
+    }
+  }
+
   param.foregroundColor_.setNamedColor(pConf->getItemValue(strSection, "fgcolor"));
   param.backgroundColor_.setNamedColor(pConf->getItemValue(strSection, "bgcolor"));
   param.schemaFileName_ = pConf->getItemValue(strSection, "schemafile");
@@ -382,18 +433,18 @@ void saveAddress(FQTermConfig *pConf, int n, const FQTermParam &param) {
 
   strTmp.setNum(param.serverEncodingID_);
   pConf->setItemValue(strSection, "bbscode", strTmp);
-  pConf->setItemValue(strSection, "autofont", param.isFontAutoFit_? "1" : "0");
+  pConf->setItemValue(strSection, "autofont", strTmp.setNum(param.isFontAutoFit_));
   pConf->setItemValue(strSection, "alwayshighlight", param.isAlwaysHighlight_ ?
                       "1" : "0");
   pConf->setItemValue(strSection, "ansicolor", param.isAnsiColor_ ? "1" : "0");
 
-  pConf->setItemValue(strSection, FQTermParam::getLanguageName(true) + "fontname", param.englishFontName_);
+  pConf->setItemValue(strSection, FQTermParam::getLanguageName(true, false) + "fontname", param.englishFontName_);
   strTmp.setNum(param.englishFontSize_);
-  pConf->setItemValue(strSection, FQTermParam::getLanguageName(true) + "fontsize", strTmp);
+  pConf->setItemValue(strSection, FQTermParam::getLanguageName(true, false) + "fontsize", strTmp);
 
-  pConf->setItemValue(strSection, FQTermParam::getLanguageName(false) + "fontname", param.nonEnglishFontName_);
-  strTmp.setNum(param.nonEnglishFontSize_);
-  pConf->setItemValue(strSection, FQTermParam::getLanguageName(false) + "fontsize", strTmp);
+  pConf->setItemValue(strSection, FQTermParam::getLanguageName(false, false) + "fontname", param.otherFontName_);
+  strTmp.setNum(param.otherFontSize_);
+  pConf->setItemValue(strSection, FQTermParam::getLanguageName(false, false) + "fontsize", strTmp);
 
   pConf->setItemValue(strSection, "alignmode", strTmp.setNum(param.alignMode_));
   pConf->setItemValue(strSection, "charspacing", strTmp.setNum(param.charSpacing_));
@@ -515,6 +566,20 @@ static QString getInstallPrefix() {
 }
 
 static QString getUserDataDir() {
+  char *evnDataDir = NULL;
+  if ((evnDataDir = getenv("FQTERM_DATADIR")) != NULL) {
+    std::string fqterm_data = evnDataDir;
+    if (fqterm_data[fqterm_data.size() - 1] != '/' 
+#ifdef WIN32
+      || fqterm_data[fqterm_data.size() - 1] != '\\'
+#endif
+      )
+      fqterm_data += '/';
+    if (fqterm_data.length() != 0) {
+      return QString::fromLocal8Bit(fqterm_data.c_str());
+    }
+  }
+
 #ifdef WIN32
   char buffer[MAX_PATH];
   SHGetFolderPath(NULL, CSIDL_APPDATA | CSIDL_FLAG_CREATE, NULL, 0, buffer);

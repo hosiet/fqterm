@@ -755,7 +755,7 @@ int col1, int col2)
   PFreal ys = slide.cy - slideWidth * sdy/2;
   PFreal dist = distance * PFREAL_ONE;
 
-  int xi = qMax((PFreal)0, (w*PFREAL_ONE/2) + fdiv(xs*h, dist+ys) >> PFREAL_SHIFT);
+  int xi = qMax((PFreal)0, ((w*PFREAL_ONE/2) + fdiv(xs*h, dist+ys)) >> PFREAL_SHIFT);
   if(xi >= w)
     return rect;
 

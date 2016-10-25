@@ -13,6 +13,10 @@ set(fqunite_internal_SRCS
   internal/article.cpp
   internal/session.h
   internal/session.cpp
+  internal/state.h
+  internal/state.cpp
+  internal/statebuilder.h
+  internal/statebuilder.cpp
 )
 
 qt4_automoc(
@@ -24,6 +28,8 @@ include_directories(
   ${QT_INCLUDE_DIR}
   ${QT_QTCORE_INCLUDE_DIR}
   ${QT_QTNETWORK_INCLUDE_DIR}
+  ${QT_QTXML_INCLUDE_DIR}
+  ${QT_QTGUI_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/internal
   ${CMAKE_CURRENT_SOURCE_DIR}/../common

@@ -39,7 +39,7 @@ namespace FQTerm{
 
 int siteDialog::ports[] = {23, 22, 22, 0};
 
-siteDialog::siteDialog(QWidget *parent_ /*= 0*/, Qt::WFlags fl /*= 0*/) 
+siteDialog::siteDialog(QWidget *parent_ /*= 0*/, Qt::WindowFlags fl /*= 0*/) 
   : QDialog(parent_, fl) {
   ui_.setupUi(this);
 
@@ -124,9 +124,9 @@ void siteDialog::previewFont() {
     + QString().setNum(param_.englishFontSize_) 
     + "pt;\"><BR>AaBbCc</body></html>");
   sample += QString("<html><body style=\" font-family:'"
-    + param_.nonEnglishFontName_ + "'; font-size:" 
-    + QString().setNum(param_.nonEnglishFontSize_) + "pt;\">"
-    + param_.nonEnglishFontName_ + "<BR></body></html>");
+    + param_.otherFontName_ + "'; font-size:" 
+    + QString().setNum(param_.otherFontSize_) + "pt;\">"
+    + param_.otherFontName_ + "<BR></body></html>");
   ui_.fontPreviewer->setText(sample);
 }
 

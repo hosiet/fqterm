@@ -18,16 +18,6 @@
  *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
-#include <QString>
-#include <QApplication>
-#include <QFileInfo>
-#include <QFileDialog>
-#include <QMessageBox>
-#include <QDataStream>
-#include <QUrl>
-#include <QRegExp>
-#include <QNetworkProxy>
-
 #include "fqterm.h"
 #include "fqterm_path.h"
 #include "fqterm_http.h"
@@ -40,28 +30,21 @@ QMap<QString, int> FQTermHttp::downloadMap_;
 QMutex FQTermHttp::mutex_;
 
 FQTermHttp::FQTermHttp(FQTermConfig *config, QWidget *p, const QString &poolDir, int serverEncodingID)
-  : poolDir_(poolDir) {
+  : nam_(new QNetworkAccessManager), poolDir_(poolDir)  {
   // 	m_pDialog = NULL;
   config_ = config;
 
   serverEncodingID_ = serverEncodingID;
 
-  FQ_VERIFY(connect(&http_, SIGNAL(done(bool)), this, SLOT(httpDone(bool))));
-  FQ_VERIFY(connect(&http_, SIGNAL(dataReadProgress(int, int)),
-                  this, SLOT(httpRead(int, int))));
-  FQ_VERIFY(connect(&http_, SIGNAL(responseHeaderReceived(const QHttpResponseHeader &)),
-                  this, SLOT(httpResponse(const QHttpResponseHeader &))));
-}
+ }
 
 FQTermHttp::~FQTermHttp() {
-  // 	if(m_pDialog!=NULL)
-  // 		delete m_pDialog;
 }
 
 void FQTermHttp::cancel() {
-  http_.abort();
-
-  // remove unsuccessful download
+  if(netreply_){
+    netreply_->abort();
+  }
   if (QFile::exists(cacheFileName_)) {
     QFile::remove(cacheFileName_);
   }
@@ -72,112 +55,67 @@ void FQTermHttp::cancel() {
 
 
 void FQTermHttp::getLink(const QString &url, bool preview) {
+  QUrl u(url);
+  getLink(u,preview);
+}
+
+void FQTermHttp::getLink(const QUrl& url, bool preview) {
+  QUrl u=url;
   isExisting_ = false;
   isPreview_ = preview;
   previewEmitted = false;
   lastPercent_ = 0;
-  QUrl u(url);
   if (u.isRelative() || u.scheme() == "file") {
     emit previewImage(cacheFileName_, false, true);
     emit done(this);
     return ;
   }
 
-  //	QString path = url.mid(url.find(u.host(),false) + u.host().length());
-  //	QString path = url.mid(url.find('/',
-  //							url.find(u.host(),false),
-  //							false));
-
   if (QFile::exists(getPath(USER_CONFIG) + "hosts.cfg")) {
     config_ = new FQTermConfig(getPath(USER_CONFIG) + "hosts.cfg");
     QString strTmp = config_->getItemValue("hosts", u.host().toLocal8Bit());
     if (!strTmp.isEmpty()) {
-      QString strUrl = url;
+      QString strUrl = u.toString();
       strUrl.replace(QRegExp(u.host(), Qt::CaseInsensitive), strTmp);
       u = strUrl;
     }
   }
-  cacheFileName_ = QFileInfo(u.path()).fileName();
-  http_.setHost(u.host(), u.port(80));
-  http_.get(u.path() + "?" + u.encodedQuery());
+  if (!(netreply_ && netreply_->hasRawHeader("Location"))) {
+    cacheFileName_ = QFileInfo(u.path()).fileName();
+  }
+  if(netreply_){
+    netreply_->blockSignals(true);
+    netreply_.take()->deleteLater();
+  }
 
+  netreply_.reset(nam_->get(QNetworkRequest(u)));
+  FQ_VERIFY(connect(netreply_.data(), SIGNAL(finished()), this, SLOT(httpDone())));
+  FQ_VERIFY(connect(netreply_.data(), SIGNAL(downloadProgress(qint64, qint64)),this, SLOT(httpRead(qint64, qint64))));
+  FQ_VERIFY(connect(netreply_.data(), SIGNAL(error( QNetworkReply::NetworkError)), this, SLOT(httpError(QNetworkReply::NetworkError))));
+  FQ_VERIFY(connect(netreply_.data(), SIGNAL(metaDataChanged()), this, SLOT(httpResponse())));
 }
-/*
-static void getSaveFileName(const QString &filename, QWidget *widget, QString &fileSave) {
 
-  QString strPrevSave, strSave;
-  QString userConfig = getPath(USER_CONFIG) + "fqterm.cfg";
-  config_ = new FQTermConfig(userConfig);
-
-  if (QFile::exists(userConfig)) {
-	strPrevSave = config_->getItemValue("global", "previous");
-  }
-
-  if (strPrevSave.isEmpty()) {
-	strSave = QFileDialog::getSaveFileName(widget,
-										"Choose a directory to save under",
-										getPath(USER_CONFIG) + "/" + filename, "*");
-  } else {
-	strSave = QFileDialog::getSaveFileName(widget,
-										"Choose a directory to save under",
-										strPrevSave + "/" + filename, "*");
-  }
-
-  QFileInfo fi(strSave);
-
-  while (fi.exists()) {
-    int yn = QMessageBox::warning(widget, "FQTerm", "File exists. Overwrite?",
-                                  "Yes", "No");
-    if (yn == 0) {
-      break;
-    }
-
-    strSave = QFileDialog::getSaveFileName(widget,
-                                           "Choose a directory to save under",
-                                           fi.absolutePath() + "/" + filename, "*");
-    if (strSave.isEmpty()) {
-      break;
-    }
-  }
-
-  if (!strSave.isEmpty()) {
-	if (QFile::exists(userConfig)) {
-	  config_->setItemValue("global", "previous", fi.absolutePath());
-	  config_->save(userConfig);
-	}
-  }
-
-  fileSave = strSave;
-}
-*/
-
-void FQTermHttp::httpResponse(const QHttpResponseHeader &hrh) {
-  if (hrh.statusCode() == 302) {
+void FQTermHttp::httpResponse() {
+  if (netreply_->hasRawHeader("Location")) {
     //FIXME: according to RC, this code still could not work
     //if the server send the relative location.
-    QString realLocation = hrh.value("Location");
-    QUrl u = QUrl::fromEncoded(realLocation.toLatin1());
-    http_.close();
-    if (u.isRelative() /*|| !realLocation.startsWith("http://")*/) {
-         http_.get('/' + realLocation);
-     } else {
-           cacheFileName_ = QFileInfo(u.path()).fileName(); // update filename
-           http_.setHost(u.host(), u.port(80));
-           http_.get(u.encodedPath() + "?" + u.encodedQuery());
-       }
+    QString realLocation = netreply_->header(QNetworkRequest::LocationHeader).toString();
+    QUrl u = realLocation;
+    if (u.isRelative() ) {
+      u=netreply_->url().resolved(u);
+    } 
+    cacheFileName_ = QFileInfo(u.path()).fileName(); // update filename
+    getLink(u,isPreview_);
     return;
   }
 
-  if (hrh.statusCode() != 200) {
-    return;
-  }
   QString ValueString;
   QString filename;
 
-  ValueString = hrh.value("Content-Length");
+  ValueString = netreply_->header(QNetworkRequest::ContentLengthHeader).toString();
   int FileLength = ValueString.toInt();
 
-  ValueString = hrh.value("Content-Disposition");
+  ValueString = netreply_->rawHeader("Content-Disposition");
   //	ValueString = ValueString.mid(ValueString.find(';') + 1).stripWhiteSpace();
   //	if(ValueString.lower().find("filename") == 0)
   //	m_strHttpFile = ValueString.mid(ValueString.find('=') + 1).stripWhiteSpace();
@@ -191,7 +129,7 @@ void FQTermHttp::httpResponse(const QHttpResponseHeader &hrh) {
   if (pos != -1) {
     cacheFileName_ = ValueString.mid(pos + 9, re.matchedLength() - 10);
   }
-  cacheFileName_ = encoding2unicode(cacheFileName_.toLatin1(), serverEncodingID_);
+  //cacheFileName_ = encoding2unicode(cacheFileName_.toLatin1(), serverEncodingID_);
   filename = cacheFileName_;
 
   if (isPreview_) {
@@ -211,21 +149,23 @@ void FQTermHttp::httpResponse(const QHttpResponseHeader &hrh) {
       QMap<QString, int>::iterator ii;
       if ((ii = downloadMap_.find(cacheFileName_)) != downloadMap_.end()) { 
         if (ii.value() == FileLength) {
-          http_.abort();
-          isExisting_ = true;
-          emit done(this);
           mutex_.unlock();
+          netreply_->abort();
+          isExisting_ = true;
+          emit headerReceived(this, filename);
+          emit done(this);
           return;
         }
       }
 
       if (fi2.size() == FileLength) {
+        mutex_.unlock();
         isExisting_ = true;
-        http_.abort();
-        break;
+        emit headerReceived(this, filename);
+        netreply_->abort();
+        return;
       } else {
-
-		cacheFileName_ = QString("%1/%2(%3).%4").arg(fi.path())
+		    cacheFileName_ = QString("%1/%2(%3).%4").arg(fi.path())
 								.arg(fi.completeBaseName()).arg(i).arg(fi.suffix());
         fi2.setFile(cacheFileName_);
         if (!fi2.exists()) {
@@ -248,15 +188,15 @@ void FQTermHttp::httpResponse(const QHttpResponseHeader &hrh) {
       isPreview_ = false;
     }
   } else {
-//    getSaveFileName(cacheFileName_, NULL, strSave);
-	mutex_.lock();
+    //getSaveFileName(cacheFileName_, NULL, strSave);
+	  mutex_.lock();
 
-	FQTermFileDialog fileDialog(config_);
+	  FQTermFileDialog fileDialog(config_);
     QString strSave = fileDialog.getSaveName(cacheFileName_, "*");
-	mutex_.unlock();
+	  mutex_.unlock();
     // no filename specified which means the user canceled this download
     if (strSave.isEmpty()) {
-      http_.abort();
+      netreply_->abort();
       emit done(this);
       return ;
     }
@@ -267,8 +207,8 @@ void FQTermHttp::httpResponse(const QHttpResponseHeader &hrh) {
 }
 
 
-void FQTermHttp::httpRead(int done, int total) {
-  QByteArray ba = http_.readAll();
+void FQTermHttp::httpRead(qint64 done, qint64 total) {
+  QByteArray ba = netreply_->readAll();
   QFile file(cacheFileName_);
   if (file.open(QIODevice::ReadWrite | QIODevice::Append)) {
     QDataStream ds(&file);
@@ -291,38 +231,33 @@ void FQTermHttp::httpRead(int done, int total) {
   }
 }
 
-void FQTermHttp::httpDone(bool err) {
-  if (err) {
-    switch (http_.error()) {
-      case QHttp::Aborted: if (isExisting_) {
-        break;
-      } else {
-        emit done(this);
-        return ;
-      }
-      default:
-        QMessageBox::critical(NULL, tr("Download Error"), tr(
-                                  "Failed to download file"));
-        deleteLater();
-        return ;
-    }
-  } else {
+void FQTermHttp::httpDone() {
     mutex_.lock();
     downloadMap_.remove(cacheFileName_);
     mutex_.unlock();
-  }
-
-  if (isPreview_) {
-    emit previewImage(cacheFileName_, true, true);
-  } else {
-    emit message("Download one file successfully");
-  }
-
-  emit done(this);
+    if (isPreview_) {
+      emit previewImage(cacheFileName_, true, true);
+    } else {
+      emit message("Download one file successfully");
+    }
+    emit done(this);
 }
 
-int FQTermHttp::setProxy(const QNetworkProxy & proxy) {
-  return http_.setProxy(proxy);
+void FQTermHttp::httpError(QNetworkReply::NetworkError code) {
+    switch(code)
+    {
+    case QNetworkReply::OperationCanceledError:
+      break;
+    default:
+      QMessageBox::critical(NULL, tr("Download Error"), tr("Failed to download file\n code=%1").arg(code));
+      //deleteLater(); /*Not needed. http done will be called and this will cause a double free.
+      //return;
+      break;
+    }
+}
+
+void FQTermHttp::setProxy(const QNetworkProxy & proxy) {
+  nam_->setProxy(proxy);
 }
 }  // namespace FQTerm
 

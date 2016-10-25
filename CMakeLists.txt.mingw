@@ -1,0 +1,79 @@
+find_package(OpenSSL REQUIRED)
+set(CMAKE_VERBOSE_MAKEFILE ON)
+#ADD_DEFINITIONS(-DUSE_DOTNET_STYLE)
+ADD_DEFINITIONS(-D "FQTERM_VERSION_STRING=\\\"${FQTERM_VERSION}\\\"")
+
+if(FQTERM_USE_STATIC_QT)
+  ADD_DEFINITIONS(-DFQTERM_USE_STATIC_QT)
+  REMOVE_DEFINITIONS(-DQT_DLL)
+endif(FQTERM_USE_STATIC_QT)
+
+add_subdirectory(src)
+
+set(fqterm_RCS
+  fqterm.rc    
+)
+
+include_directories(
+  ${QT_INCLUDE_DIR}
+  ${QT_QTCORE_INCLUDE_DIR}
+  ${QT_QTGUI_INCLUDE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/common
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/terminal
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/utilities
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/unite
+)
+
+link_directories(
+  ${QT_PLUGINS_DIR}/codecs
+  ${QT_PLUGINS_DIR}/imageformats
+  ${OPENSSL_ROOT_DIR}/lib
+)
+
+ADD_EXECUTABLE(fqterm
+  src/fqterm/main.cpp
+)
+
+if(FQTERM_USE_STATIC_QT)
+  set(FQ_QT_STATIC_PLUGINS
+    qcncodecs qjpcodecs qkrcodecs qtwcodecs
+  )
+  set(OPENSSL_LINK_LIBS
+    crypto ssl
+  )
+else(FQTERM_USE_STATIC_QT)
+  set(OPENSSL_LINK_LIBS
+    ${OPENSSL_LIBS}
+  )
+endif(FQTERM_USE_STATIC_QT)
+
+target_link_libraries(fqterm 
+  fqterm_main
+  fqterm_terminal
+  fqterm_protocol
+  fqterm_utilities
+  fqterm_ui
+  fqterm_common
+  fqterm_unite
+  ${QT_QTNETWORK_LIBRARIES}
+  ${QT_QTXML_LIBRARIES}
+  ${QT_QTSCRIPT_LIBRARIES}  
+  ${FQ_QT_STATIC_PLUGINS}
+  ${QT_LIBRARIES}
+  ${PYTHON_LIB}
+  ${OPENSSL_LINK_LIBS}
+  ws2_32
+)
+
+add_dependencies(fqterm
+  fqterm_main
+  fqterm_common
+  fqterm_terminal
+  fqterm_protocol
+  fqterm_ui
+  fqterm_unite
+  fqterm_utilities
+  fqterm_unite
+)

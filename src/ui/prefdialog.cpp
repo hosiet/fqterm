@@ -38,7 +38,7 @@ namespace FQTerm {
  *  The dialog will by default be modeless, unless you set 'modal' to
  *  TRUE to construct a modal dialog.
  */
-prefDialog::prefDialog(FQTermConfig * config, QWidget *parent, Qt::WFlags fl)
+prefDialog::prefDialog(FQTermConfig * config, QWidget *parent, Qt::WindowFlags fl)
     : QDialog(parent, fl),
       soundButtonGroup_(this),
       verticalSettingButtonGroup_(this),
@@ -166,6 +166,9 @@ void prefDialog::loadSetting() {
 
   strTmp = config_->getItemValue("preference", "editorarg");
   ui_.editorArgLineEdit->setText(strTmp);
+
+  strTmp = config_->getItemValue("preference", "asciienhance");
+  ui_.asciiEnhanceCheckBox->setChecked(strTmp == "1");
 }
 
 void prefDialog::saveSetting() {
@@ -221,6 +224,9 @@ void prefDialog::saveSetting() {
   strTmp.setNum(ui_.clearCheckBox->isChecked() ? 1 : 0);
   config_->setItemValue("preference", "clearpool", strTmp);
 
+  strTmp.setNum(ui_.asciiEnhanceCheckBox->isChecked() ? 1 : 0);
+  config_->setItemValue("preference", "asciienhance", strTmp);
+
   strTmp = ui_.poolLineEdit->text();
   if (strTmp.isEmpty()) {
     strTmp = getPath(USER_CONFIG) + "pool/";
@@ -239,6 +245,7 @@ void prefDialog::saveSetting() {
 
   config_->setItemValue("preference", "editor", ui_.editorLineEdit->text());
   config_->setItemValue("preference", "editorarg", ui_.editorArgLineEdit->text());
+  
   config_->save(getPath(USER_CONFIG) + "fqterm.cfg");
 }
 

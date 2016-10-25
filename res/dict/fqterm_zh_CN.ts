@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="zh">
+<defaultcodec>UTF-8</defaultcodec>
 <context>
     <name>FQTerm::FQTermAutoUpdater</name>
     <message>
@@ -29,10 +30,21 @@ Ignore for no more notification.</source>
     </message>
 </context>
 <context>
+    <name>FQTerm::FQTermExternalEditor</name>
+    <message>
+        <source>OK</source>
+        <translation>确认</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+</context>
+<context>
     <name>FQTerm::FQTermFrame</name>
     <message>
         <source>Cascade</source>
-        <translation>层叠</translation>
+        <translation type="obsolete">层叠</translation>
     </message>
     <message>
         <source>FQTerm will keep running in the system tray.
@@ -41,7 +53,7 @@ To terminate the program, choose exit in the tray menu.</source>
     </message>
     <message>
         <source>Tile</source>
-        <translation>平铺</translation>
+        <translation type="obsolete">平铺</translation>
     </message>
     <message>
         <source>Main Window</source>
@@ -59,7 +71,7 @@ please close all windows and restart.</source>
     </message>
     <message>
         <source>Disconnect</source>
-        <translation>断开连接</translation>
+        <translation type="obsolete">断开连接</translation>
     </message>
     <message>
         <source>&amp;File</source>
@@ -75,15 +87,15 @@ please close all windows and restart.</source>
     </message>
     <message>
         <source>Clipboard &amp;encoding</source>
-        <translation>剪贴板编码(&amp;e)</translation>
+        <translation type="obsolete">剪贴板编码(&amp;e)</translation>
     </message>
     <message>
         <source>&amp;GBK</source>
-        <translation>&amp;GBK</translation>
+        <translation type="obsolete">&amp;GBK</translation>
     </message>
     <message>
         <source>&amp;Big5</source>
-        <translation>&amp;Big5</translation>
+        <translation type="obsolete">&amp;Big5</translation>
     </message>
     <message>
         <source>&amp;View</source>
@@ -103,7 +115,7 @@ please close all windows and restart.</source>
     </message>
     <message>
         <source>&amp;English</source>
-        <translation>&amp;English</translation>
+        <translation type="obsolete">&amp;English</translation>
     </message>
     <message>
         <source>&amp;Simplified Chinese</source>
@@ -167,7 +179,7 @@ please close all windows and restart.</source>
     </message>
     <message>
         <source>FQTerm&apos;s &amp;Homepage</source>
-        <translation>主页(&amp;H)</translation>
+        <translation type="obsolete">主页(&amp;H)</translation>
     </message>
     <message>
         <source>FQTerm</source>
@@ -242,14 +254,6 @@ please close all windows and restart.</source>
         <translation></translation>
     </message>
     <message>
-        <source>+Right</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>+Left</source>
-        <translation></translation>
-    </message>
-    <message>
         <source>Ctrl+Meta</source>
         <translation></translation>
     </message>
@@ -259,7 +263,11 @@ please close all windows and restart.</source>
     </message>
     <message>
         <source> Font</source>
-        <translation>字体</translation>
+        <translation type="obsolete">字体</translation>
+    </message>
+    <message>
+        <source>Searc&amp;h Engine</source>
+        <translation>搜索引擎(&amp;h)</translation>
     </message>
 </context>
 <context>
@@ -621,7 +629,7 @@ please close all windows and restart.</source>
     </message>
     <message>
         <source>Google Selected Text!</source>
-        <translation>Google选中文字!</translation>
+        <translation type="obsolete">Google选中文字!</translation>
     </message>
     <message>
         <source>Font Selector</source>
@@ -634,6 +642,25 @@ please close all windows and restart.</source>
     <message>
         <source>Invalid IP</source>
         <translation>非法IP</translation>
+    </message>
+    <message>
+        <source>Share Selected Text and URL!</source>
+        <translation>分享选中文本及链接!</translation>
+    </message>
+    <message>
+        <source>Search Selected Text!</source>
+        <translation>搜索选中文本!</translation>
+    </message>
+</context>
+<context>
+    <name>FQTerm::FQTermWndMgr</name>
+    <message>
+        <source>FQTerm</source>
+        <translation>FQTerm</translation>
+    </message>
+    <message>
+        <source>Still connected, do you really want to exit?</source>
+        <translation>已连接, 确认退出?</translation>
     </message>
 </context>
 </TS>

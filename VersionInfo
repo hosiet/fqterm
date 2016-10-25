@@ -5,8 +5,8 @@ version=0.9.3
 [Win]
 version=0.9.3
 [FQMac]
-verison=0.9.6
+verison=0.9.8
 [FQLinux]
-version=0.9.6
+version=0.9.8
 [FQWin]
-version=0.9.6
+version=0.9.8

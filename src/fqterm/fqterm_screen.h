@@ -123,6 +123,7 @@ class FQTermScreen: public QWidget {
   // 0 - enter  1 - press  2 - move  3 - release 4 - leave
   void mouseAction(int, QMouseEvent*);
   void inputEvent(const QString&);
+  void termFontChange(bool isEnglish, QFont font);
 
  public slots:
   void bufferSizeChanged();
@@ -229,6 +230,10 @@ class FQTermScreen: public QWidget {
   double cnLetterSpacing_;
   double enLetterSpacing_;
   double spLetterSpacing_;
+
+  void updateFixedPitchInfo();
+  bool cnFixedPitch_;
+  bool enFixedPitch_;
   int lineSpacing_; // for future
 
   bool *areLinesBlink_;

@@ -35,6 +35,7 @@
 #include <QTabBar>
 #include <QMouseEvent>
 #include <QMenu>
+#include <QMessageBox>
 #include <QToolButton>
 #include "fqterm_frame.h"
 #include "fqterm_path.h"
@@ -42,7 +43,9 @@
 #include "fqterm_trace.h"
 #include "fqterm_window.h"
 #include "fqterm_wndmgr.h"
-
+#ifdef HAVE_PYTHON
+#include <Python.h>
+#endif //HAVE_PYTHON
 namespace FQTerm {
 
 //constructor
@@ -81,12 +84,36 @@ bool FQTermWndMgr::closeWindow(FQTermWindow *mw) {
 
 bool FQTermWndMgr::closeAllWindow() {
   FQ_FUNC_TRACE("wndmgr", 3);
-  while (count() > 0) {
-    bool closed = subWindowList().at(0)->close();
-    if (!closed) {
+
+  bool anyConnected = false;
+
+  for (int i = 0; i < subWindowList().size(); ++i) {
+    FQTermWindow * window = (FQTermWindow *)(subWindowList()[i]->widget());
+    if (window->isConnected()) {
+      anyConnected = true;
+      break;
+    }
+  }
+
+  bool warn = FQTermPref::getInstance()->openWarnOnClose_;
+  if (anyConnected && warn) {
+    QMessageBox mb(tr("FQTerm"),
+      tr("Still connected, do you really want to exit?"),
+      QMessageBox::Warning, QMessageBox::Yes|QMessageBox::Default,
+      QMessageBox::No | QMessageBox::Escape, 0, this);
+    if (mb.exec() != QMessageBox::Yes) {
       return false;
     }
   }
+  FQTermPref::getInstance()->openWarnOnClose_ = false;
+  while (count() > 0) {
+    bool closed = subWindowList().at(0)->close();
+    if (!closed) {
+      FQTermPref::getInstance()->openWarnOnClose_ = warn;
+      return false;
+    }
+  }
+  FQTermPref::getInstance()->openWarnOnClose_ = warn;
   return true;
 }
 

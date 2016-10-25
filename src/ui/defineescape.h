@@ -28,9 +28,11 @@ namespace FQTerm {
 class DefineEscapeDialog : public QDialog {
   Q_OBJECT;
 public:
-  DefineEscapeDialog(QString& strEsc, QWidget *parent_ = 0, Qt::WFlags fl = 0);
+  DefineEscapeDialog(QString& strEsc, QWidget *parent_ = 0, Qt::WindowFlags fl = 0);
   ~DefineEscapeDialog();
-
+  void setTitleAndText(const QString &title, const QString &text);
+  void setEditText(const QString &text);
+    
 protected slots:
   void onOK();
   void onCancel();

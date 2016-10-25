@@ -30,7 +30,7 @@ namespace FQTerm {
 
 class FQTermSSHCipher {
 protected:
-  char *d_name;
+  const char *d_name;
 
 public:
   FQTermSSHCipher() {

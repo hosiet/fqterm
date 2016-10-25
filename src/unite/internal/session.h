@@ -20,7 +20,57 @@
 #ifndef FQTERM_UNITE_SESSION
 #define FQTERM_UNITE_SESSION
 
+#include <QObject>
+#include <QThread>
+#include <QTcpServer>
+#include <QTcpSocket>
+#include <map>
 namespace FQTerm {
+
+class FQTermUniteState;
+class FQTermUniteSession;
+class FQTermUniteSessionContext : public QObject {
+  Q_OBJECT;
+public:
+  FQTermUniteSessionContext(FQTermUniteSession* session);
+  void write(const QByteArray& str);
+  void processInput(const QByteArray& input);
+  void quit();
+  enum STATE{WELCOME = 0, EXITING = 1, READING = 2, HELP = 3};
+  FQTermUniteState* setCurrentState(int state, bool init = true);
+
+  int row() {return 24;}
+  int column() {return 80;}
+private:
+  FQTermUniteSession* session_;
+  FQTermUniteState* currentState_;
+  QByteArray inputBuffer_;
+  typedef std::map<int, FQTermUniteState*> StateTable;
+  typedef std::map<int, FQTermUniteState*>::iterator StateTableIterator;
+  StateTable stateTable_;
+};
+
+
+class FQTermUniteSession : public QThread {
+  Q_OBJECT;
+public:
+  FQTermUniteSession(int socketDescriptor);
+  ~FQTermUniteSession();
+  void write(const QByteArray& output);
+
+protected:
+  virtual void run();
+  protected slots:
+    void readyRead();
+    void disconnected();
+    void stateChanged(QAbstractSocket::SocketState socketState);
+    void error(QAbstractSocket::SocketError socketError);
+    void welcome();
+private:
+  QTcpSocket* socket_;
+  FQTermUniteSessionContext* context_;
+
+};
 
 } //namespace FQTerm
 

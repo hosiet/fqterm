@@ -22,6 +22,8 @@
 #define FQTERM_SCRIPTENGINE_H
 
 #include "fqterm.h"
+#include "articledialog.h"
+#include "defineescape.h"
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -52,7 +54,10 @@ public:
 public slots: //script apis
   //ui functions.
   void msgBox(const QString& msg);
-
+  bool yesnoBox(const QString& msg);
+  QString askDialog(const QString& title, const QString& question,
+                    const QString& defText);
+  
   //bbs ui functions
   int caretX();
   int caretY();
@@ -73,6 +78,7 @@ public slots: //script apis
   bool isConnected();
   void disconnect();
   void reconnect();
+  QString FileDialog();
   QString getBBSCodec();
   QString getAddress();
   int getPort();
@@ -111,6 +117,7 @@ public slots: //script apis
   void appendFile(const QString& filename, const QString& str);
   QString readFile(const QString& filename);
   QStringList readFolder(const QString& path);
+  void artDialog(const QString &content);
   QString platform();
   bool makePath(const QString& path);
   QString newLine();

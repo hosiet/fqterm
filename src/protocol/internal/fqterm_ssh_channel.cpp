@@ -71,7 +71,7 @@ void FQTermSSH1Channel::sendData(const char *data, int len) {
   packet_sender_->write();
 }
 
-void FQTermSSH1Channel::closeConnection(char *reason) {
+void FQTermSSH1Channel::closeConnection(const char *reason) {
   packet_sender_->startPacket(SSH1_MSG_DISCONNECT);
   packet_sender_->putString(reason);
   packet_sender_->write();
@@ -227,7 +227,7 @@ void FQTermSSH2Channel::sendData(const char *data, int len) {
                              << server_window_size_;;
 }
 
-void FQTermSSH2Channel::closeConnection(char *reason) {
+void FQTermSSH2Channel::closeConnection(const char *reason) {
   packet_sender_->startPacket(SSH1_MSG_DISCONNECT);
   packet_sender_->putString(reason);
   packet_sender_->write();

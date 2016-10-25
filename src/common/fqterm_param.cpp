@@ -41,8 +41,8 @@ FQTermParam::FQTermParam() {
 
   englishFontName_ = getDefaultFontFamilyForLanguage(true);
   englishFontSize_ = 14;
-  nonEnglishFontName_ = getDefaultFontFamilyForLanguage(false);
-  nonEnglishFontSize_ = 14;
+  otherFontName_ = getDefaultFontFamilyForLanguage(false);
+  otherFontSize_ = 14;
   alignMode_ = 0;
   charSpacing_ = 0;
   lineSpacing_ = 0;
@@ -129,8 +129,8 @@ void FQTermParam::copy(const FQTermParam& param) {
   isAnsiColor_ = param.isAnsiColor_;
   englishFontName_ = param.englishFontName_;
   englishFontSize_ = param.englishFontSize_;
-  nonEnglishFontName_ = param.nonEnglishFontName_;
-  nonEnglishFontSize_ = param.nonEnglishFontSize_;
+  otherFontName_ = param.otherFontName_;
+  otherFontSize_ = param.otherFontSize_;
   alignMode_ = param.alignMode_;
   charSpacing_ = param.charSpacing_;
   lineSpacing_ = param.lineSpacing_;
@@ -203,8 +203,8 @@ bool FQTermParam::operator==(const FQTermParam& param)
   if (isAnsiColor_ != param.isAnsiColor_) return false;
   if (englishFontName_ != param.englishFontName_) return false;
   if (englishFontSize_ != param.englishFontSize_) return false;
-  if (nonEnglishFontName_ != param.nonEnglishFontName_) return false;
-  if (nonEnglishFontSize_ != param.nonEnglishFontSize_) return false;
+  if (otherFontName_ != param.otherFontName_) return false;
+  if (otherFontSize_ != param.otherFontSize_) return false;
   if (alignMode_ != param.alignMode_) return false;
   if (charSpacing_ != param.charSpacing_) return false;
   if (lineSpacing_ != param.lineSpacing_) return false;
@@ -252,12 +252,12 @@ bool FQTermParam::operator==(const FQTermParam& param)
   return true;
 }
 
-QString FQTermParam::getLanguageName(bool isEnglish)
+QString FQTermParam::getLanguageName(bool isEnglish, bool translate /* = true */)
 {
   if (isEnglish) {
-    return QString(QObject::tr("&English"));
+    return QString(translate ? QObject::tr("&English") : "English");
   }
-  return QString(QObject::tr("&Non-English"));
+  return QString(translate ? QObject::tr("&Non-English") : "Non-English");
 }
 
 const FQTermParam& FQTermParam::getFQBBSParam() {

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="zh">
+<defaultcodec>UTF-8</defaultcodec>
 <context>
     <name>@default</name>
     <message>
@@ -162,55 +163,13 @@
         <source>Cant save file, maybe format not supported</source>
         <translation>无法保存文件，可能为不支持的类型</translation>
     </message>
-</context>
-<context>
-    <name>IPLookupDialog</name>
     <message>
-        <source>IP Lookup</source>
-        <translation>查询IP</translation>
+        <source>play gif</source>
+        <translation>播放gif</translation>
     </message>
     <message>
-        <source>IP Address</source>
-        <translation>IP地址</translation>
-    </message>
-    <message>
-        <source>Physical Address</source>
-        <translation>实际地址</translation>
-    </message>
-    <message>
-        <source>Lookup</source>
-        <translation>查询</translation>
-    </message>
-    <message>
-        <source>Finished</source>
-        <translation>完成</translation>
-    </message>
-    <message>
-        <source>IP database file does NOT exist</source>
-        <translation>IP数据库文件不存在</translation>
-    </message>
-    <message>
-        <source>Invalid IP</source>
-        <translation>非法IP</translation>
-    </message>
-</context>
-<context>
-    <name>dlgDefineEscape</name>
-    <message>
-        <source>Define Escape</source>
-        <translation>定义逃逸</translation>
-    </message>
-    <message>
-        <source>Escape String *[</source>
-        <translation>逃逸串 *[</translation>
-    </message>
-    <message>
-        <source>OK</source>
-        <translation>确定</translation>
-    </message>
-    <message>
-        <source>Cancel</source>
-        <translation>取消</translation>
+        <source>Ctrl+/</source>
+        <translation>Ctrl+/</translation>
     </message>
 </context>
 <context>
@@ -549,6 +508,37 @@ To continue editing, press Cancel</source>
     </message>
 </context>
 <context>
+    <name>IPLookupDialog</name>
+    <message>
+        <source>IP Lookup</source>
+        <translation>查询IP</translation>
+    </message>
+    <message>
+        <source>IP Address</source>
+        <translation>IP地址</translation>
+    </message>
+    <message>
+        <source>Physical Address</source>
+        <translation>实际地址</translation>
+    </message>
+    <message>
+        <source>Lookup</source>
+        <translation>查询</translation>
+    </message>
+    <message>
+        <source>Finished</source>
+        <translation>完成</translation>
+    </message>
+    <message>
+        <source>IP database file does NOT exist</source>
+        <translation>IP数据库文件不存在</translation>
+    </message>
+    <message>
+        <source>Invalid IP</source>
+        <translation>非法IP</translation>
+    </message>
+</context>
+<context>
     <name>SSHLogin</name>
     <message>
         <source>Login</source>
@@ -772,7 +762,7 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <source>Schema</source>
-        <translation>图表</translation>
+        <translation type="obsolete">图表</translation>
     </message>
     <message>
         <source>TextLabel3</source>
@@ -968,7 +958,7 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <source>&amp;OK</source>
-        <translation>确认(&amp;O)</translation>
+        <translation type="obsolete">确认(&amp;O)</translation>
     </message>
     <message>
         <source>Apply (&amp;Temporarily)</source>
@@ -992,7 +982,7 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <source>Adjust Font Size When Resize</source>
-        <translation>自动调节字体</translation>
+        <translation type="obsolete">自动调节字体</translation>
     </message>
     <message>
         <source>Char W/H ratio</source>
@@ -1058,6 +1048,26 @@ p, li { white-space: pre-wrap; }
         <source>Align Top</source>
         <translation>顶端对齐</translation>
     </message>
+    <message>
+        <source>BIG5-HKSCS</source>
+        <translation>BIG5-HKSCS</translation>
+    </message>
+    <message>
+        <source>BIG5-UAO</source>
+        <translation>BIG5-UAO</translation>
+    </message>
+    <message>
+        <source>Keep Font; Adjust Row/Column.</source>
+        <translation>保持字体大小,调整行列.</translation>
+    </message>
+    <message>
+        <source>Keep Row/Column; Adjust Font.</source>
+        <translation>保持行列,调整字体大小.</translation>
+    </message>
+    <message>
+        <source>Keep Font; Keep Row/Column.</source>
+        <translation>保持字体大小及行列.</translation>
+    </message>
 </context>
 <context>
     <name>articleDialog</name>
@@ -1080,6 +1090,25 @@ p, li { white-space: pre-wrap; }
     <message>
         <source>Copy</source>
         <translation>复制</translation>
+    </message>
+</context>
+<context>
+    <name>dlgDefineEscape</name>
+    <message>
+        <source>Define Escape</source>
+        <translation>定义逃逸</translation>
+    </message>
+    <message>
+        <source>Escape String *[</source>
+        <translation>逃逸串 *[</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
     </message>
 </context>
 <context>
@@ -1330,6 +1359,10 @@ p, li { white-space: pre-wrap; }
         <source>Bottom</source>
         <translation>居底</translation>
     </message>
+    <message>
+        <source>ASCII Art Enhance Mode</source>
+        <translation>ASCII色块无缝模式</translation>
+    </message>
 </context>
 <context>
     <name>quickDialog</name>
@@ -1430,7 +1463,7 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <source>Fade to</source>
-        <translation>淡入</translation>
+        <translation type="obsolete">淡入</translation>
     </message>
     <message>
         <source>Min</source>
@@ -1466,7 +1499,7 @@ p, li { white-space: pre-wrap; }
     </message>
     <message>
         <source>Transparent</source>
-        <translation>透明</translation>
+        <translation type="obsolete">透明</translation>
     </message>
     <message>
         <source>Render</source>
@@ -1495,6 +1528,10 @@ p, li { white-space: pre-wrap; }
  若“覆盖范围”被设置为“平直”
  Alpha将不会生效
 </translation>
+    </message>
+    <message>
+        <source>Alpha</source>
+        <translation>半透明</translation>
     </message>
 </context>
 <context>

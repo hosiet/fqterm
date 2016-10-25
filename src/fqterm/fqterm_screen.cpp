@@ -18,6 +18,8 @@
  *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -31,6 +33,7 @@
 #include <QWheelEvent>
 #include <QKeySequence>
 #include <QRegion>
+#include <QPolygon>
 
 #include "fqterm_buffer.h"
 #include "fqterm_config.h"
@@ -42,7 +45,9 @@
 #include "fqterm_text_line.h"
 #include "fqterm_window.h"
 #include "fqterm_wndmgr.h"
-
+#ifdef HAVE_PYTHON
+#include <Python.h>
+#endif //HAVE_PYTHON
 namespace FQTerm {
 /* ------------------------------------------------------------------------ */
 /*                                                                          */
@@ -57,6 +62,8 @@ FQTermScreen::FQTermScreen(QWidget *parent, FQTermSession *session)
       cnLetterSpacing_(0.0),
       spLetterSpacing_(0.0),
       enLetterSpacing_(0.0),
+      cnFixedPitch_(false),
+      enFixedPitch_(false),
       hasBackground_(false),
       backgroundRenderOption_(0),
       backgroundCoverage_(0),
@@ -174,9 +181,9 @@ void FQTermScreen::syncBufferAndScreen() {
   updateScrollBar();
   updateBackgroundPixmap();
 
-  if (param_->isFontAutoFit_) {
+  if (param_->isFontAutoFit_ == 1) {
     updateFont();
-  } else {
+  } else if (param_->isFontAutoFit_ == 0) { //adjust column/row
     int cx = clientRectangle_.width() / charWidth_;
     int cy = clientRectangle_.height() / charHeight_;
     if (param_->hostType_ == 0) {
@@ -188,6 +195,8 @@ void FQTermScreen::syncBufferAndScreen() {
     }
     session_->setTermSize(cx, cy);
     //session_->writeStr("\0x5f");
+  } else {
+    session_->setTermSize(param_->numColumns_, param_->numRows_);
   }
 }
 
@@ -241,14 +250,14 @@ void FQTermScreen::wheelEvent(QWheelEvent *we) {
 
 void FQTermScreen::initFontMetrics() {
   //issue 98
-  if (param_->isFontAutoFit_) {
+  if (param_->isFontAutoFit_ == 1) {
     englishFont_ = new QFont(param_->englishFontName_);
-    nonEnglishFont_ = new QFont(param_->nonEnglishFontName_);
+    nonEnglishFont_ = new QFont(param_->otherFontName_);
 
     updateFont();
   } else {
     englishFont_ = new QFont(param_->englishFontName_, qMax(8, param_->englishFontSize_));
-    nonEnglishFont_ = new QFont(param_->nonEnglishFontName_, qMax(8, param_->nonEnglishFontSize_));
+    nonEnglishFont_ = new QFont(param_->otherFontName_, qMax(8, param_->otherFontSize_));
 
     setFontMetrics();
   }
@@ -259,6 +268,7 @@ void FQTermScreen::initFontMetrics() {
   // m_pFont->setStyleHint(QFont::System,
   //  m_pWindow->m_pFrame->m_pref.bAA ?
   //    QFont::PreferAntialias : QFont::NoAntialias);
+  updateFixedPitchInfo();
 }
 
 void FQTermScreen::updateFont() {
@@ -297,37 +307,47 @@ void FQTermScreen::updateFont() {
 }
 
 void FQTermScreen::setFontMetrics() {
-  QFontMetricsF nonEnglishFM(*nonEnglishFont_);
-  QFontMetricsF englishFM(*englishFont_);
+  
+  QFontMetrics nonEnglishFM(*nonEnglishFont_);
+  QFontMetrics englishFM(*englishFont_);
 
   // FIXME: find a typical character for the current language.
-  float cn = nonEnglishFM.width(QChar(0x4e2D));
-  float en = englishFM.width('W');
-
-  int pix_size = englishFont_->pixelSize();
+  int cn = nonEnglishFM.width(QChar(0x4e2D));
+  int en = englishFM.width('W');
+  
+  int pix_size = nonEnglishFont_->pixelSize();
+  while (cn % 2 && pix_size > 10) {
+    nonEnglishFont_->setPixelSize(--pix_size);
+    nonEnglishFM = QFontMetrics(*nonEnglishFont_);
+    cn = nonEnglishFM.width(QChar(0x4e2D));
+  }
+  
+  pix_size = englishFont_->pixelSize();
   while (2 * en > cn + 1 && pix_size > 5) {
 	  --pix_size;
 	  englishFont_->setPixelSize(pix_size);
-	  englishFM = QFontMetricsF(*englishFont_);
+	  englishFM = QFontMetrics(*englishFont_);
 	  en = englishFM.width('W');
-    /*
+/*    
 #ifndef __APPLE__
     //FIXME: correctly draw chars with left/right bearing.
     if ( - englishFM.leftBearing('W') - englishFM.rightBearing('W') > 0) {
       en +=  - englishFM.leftBearing('W') - englishFM.rightBearing('W');
     }
 #endif
-    */
+*/
   }
   
-  charWidth_ = qMax(float(cn / 2) , float(en));
-  charHeight_ = ceil(qMax(englishFM.height(), nonEnglishFM.height()));
+  charWidth_ = qMax(float(cn) / 2 , float(en));
+
+  charHeight_ = qMax(englishFM.height(), nonEnglishFM.height());
   charHeight_ += param_->lineSpacing_;
   //charWidth_ = ceil(qMax(charWidth_, charHeight_ * param_->charRatio_ / 100));
   charWidth_ += param_->charSpacing_;
 
   cnLetterSpacing_ = qMax(charWidth_ * 2 - cn, 0.0);
   enLetterSpacing_ = qMax(charWidth_ - en, 0.0);
+  
   spLetterSpacing_ = qMax(charWidth_ - englishFM.width(' '), 0.0);
 
   fontAscent_ = qMax(englishFM.ascent(), nonEnglishFM.ascent());
@@ -343,6 +363,8 @@ void FQTermScreen::setFontMetrics() {
                       << "\nheight: " << englishFM.height()
                       << "\nascent: " << englishFM.ascent()
                       << "\ndescent: " << englishFM.descent();
+                      
+  updateFixedPitchInfo();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -890,7 +912,7 @@ void FQTermScreen::repaintScreen(QPaintEvent *pe, QPainter &painter) {
   FQ_TRACE("screen", 5) << "Client area: " << pe->rect().width()
                         << "x" << pe->rect().height();
 
-  QRect rect = pe->rect().intersect(clientRectangle_);
+  QRect rect = pe->rect().intersected(clientRectangle_);
   //painter.eraseRect(rect);
   drawBackground(painter, rect, 0);
   QPoint tlPoint = mapToChar(QPoint(rect.left(), rect.top()));
@@ -914,9 +936,18 @@ FQTermScreen::TextRenderingType FQTermScreen::charRenderingType(const QChar& c) 
   if (c.unicode() > 0x7f && c.unicode() <= 0x2dff) {
     return FullAndAlign;
   } else if (c.unicode() > 0x2dff) {
-    return FullNotAlign;
+    if (cnFixedPitch_)
+        return FullNotAlign;
+    else
+        return FullAndAlign;
   }
   return HalfAndAlign;
+}
+
+static bool isColorBlock(const QChar& c) {
+  if (!FQTermPref::getInstance()->isAnsciiEnhance_) return false;
+  return ((c.unicode() >= 0x2581 && c.unicode() <= 0x258f) || 
+          (c.unicode() >= 0x25e2 && c.unicode() <= 0x25e5));
 }
 
 /////////////////////////////////////////////////
@@ -955,12 +986,14 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
   endx = pTextLine->getCellEnd(endx);
 
   bool isMonoSpace = true;
-  if (!QFontInfo(*englishFont_).fixedPitch() 
-    || !QFontInfo(*nonEnglishFont_).fixedPitch()) {
+  if (!cnFixedPitch_
+    || !enFixedPitch_) {
     isMonoSpace = false;
   }
   
-  for (unsigned i = startx; (long)i < endx; i++) {
+
+  
+  for (unsigned i = startx; (long)i < endx;) {
     startx = i;
     unsigned char tempcp = color[i];
     unsigned char tempea = attr[i];
@@ -970,14 +1003,15 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
     cstrText.clear();
     pTextLine->getPlainText(cell_begin, cell_end, cstrText);
     temprt = charRenderingType(cstrText[0]);
+    bool color_block = isColorBlock(cstrText[0]);
 
     bool bSelected = termBuffer_->isSelected(
         QPoint(i, index), param_->isRectSelect_);
 
     // get str of the same attribute
     while ((long)i < endx && tempcp == color[i] && tempea == attr[i] &&
-           bSelected == termBuffer_->isSelected(
-             QPoint(i, index), param_->isRectSelect_)) {
+            bSelected == termBuffer_->isSelected(
+              QPoint(i, index), param_->isRectSelect_)) {
       unsigned cellBegin = pTextLine->getCellBegin(i);
       unsigned cellEnd = pTextLine->getCellEnd(cellBegin + 1);
       cstrText.clear();
@@ -985,10 +1019,13 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
       if (temprt != charRenderingType(cstrText[0])) {
         break;
       }
+      bool colorBlock = isColorBlock(cstrText[0]);
+      if (cell_end != cellEnd && colorBlock || color_block && !colorBlock) {
+        break;
+      }
       ++i;
     }
-
-
+  
     cell_end = pTextLine->getCellEnd(i);
     cstrText.clear();
     pTextLine->getPlainText(cell_begin, cell_end, cstrText);
@@ -1019,11 +1056,11 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
     if (isMonoSpace && temprt != FullAndAlign) {
       QFont& font = (temprt == HalfAndAlign || temprt == HalfAndSpace)?*englishFont_:*nonEnglishFont_;
       if (temprt == HalfAndAlign) {
-	  font.setLetterSpacing(QFont::AbsoluteSpacing, enLetterSpacing_);
+        font.setLetterSpacing(QFont::AbsoluteSpacing, enLetterSpacing_);
       } else if (temprt == HalfAndSpace) {
-	  font.setLetterSpacing(QFont::AbsoluteSpacing, spLetterSpacing_);
+        font.setLetterSpacing(QFont::AbsoluteSpacing, spLetterSpacing_);
       } else {
-	  font.setLetterSpacing(QFont::AbsoluteSpacing, cnLetterSpacing_);
+        font.setLetterSpacing(QFont::AbsoluteSpacing, cnLetterSpacing_);
       }
       painter.setFont(font);
       if (draw_half_begin_char) {
@@ -1093,7 +1130,6 @@ void FQTermScreen::drawLine(QPainter &painter, int index, int startx, int endx,
       nonEnglishFont_->setLetterSpacing(QFont::AbsoluteSpacing, 0.0);
       englishFont_->setLetterSpacing(QFont::AbsoluteSpacing, 0.0);
     }
-          --i;
   }
 }
 //
@@ -1228,7 +1264,45 @@ void FQTermScreen::drawStr(QPainter &painter, const QString &str,
         verticalAlign = Qt::AlignTop;
         break;
     }
-    painter.drawText(rcErase, Qt::AlignRight | verticalAlign, str);
+    if (length > 2 || !isColorBlock(str[0])) {
+      painter.drawText(rcErase, Qt::AlignRight | verticalAlign, str);
+    } else {
+      //here length == 1 or == 2, isColorBlock == true, ensured in drawLine.
+      //when length == 1, we are drawing the second half of the block,
+      //otherwise the whole block.
+      //(c.unicode() >= 0x2581 && c.unicode() <= 0x258f)
+      //7 rectangles from shorter to taller (1/8 - 7/8 on the bottom)
+      //1 rectangle full
+      //7 rectangles from thicker to thinner (7/8 - 1/8 on the left)
+      //(c.unicode() >= 0x25e2 && c.unicode() <= 0x25e5)
+      //4 triangles bottom-right, bottom-left, top-left, top-right
+      QPolygon bound = rcErase;
+      QPolygon toDraw;
+      QRect rcFull = mapToRect(x, y, 2, 1);
+      rcFull.setBottom(rcFull.bottom() + 1);
+      rcFull.setRight(rcFull.right() + 1);
+      int unic = str[0].unicode();
+      if (unic >= 0x2581 && unic <= 0x2588) {
+        toDraw = QRect(rcFull.left(), rcFull.top() - rcFull.height() * (unic - 0x2581 + 1 - 8) / 8, rcFull.width(), rcFull.height() * (unic - 0x2581 + 1) / 8);
+      } else if (unic > 0x2588 && unic <= 0x258f) {
+        toDraw = QRect(rcFull.left(), rcFull.top(), rcFull.width() * (8 - unic + 0x2589 - 1) / 8, rcFull.height());
+      } else { //triangles
+        QVector<QPoint> points;
+        points.push_back(rcFull.topLeft());
+        points.push_back(rcFull.topRight());
+        points.push_back(rcFull.bottomRight());
+        points.push_back(rcFull.bottomLeft());
+        points.remove(unic - 0x25e2);
+        toDraw = points;
+      }
+      QBrush oldBrush = painter.brush();
+      painter.setBrush(colors_[pen_color_index]);
+      QPen oldPen = painter.pen();
+      painter.setPen(Qt::transparent);
+      painter.drawConvexPolygon(toDraw.intersected(bound));
+      painter.setBrush(oldBrush);
+      painter.setPen(oldPen);
+    }
 //#else
 //    painter.drawText(pt.x(), pt.y() + ascent, str);
 //#endif
@@ -1372,7 +1446,7 @@ QImage &FQTermScreen::fade(QImage &img, float val, const QColor &color) {
 
   if (img.depth() <= 8) {
     // pseudo color
-    for (int i = 0; i < img.numColors(); i++) {
+    for (int i = 0; i < img.colorCount(); i++) {
       col = img.color(i);
       cr = qRed(col);
       cg = qGreen(col);
@@ -1498,11 +1572,30 @@ QVariant FQTermScreen::inputMethodQuery(Qt::InputMethodQuery property) const {
   }
 }
 
+void FQTermScreen::updateFixedPitchInfo() {
+  QFont cnFont(*nonEnglishFont_);
+  QFont enFont(*englishFont_);
+  int cnPixelSize = nonEnglishFont_->pixelSize() <= 5 ? 12 : nonEnglishFont_->pixelSize();
+  int enPixelSize = englishFont_->pixelSize() <= 5 ? 12 : englishFont_->pixelSize();
+  cnFont.setPixelSize(cnPixelSize);
+  enFont.setPixelSize(enPixelSize);
+  QString cnTestString = QString::fromUtf8("\xe5\x9c\xb0\xe6\x96\xb9\xe6\x94\xbf\xe5\xba\x9c");
+  cnFixedPitch_ = (QFontMetrics(cnFont).width(cnTestString) == 
+    cnTestString.length() * QFontMetrics(cnFont).width(cnTestString.at(0)));
+  QString enTestString = QString::fromUtf8("www.newsmth.net");
+  enFixedPitch_ = QFontInfo(enFont).fixedPitch() &&
+                  (QFontMetrics(enFont).width(enTestString) == enTestString.length() * QFontMetrics(enFont).width(enTestString.at(0)));
+                  
+    FQ_TRACE("font", 10) << "\nenglish: " << enFixedPitch_ 
+                      << "\n chinese: " << cnFixedPitch_;
+  
+}
+
 void FQTermScreen::setTermFont(bool isEnglish, const QFont& font)
 {
   QFont *&pFont = isEnglish?englishFont_:nonEnglishFont_;
   delete pFont;
-  if (param_->isFontAutoFit_) {
+  if (param_->isFontAutoFit_ == 1) {
     pFont = new QFont(font.family());
     pFont->setKerning(false);
   } else {
@@ -1510,6 +1603,8 @@ void FQTermScreen::setTermFont(bool isEnglish, const QFont& font)
     pFont->setKerning(false);    
     setFontMetrics();
   }
+  updateFixedPitchInfo();
+  emit termFontChange(isEnglish, font);
 }
 
 QFont FQTermScreen::termFont(bool isEnglish) {
@@ -1551,7 +1646,7 @@ void FQTermScreen::updateWidgetRect(QPainter& painter) {
 
   
 
-  QRect rect = widgetRect_.intersect(clientRectangle_);
+  QRect rect = widgetRect_.intersected(clientRectangle_);
   if (rect.isEmpty())
     return;
   drawBackground(painter, rect, 0);

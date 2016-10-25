@@ -96,6 +96,8 @@ StateOption FQTermDecode::VT100StateMachine::esc_state_[] =  {
   }, {
     '<', &FQTermDecode::test, normal_state_
   }, {
+    'c', &FQTermDecode::termReset, normal_state_
+  }, {
     '#', 0, sharp_state_
   }, {
     CHAR_NORMAL, 0, normal_state_
@@ -478,6 +480,7 @@ int FQTermDecode::processInput(QByteArray& result)
     case FQTERM_ENCODING_GBK:
     case FQTERM_ENCODING_BIG5:
     case FQTERM_ENCODING_HKSCS:
+    case FQTERM_ENCODING_UAO:
       expect_bytes = gdbnbig5_expected_byte_count(leftToDecode_[0]);
       break;
     case FQTERM_ENCODING_UTF8:
@@ -506,6 +509,7 @@ int FQTermDecode::processInput(QByteArray& result)
         case FQTERM_ENCODING_GBK:
         case FQTERM_ENCODING_BIG5:
         case FQTERM_ENCODING_HKSCS:
+        case FQTERM_ENCODING_UAO:
           expect_bytes = gdbnbig5_expected_byte_count(inputData_[dataIndex_ + n]);
           break;
         case FQTERM_ENCODING_UTF8:
@@ -538,6 +542,7 @@ int FQTermDecode::processInput(QByteArray& result)
     case FQTERM_ENCODING_GBK:
     case FQTERM_ENCODING_BIG5:
     case FQTERM_ENCODING_HKSCS:
+    case FQTERM_ENCODING_UAO:
       charstate |= FQTermTextLine::SECONDPART;
       break;
     case FQTERM_ENCODING_UTF8:
@@ -558,6 +563,7 @@ int FQTermDecode::processInput(QByteArray& result)
     case FQTERM_ENCODING_GBK:
     case FQTERM_ENCODING_BIG5:
     case FQTERM_ENCODING_HKSCS:
+    case FQTERM_ENCODING_UAO:
       result.push_back('?');  //make sure the attr is recorded,
       //since last -1 operation can make cstr to be empty
       charstate |= FQTermTextLine::FIRSTPART;
@@ -681,6 +687,12 @@ void FQTermDecode::setMargins() {
   }
 }
 
+    void FQTermDecode::termReset()
+    {
+        FQ_FUNC_TRACE("ansi", 8);
+        termBuffer_->termReset();
+    }
+    
 // parameters functions
 void FQTermDecode::clearParam() {
   FQ_FUNC_TRACE("ansi", 9);

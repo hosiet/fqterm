@@ -18,6 +18,8 @@
 *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
 ***************************************************************************/
 
+
+
 #include "fqterm_scriptengine.h"
 #include "fqterm_window.h"
 #include "fqterm_screen.h"
@@ -25,9 +27,15 @@
 #include "fqterm_buffer.h"
 #include "common.h"
 #include "fqterm_path.h"
+
+#ifdef HAVE_PYTHON
+#include <Python.h>
+#endif
+
 #include <QString>
 #include <QDir>
 #include <QMessageBox>
+#include <QFileDialog>
 #include <QTime>
 #include <QTimer>
 #include <QFile>
@@ -123,6 +131,18 @@ void FQTermScriptEngine::msgBox( const QString& msg ) {
   QMessageBox::warning(window_, tr("FQTerm"),
     msg,
     QMessageBox::Close);
+}
+
+bool FQTermScriptEngine::yesnoBox( const QString& msg ){
+	return QMessageBox::question(window_, tr("FQTerm"),
+			msg,
+			QMessageBox::Yes|QMessageBox::No,
+			QMessageBox::No)==QMessageBox::Yes;
+}
+
+QString FQTermScriptEngine::FileDialog() {
+  return QFileDialog::getOpenFileName(
+      NULL, "Select a file", QDir::currentPath(), "*");
 }
 
 int FQTermScriptEngine::caretX() {
@@ -476,6 +496,52 @@ bool FQTermScriptEngine::isAntiIdle() {
 bool FQTermScriptEngine::isAutoReply() {
   return session_->isAutoReply();
 }
+
+    void FQTermScriptEngine::artDialog(const QString &content) 
+    {
+        FQTermConfig *config_ = window_->getConfig();
+        articleDialog article(config_, window_, 0);
+
+        QByteArray dlgSize =
+            config_->getItemValue("global", "articledialog").toLatin1();
+        
+        if (!dlgSize.isEmpty()) {
+            int x, y, cx, cy;
+            const char *dsize = dlgSize.constData();
+            sscanf(dsize, "%d %d %d %d", &x, &y, &cx, &cy);
+            article.resize(QSize(cx, cy));
+            article.move(QPoint(x, y));
+        } else {
+            article.resize(QSize(300, 500));
+            article.move(20,20);
+        }
+
+        article.articleText_ = content;
+
+        article.ui_.textBrowser->setPlainText(article.articleText_);
+        article.exec();
+    }
+
+    QString FQTermScriptEngine::askDialog(const QString& title,
+                                          const QString& question,
+                                          const QString& defText)
+    {
+        QString ans;
+        DefineEscapeDialog dlg(ans, window_);
+        dlg.setTitleAndText(title, question);
+        dlg.setEditText(defText);
+        if (dlg.exec()==1){
+            return ans;
+        }else{
+            return "";
+        }
+    }
+    
 } // namespace FQTerm
 
 #include "fqterm_scriptengine.moc"
+
+
+
+
+

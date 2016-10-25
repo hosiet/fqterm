@@ -46,7 +46,7 @@ const int addrDialog::ports[3] = {23, 22, 22};
  *  The dialog will by default be modeless, unless you set 'modal' to
  *  TRUE to construct a modal dialog.
  */
-addrDialog::addrDialog(QWidget *parent_, const FQTermParam& parameter, int buttons, Qt::WFlags fl)
+addrDialog::addrDialog(QWidget *parent_, const FQTermParam& parameter, int buttons, Qt::WindowFlags fl)
   : QDialog(parent_, fl),
     menuButtonGroup_(this),
     param_(parameter) {
@@ -78,7 +78,7 @@ void addrDialog::setParamFromUI() {
   param_.password_ = ui_.passwdLineEdit->text();
   param_.postLoginCommand_ = ui_.postloginLineEdit->text();
   param_.serverEncodingID_ = ui_.bbscodeComboBox->currentIndex();
-  param_.isFontAutoFit_ = ui_.autofontCheckBox->isChecked();
+  param_.isFontAutoFit_ = ui_.fontAdjustComboBox->currentIndex();
   param_.isAlwaysHighlight_ = ui_.highlightCheckBox->isChecked();
   param_.isAnsiColor_ = ui_.ansicolorCheckBox->isChecked();
   param_.backgroundColor_ = ui_.fontPreviewer->palette().color(QPalette::Background);
@@ -155,7 +155,7 @@ void addrDialog::setUIFromParam() {
   ui_.passwdLineEdit->setText(param_.password_);
   ui_.postloginLineEdit->setText(param_.postLoginCommand_);
   ui_.bbscodeComboBox->setCurrentIndex(param_.serverEncodingID_);
-  ui_.autofontCheckBox->setChecked(param_.isFontAutoFit_);
+  ui_.fontAdjustComboBox->setCurrentIndex(param_.isFontAutoFit_);
   ui_.highlightCheckBox->setChecked(param_.isAlwaysHighlight_);
   ui_.ansicolorCheckBox->setChecked(param_.isAnsiColor_);
   ui_.termtypeLineEdit->setText(param_.virtualTermType_);
@@ -242,7 +242,7 @@ void addrDialog::onCancel() {
 
 void addrDialog::onFgcolor() {
   QColor color = QColorDialog::getColor(param_.foregroundColor_);
-  if (color.isValid() == TRUE) {
+  if (color.isValid() == true) {
     param_.foregroundColor_ = color;
     previewFont();
   }
@@ -250,7 +250,7 @@ void addrDialog::onFgcolor() {
 
 void addrDialog::onBgcolor() {
   QColor color = QColorDialog::getColor(param_.backgroundColor_);
-  if (color.isValid() == TRUE) {
+  if (color.isValid() == true) {
     param_.backgroundColor_ = color;
     previewFont();
   }
@@ -270,17 +270,6 @@ void addrDialog::onProtocol(int n) {
     ui_.sshAutoLoginGroup->setChecked(false);
     break;
   case 1:
-#if defined(_NO_SSH_COMPILED)
-    QMessageBox::warning(this, "sorry",
-      "SSH support is not compiled, check your OpenSSL and try to recompile FQTerm");
-    ui_.protocolComboBox->setCurrentItem(0);
-#else
-    ui_.telnetAutoLoginGroup->setEnabled(false);
-    ui_.telnetAutoLoginGroup->setChecked(false);
-    ui_.sshAutoLoginGroup->setEnabled(true);
-    ui_.sshAutoLoginGroup->setChecked(param_.isAutoLogin_);
-#endif
-    break;
   case 2:
 #if defined(_NO_SSH_COMPILED)
     QMessageBox::warning(this, "sorry",
@@ -297,7 +286,7 @@ void addrDialog::onProtocol(int n) {
 }
 
 void addrDialog::onChooseScript() {
-  QString path = getPath(USER_CONFIG) + "script";
+  QString path = getPath(RESOURCE) + "script";
 
   QString strFile = QFileDialog::getOpenFileName(this, "choose a script file",
                                                  path, "JavaScript/Python File (*.js *.py)");
@@ -311,7 +300,7 @@ void addrDialog::onChooseScript() {
 
 void addrDialog::onMenuColor() {
   QColor color = QColorDialog::getColor(param_.menuColor_);
-  if (color.isValid() == TRUE) {
+  if (color.isValid() == true) {
     param_.menuColor_ = color;
     previewMenu();
   }
@@ -328,9 +317,9 @@ void addrDialog::previewFont() {
     + "'; font-size:" + QString().setNum(param_.englishFontSize_) 
     + "pt;\"><BR>AaBbCc</body></html>");
   sample += QString("<html><body style=\" font-family:'" 
-    + param_.nonEnglishFontName_ + "'; font-size:" 
-    + QString().setNum(param_.nonEnglishFontSize_) + "pt;\">" 
-    + param_.nonEnglishFontName_ + "<BR></body></html>");
+    + param_.otherFontName_ + "'; font-size:" 
+    + QString().setNum(param_.otherFontSize_) + "pt;\">" 
+    + param_.otherFontName_ + "<BR></body></html>");
   ui_.fontPreviewer->setText(sample);
 }
 
@@ -360,8 +349,8 @@ void addrDialog::previewMenu() {
 void addrDialog::onFont() {
   bool isEnglish = ((QAction*)(sender()))->data().toBool();
   bool ok;
-  QString& fontName = isEnglish?param_.englishFontName_:param_.nonEnglishFontName_;
-  int& fontSize = isEnglish?param_.englishFontSize_:param_.nonEnglishFontSize_;
+  QString& fontName = isEnglish?param_.englishFontName_:param_.otherFontName_;
+  int& fontSize = isEnglish?param_.englishFontSize_:param_.otherFontSize_;
   QFont now(fontName, fontSize);
 
   QFont font = QFontDialog::getFont(&ok, now, this, tr("Font Selector")

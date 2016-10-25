@@ -151,6 +151,13 @@
        </property>
       </widget>
      </item>
+     <item>
+      <widget class="QCheckBox" name="asciiEnhanceCheckBox">
+       <property name="text">
+        <string>ASCII Art Enhance Mode</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
    <item row="1" column="1" rowspan="2" colspan="2">

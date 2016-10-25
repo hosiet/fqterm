@@ -36,6 +36,8 @@ class QTabBar;
 class QFontDialog;
 class QActionGroup;
 class QString;
+class QFontComboBox;
+class UAOCodec;
 
 #ifdef USE_GLOBAL_HOTKEY
 class QxtGlobalShortcut;
@@ -119,7 +121,8 @@ class FQTermFrame: public QMainWindow {
   void disconnect();
   void copy();
   void paste();
-  void googleIt();
+  void searchIt();
+  void shareIt();
   void externalEditor();
   void fastPost();
   void copyRect();
@@ -135,6 +138,11 @@ class FQTermFrame: public QMainWindow {
   void hideScroll();
   void leftScroll();
   void rightScroll();
+  void setSEGoogle();
+  void setSEBaidu();
+  void setSEYahoo();
+  void setSEBing();
+  void setSECustom();
   void showSwitchBar();
   void setFont();
   void setColor();
@@ -146,12 +154,15 @@ class FQTermFrame: public QMainWindow {
   void antiIdle();
   void autoReply();
   void setting();
+  void saveSessionSetting();
   void viewMessages();
   void enableMouse();
   void beep();
   void reconnect();
   void keySetup();
   void ipLookup();
+  void termFontChange(bool isEnglish, QFont font);
+  void comboFontChanged(const QFont & font);
 
   void themesMenuAboutToShow();
   void themesMenuActivated();
@@ -184,6 +195,7 @@ class FQTermFrame: public QMainWindow {
   QActionGroup *escapeGroup;
   QActionGroup *languageGroup;
   QActionGroup *scrollGroup;
+  QActionGroup *searchEngineGroup;
   QMenu *menuWindows_;
   QMenu *menuThemes_;
   QMenu *menuFont_;
@@ -195,15 +207,16 @@ class FQTermFrame: public QMainWindow {
   FQTerm::StatusBar *statusBar_;
 
   QToolButton *serverButton_;
-  QToolButton *connectButton_; // *disconnectButton,
+  QToolButton *connectButton_; 
   QToolButton *fontButton_;
-  // 				*editRect, *editColor,
-  // 				*specAnti, *specAuto, *specMouse, *specBeep, *specReconnect;
+  QFontComboBox *englishFontCombo_;
+  QFontComboBox *otherFontCombo_;
 
   QMenuBar *menuMain_;
   QToolBar *toolBarMdiConnectTools_;
   QToolBar *toolBarMdiTools_;
   QToolBar *toolBarSetupKeys_;
+  QToolBar *toolBarFonts_;
 
   bool isTabBarShown_;
 
@@ -219,6 +232,8 @@ class FQTermFrame: public QMainWindow {
   QAction* getAction(int shortcut);
   FQTermMiniServerThread* serverThread_;
 
+  UAOCodec* uaoCodec_;
+
 private:
   void newWindow(const FQTermParam &param, int index = -1);
 
@@ -230,7 +245,10 @@ private:
   void addMainMenu();
   void addMainTool();
 
+  void setSE(const QString& se);
+
   void updateKeyToolBar();
+  void updateFontCombo();
 
   void loadToolBarPosition();
 
@@ -277,10 +295,10 @@ private:
 
 #ifdef USE_GLOBAL_HOTKEY
   QxtGlobalShortcut* globalHotkey_;
-#endif //USE_GLOBAL_HOTKEY
 private slots:
   void globalHotkeyTriggered();
   void globalHotkeyChanged();
+#endif //USE_GLOBAL_HOTKEY
 };
 
 class TranslatorInstaller : public QObject

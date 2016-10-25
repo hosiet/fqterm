@@ -80,6 +80,11 @@ static const FontSets &getPreferedFontSets() {
 
   QString filename = res_path + "default_font.conf";
 
+  if (!QFile::exists(filename)) {
+    filename = res_path + "/dict/" + "default_font.conf";
+  }
+
+
   QFile file(filename);
   if (!file.open(QIODevice::ReadOnly)) {
     FQ_TRACE("font", 0) << "Failed to open the default font configurations file:"
@@ -135,6 +140,8 @@ static const FontSets &getPreferedFontSets() {
   return font_sets;
 }
 
+#if 0
+//Not used
 static int outputAllSystemFonts(const QStringList &fonts) {
   if (isAllowedCategory("font", 9)) {
     for (int i = 0; i < fonts.size(); ++i) {
@@ -146,6 +153,7 @@ static int outputAllSystemFonts(const QStringList &fonts) {
   }
   return 0;
 }
+#endif
 
 static QStringList &getSystemFontFamilies() {
   static QStringList list = QFontDatabase().families();
@@ -240,6 +248,8 @@ QString getDefaultFontFamilyForLanguage(bool isEnglish) {
   return it->second;
 }
 
+#if 0
+//Not used.
 static Font::Language getCurrentSystemLanguage() {
   if (QLocale::system().language() == QLocale::Chinese) {
     return Font::SIMPLIFIED_CHINESE;
@@ -247,5 +257,5 @@ static Font::Language getCurrentSystemLanguage() {
 
   return Font::US_ENGLISH;
 }
-
+#endif
 }  // namespace FQTerm

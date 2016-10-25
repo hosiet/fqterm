@@ -247,7 +247,7 @@ void FQTermBuffer::writeText(const QString &str, int charstate) {
       // line->getMaxCellCount() after insertion?
       line->insertText((UTF16 *)cstr.data(), element_consumed, cell_begin,
                        caret_.color_, caret_.attr_, charstate);
-      if (line->getWidth() > num_columns_) {
+      if ((int)line->getWidth() > num_columns_) {
         line->deleteText(num_columns_, line->getWidth());
       }
     } else {
@@ -359,6 +359,26 @@ void FQTermBuffer::setMargins(int top, int bottom) {
   }
 }
 
+    // termReset(): deal with ANSI sequence <ESC> c
+    // initialize the terminal property
+    void FQTermBuffer::termReset()
+    {
+        FQ_TRACE("term", 3) << "Resetting terminal (<ESC> c)";
+        top_row_ = 0;
+        bottom_row_ = num_rows_ - 1;
+
+        is_g0_used_ = true;
+        is_insert_mode_ = false;
+        is_ansi_mode_ = true;
+        is_newline_mode_ = false;
+        is_cursor_mode_ = false;
+        is_numeric_mode_ = true;
+        is_origin_mode_ = false;
+        is_autowrap_mode_ = false;
+        is_autorepeat_mode_ = true;
+        is_lightbg_mode_ = false;
+    }
+    
 void FQTermBuffer::moveCaretTo(int column, int row, bool scroll_if_necessary) {
   if (row != caret_.row_)
     emit caretChangeRow();
@@ -596,11 +616,16 @@ void FQTermBuffer::scrollLinesInTerm(int startRow, int numRows) {
 
   // TODO: performance issue here. Reuse the old text lines.
   if (numRows > 0) {
-    // delete lines from startRow, insert lines on the bottom_row_.
-    while (numRows) {
-      delete text_lines_.takeAt(num_hist_lines_ + startRow);
-      text_lines_.insert(num_hist_lines_ + bottom_row_, new FQTermTextLine(num_columns_));
-      numRows--;
+    //We are scrolling the whole screen.
+    if (startRow == 0 && caret_.row_ == num_rows_ - 1) {
+      addHistoryLine(numRows);
+    } else {
+      // delete lines from startRow, insert lines on the bottom_row_.
+      while (numRows) {
+        delete text_lines_.takeAt(num_hist_lines_ + startRow);
+        text_lines_.insert(num_hist_lines_ + bottom_row_, new FQTermTextLine(num_columns_));
+        numRows--;
+      }
     }
   }
 

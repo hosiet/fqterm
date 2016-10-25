@@ -40,9 +40,11 @@
   Q_IMPORT_PLUGIN(qcncodecs)
   Q_IMPORT_PLUGIN(qjpcodecs)
   Q_IMPORT_PLUGIN(qtwcodecs)
+#if QT_VERSION < QT_VERSION_CHECK(4,8,5)
   Q_IMPORT_PLUGIN(qjpeg)
   Q_IMPORT_PLUGIN(qgif)
   Q_IMPORT_PLUGIN(qmng)
+#endif
 #else
   // dynamic link Qt4 plugins.
   #include <QPluginLoader>
@@ -78,7 +80,6 @@
 #include "fqterm_config.h"
 #include "fqterm_param.h"
 #include "fqterm_text_line.h"
-
 
 
 
@@ -118,7 +119,7 @@ int main(int argc, char **argv) {
   //                     << dumpNormalString << "\nucs2 " << ucs2.size() << " " << ucs2.at(0).unicode()
   //                     << dumpNormalString << "\nutf8   " << dumpHexString << utf8c;
   //return 0;
-  
+
   if (!iniSettings()) {
     return -1;
   }
@@ -130,6 +131,5 @@ int main(int argc, char **argv) {
   a.setQuitOnLastWindowClosed(false);
   FQ_VERIFY(a.connect(mw, SIGNAL(destroyed(QObject*)), &a, SLOT(mainWindowDestroyed(QObject*)), Qt::QueuedConnection));
   FQ_VERIFY(a.connect(&a, SIGNAL(saveData()), mw, SLOT(saveSetting())));
-  int res = a.exec();
-  return res;
+  return a.exec();
 }

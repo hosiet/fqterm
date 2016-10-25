@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>493</width>
-    <height>383</height>
+    <height>413</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -44,6 +44,13 @@
      </property>
      <property name="autoDefault">
       <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="2">
+    <widget class="QPushButton" name="savePushButton">
+     <property name="text">
+      <string>&amp;Apply (Save)</string>
      </property>
     </widget>
    </item>
@@ -101,12 +108,7 @@
            </item>
            <item>
             <property name="text">
-             <string>SSH1</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>SSH2</string>
+             <string>SSH</string>
             </property>
            </item>
           </widget>
@@ -301,13 +303,11 @@
            <string>BIG5-HKSCS</string>
           </property>
          </item>
-        </widget>
-       </item>
-       <item row="1" column="0" colspan="2">
-        <widget class="QCheckBox" name="autofontCheckBox">
-         <property name="text">
-          <string>Adjust Font Size When Resize</string>
-         </property>
+         <item>
+          <property name="text">
+           <string>BIG5-UAO</string>
+          </property>
+         </item>
         </widget>
        </item>
        <item row="2" column="0">
@@ -423,6 +423,28 @@
          <property name="arrowType">
           <enum>Qt::DownArrow</enum>
          </property>
+        </widget>
+       </item>
+       <item row="1" column="0" colspan="2">
+        <widget class="QComboBox" name="fontAdjustComboBox">
+         <property name="currentIndex">
+          <number>1</number>
+         </property>
+         <item>
+          <property name="text">
+           <string>Keep Font; Adjust Row/Column.</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Keep Row/Column; Adjust Font.</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Keep Font; Keep Row/Column.</string>
+          </property>
+         </item>
         </widget>
        </item>
       </layout>
@@ -670,7 +692,11 @@
            </widget>
           </item>
           <item row="1" column="1">
-           <widget class="QLineEdit" name="proxypasswdLineEdit"/>
+           <widget class="QLineEdit" name="proxypasswdLineEdit">
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
+            </property>
+           </widget>
           </item>
          </layout>
         </widget>
@@ -946,13 +972,6 @@
      </widget>
     </widget>
    </item>
-   <item row="1" column="2">
-    <widget class="QPushButton" name="savePushButton">
-     <property name="text">
-      <string>&amp;Apply (Save)</string>
-     </property>
-    </widget>
-   </item>
   </layout>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
@@ -967,7 +986,6 @@
   <tabstop>passwdLineEdit</tabstop>
   <tabstop>postloginLineEdit</tabstop>
   <tabstop>bbscodeComboBox</tabstop>
-  <tabstop>autofontCheckBox</tabstop>
   <tabstop>highlightCheckBox</tabstop>
   <tabstop>termtypeLineEdit</tabstop>
   <tabstop>keytypeComboBox</tabstop>

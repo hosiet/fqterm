@@ -27,6 +27,8 @@
 #include "fqterm.h"
 #include "fqterm_telnet.h"
 #include "fqterm_socket.h"
+#include "fqterm_telnet_socket.h"
+#include "fqterm_local_socket.h"
 
 #ifndef _NO_SSH_COMPILED
 #include "fqterm_ssh_socket.h"
@@ -188,12 +190,13 @@ FQTermTelnet::FQTermTelnet(const QString &strTermType, int rows, int columns,
       hostType_(hostType),
       protocolType_(protocolType) {
   term = new char[21];
-  int i;
-  for (i = 0; i < 21; i++) {
-    term[i] = '\000';
-  }
+  memset(term, 0, 21*sizeof(char));
   // TODO: clean up, need???
-  snprintf(term, sizeof(term), "%s", strTermType.toLatin1().constData());
+#ifdef WIN32
+  _snprintf(term, sizeof(term), "%s", strTermType.toLatin1().constData());
+#else
+  strncpy(term,strTermType.toLatin1(),20);
+#endif
 
   wx = columns;
   wy = rows;
@@ -210,12 +213,12 @@ FQTermTelnet::FQTermTelnet(const QString &strTermType, int rows, int columns,
   raw_size = 0;
 
 #ifndef _NO_SSH_COMPILED
-  if (protocolType == 1 || protocolType == 2) {
+  if (protocolType == 1) {
     socket = new FQTermSSHSocket(columns, rows, strTermType, sshuser, sshpasswd);
     FQ_VERIFY(connect(socket, SIGNAL(sshAuthOK()),
 		      this, SIGNAL(onSSHAuthOK())));
-  } else if (protocolType == 3) {
-    socket = new FQTermLocalSocket("");
+  } else if (protocolType == 2) {
+    socket = new FQTermLocalSocket();
   } else {
     socket = new FQTermTelnetSocket();
   }
@@ -346,6 +349,7 @@ void FQTermTelnet::windowSizeChanged(int x, int y) {
     }
     naws = 0;
 
+    /*
     QByteArray cmd(10, 0);
     cmd[0] = (char)TCIAC;
     cmd[1] = (char)TCSB;
@@ -357,6 +361,7 @@ void FQTermTelnet::windowSizeChanged(int x, int y) {
     cmd[7] = (char)TCIAC;
     cmd[8] = (char)TCSE;
     socket->writeBlock(cmd);
+    */
 
   }
 }

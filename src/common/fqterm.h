@@ -38,11 +38,14 @@ namespace FQTerm {
 #define fq_strdup strdup
 #endif
 
-#define USE_GLOBAL_HOTKEY
-
+#ifdef FOUND_PYTHON
+//#define HAVE_PYTHON
+#endif //FOUND_PYTHON
 
 //code convert
-enum EncodingID {FQTERM_ENCODING_GBK = 0, FQTERM_ENCODING_BIG5 = 1, FQTERM_ENCODING_UTF8 = 2, FQTERM_ENCODING_HKSCS = 3};
+enum EncodingID {FQTERM_ENCODING_GBK = 0, FQTERM_ENCODING_BIG5 = 1, 
+                 FQTERM_ENCODING_UTF8 = 2, FQTERM_ENCODING_HKSCS = 3, 
+                 FQTERM_ENCODING_UAO = 4};
 
 #if QT_VERSION >= 0X040700
 #define GBK_CODECS_NAME "GB18030"
@@ -58,6 +61,8 @@ enum EncodingID {FQTERM_ENCODING_GBK = 0, FQTERM_ENCODING_BIG5 = 1, FQTERM_ENCOD
 #define U2H(s) ( QTextCodec::codecForName("Big5-HKSCS")->fromUnicode(s) )
 #define U2U8(s) ( s.toUtf8() )
 #define U82U(s) ( QString::fromUtf8(s) )
+#define A2U(s) (QTextCodec::codecForName("UAO")->toUnicode(s) )
+#define U2A(s) ( QTextCodec::codecForName("UAO")->fromUnicode(s) )
 
 inline QByteArray unicode2encoding(const QString &text, int encoding) {
   switch(encoding)
@@ -70,6 +75,8 @@ inline QByteArray unicode2encoding(const QString &text, int encoding) {
     return(U2U8(text));
   case FQTERM_ENCODING_HKSCS:
     return (U2H(text));
+  case FQTERM_ENCODING_UAO:
+    return (U2A(text));
   }
 
   return "";
@@ -86,6 +93,8 @@ inline QString encoding2unicode(const QByteArray &text, int encoding) {
     return(U82U(text));
   case FQTERM_ENCODING_HKSCS:
     return (H2U(text));
+  case FQTERM_ENCODING_UAO:
+    return (A2U(text));
   }
 
   return "";

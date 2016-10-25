@@ -21,12 +21,11 @@
 #ifndef FQTERM_CANVAS_H
 #define FQTERM_CANVAS_H
 
-//Added by qt3to4:
 #include <QScrollArea>
 #include <QImage>
-// #include <QResizeEvent>
-// #include <QCloseEvent>
+#include <QMovie>
 
+class QAction;
 class QLabel;
 class QMenu;
 class QCloseEvent;
@@ -45,7 +44,7 @@ class FQTermFileDialog;
 class FQTermCanvas: public QScrollArea {
   Q_OBJECT;
  public:
-  FQTermCanvas(FQTermConfig *, QWidget *parent_ = NULL, Qt::WFlags f = Qt::Window);
+  FQTermCanvas(FQTermConfig *, QWidget *parent_ = NULL, Qt::WindowFlags f = Qt::Window);
   ~FQTermCanvas();
 
   enum AdjustMode{Origin, Fit, Stretch, MaxFit};
@@ -68,6 +67,7 @@ class FQTermCanvas: public QScrollArea {
   void deleteImage();
   void SetAdjustMode(AdjustMode am);
   void openDir();
+  void playGIF();
  protected slots:
   void SetAdjustMode();
  protected:
@@ -83,14 +83,16 @@ class FQTermCanvas: public QScrollArea {
   void adjustSize(QSize);
   QPixmap scaleImage(const QSize &);
  protected:
-  QLabel *label;
+  QLabel *label_;
   bool useAdjustMode_;
   QSize imageSize_;
   QString fileName_;
   QImage image_;
+  QMovie gifPlayer_;
   QMenu *menu_;
   QToolBar *toolBar_;
   FQTermConfig * config_;
+  QAction* gifPlayAction_;
 
   AdjustMode adjustMode_;
   Qt::AspectRatioMode aspectRatioMode_;

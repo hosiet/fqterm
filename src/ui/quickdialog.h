@@ -36,12 +36,12 @@ class FQTermConfig;
 class quickDialog: public QDialog {
   Q_OBJECT;
  public:
-  quickDialog(FQTermConfig *, QWidget *parent_ = 0, Qt::WFlags fl = 0);
+  quickDialog(FQTermConfig *, QWidget *parent_ = 0, Qt::WindowFlags fl = 0);
   ~quickDialog();
 
   FQTermParam param_;
 
-  static const int ports[3];
+  static const int ports[];
 
  protected slots:
   void listChanged(int);  //
@@ -51,6 +51,7 @@ class quickDialog: public QDialog {
   void onConnect(); //
   void onClose();
   void onSelectProtocol(int index);
+  void portCheckToggled(bool);
 
  private:
 

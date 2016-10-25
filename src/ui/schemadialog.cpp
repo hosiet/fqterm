@@ -31,7 +31,7 @@
 
 namespace FQTerm {
 
-schemaDialog::schemaDialog(QWidget *parent, Qt::WFlags fl)
+schemaDialog::schemaDialog(QWidget *parent, Qt::WindowFlags fl)
     : QDialog(parent, fl),
       buttonGroup_(this) {
   ui_.setupUi(this);
@@ -157,7 +157,7 @@ void schemaDialog::loadSchema(const QString &strSchemaFile) {
 QFileInfoList schemaDialog::getSchemaList() {
   QDir dir;
   dir.setNameFilters(QStringList("*.schema"));
-  dir.setPath(getPath(RESOURCE) + "schema");
+  dir.setPath(getPath(USER_CONFIG) + "schema");
   return dir.entryInfoList();
 }
 
@@ -166,7 +166,7 @@ int schemaDialog::saveNumSchema(int n) {
   int saved = n;
   title_ = ui_.titleLineEdit->text();
 
-  QString schemaFileName = getPath(RESOURCE) + "schema/" + title_ + ".schema";
+  QString schemaFileName = getPath(USER_CONFIG) + "schema/" + title_ + ".schema";
   QListWidgetItem* item = ui_.nameListWidget->currentItem();
   // create a new schema if title changed
   QString test = ui_.nameListWidget->currentItem()->data(Qt::UserRole).toString();

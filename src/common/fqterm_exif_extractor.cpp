@@ -323,7 +323,7 @@ void ExifExtractor::postRead() {
     if ((*ii).second.length() != 1) {
       exifKeyValuePairs_.erase(ii);
     } else {
-      if ((*ii).second[0] == '\0x03') {
+      if ((*ii).second[0] == '\003') {
         (*ii).second = "Digital still camera";
       } else {
         exifKeyValuePairs_.erase(ii);
@@ -334,7 +334,7 @@ void ExifExtractor::postRead() {
     if ((*ii).second.length() != 1) {
       exifKeyValuePairs_.erase(ii);
     } else {
-      if ((*ii).second[0] == '\0x01') {
+      if ((*ii).second[0] == '\001') {
         (*ii).second = "Directly photographed";
       } else {
         exifKeyValuePairs_.erase(ii);
@@ -404,7 +404,7 @@ std::string ExifExtractor::readInfo() {
         break;
       }
       buffer = new char[256];
-      sprintf(buffer, "%hu\0", shortValue);
+      sprintf(buffer, "%hu", shortValue);
       ret = buffer;
       delete []buffer;
       break;
@@ -413,7 +413,7 @@ std::string ExifExtractor::readInfo() {
         break;
       }
       buffer = new char[256];
-      sprintf(buffer, "%lu\0", longValue);
+      sprintf(buffer, "%u", longValue);
       ret = buffer;
       delete []buffer;
       
@@ -432,7 +432,7 @@ std::string ExifExtractor::readInfo() {
       urationalgcd = gcd(urationalp, urationalc);
       if (urationalgcd == 0) urationalgcd = 1;
       buffer = new char[256];
-      sprintf(buffer, "%lu/%lu", urationalc / urationalgcd, urationalp / urationalgcd);
+      sprintf(buffer, "%u/%u", urationalc / urationalgcd, urationalp / urationalgcd);
       ret = buffer;
       delete []buffer;
       break;
@@ -459,9 +459,11 @@ std::string ExifExtractor::readInfo() {
       rationalgcd = gcd(rationalp, rationalc);
       if (rationalgcd == 0) rationalgcd = 1;
       buffer = new char[256];
-      sprintf(buffer, "%ld/%ld", sign * rationalc / rationalgcd, rationalp / rationalgcd);
+      sprintf(buffer, "%d/%d", sign * rationalc / rationalgcd, rationalp / rationalgcd);
       ret = buffer;
       delete []buffer;
+      break;
+    default:
       break;
   }
   return ret;
@@ -543,7 +545,7 @@ bool ExifExtractor::readSubIFD() {
     return false;
   }
   uint32 exifOffset = 0;
-  sscanf((*ii).second.c_str(), "%lu", &exifOffset);
+  sscanf((*ii).second.c_str(), "%u", &exifOffset);
   seek(12 + exifOffset, SEEK_SET);
 
   uint16 entryCount = 0;

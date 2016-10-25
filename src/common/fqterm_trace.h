@@ -22,6 +22,10 @@
 #define FQTERM_TRACE_H
 
 #include <cassert>
+#ifndef WIN32
+#include <unistd.h>
+#endif // WIN32
+
 #include <QtDebug>
 #include <QFileInfo>
 
@@ -55,9 +59,13 @@ int isAllowedCategory(const char *category, int trace_level);
 
 void addAllowedCategory(const char *category);
 
-static void soft_break() {
-#if defined(WIN32)
-  __asm int 03h;
+static inline void soft_break() {
+#ifdef WIN32
+#ifdef _MSC_VER
+    __asm int 03h;
+#else
+    asm("int $0x03");
+#endif
 #else
   pause();
 #endif
@@ -86,7 +94,7 @@ class FQTermTrace {
     (*this) << "[" << category_ << " " << trace_level << " ";
 
 #ifndef NO_FQTERM_TRACE_FILE_LINE_NUM
-    (*this) << QFileInfo(file_name).fileName().toAscii().constData()
+    (*this) << QFileInfo(file_name).fileName().toLatin1().constData()
             << ": " << line_num;
 #endif  // NO_FQTERM_TRACE_FILE_LINE_NUM
 

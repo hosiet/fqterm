@@ -21,10 +21,8 @@
 #ifndef FQTERM_PYTHON_H
 #define FQTERM_PYTHON_H
 
-#include "fqterm.h"
-
 #ifdef HAVE_PYTHON
-#include <Python.h>
+#include "fqterm.h"
 
 namespace FQTerm {
 

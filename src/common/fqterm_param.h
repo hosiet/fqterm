@@ -65,8 +65,10 @@ struct FQTermPref {
   QString imageViewerName_;
   QString externalEditor_;
   QString externalEditorArg_;
+  QString searchEngine_;
   //global settings
   bool isBossColor_;
+  bool isAnsciiEnhance_;
   QString escapeString_;
   int termScrollBarPosition_; // 0--hide 1--LEFT 2--RIGHT
   bool runServer_;
@@ -84,7 +86,7 @@ class FQTermParam {
   bool operator==(const FQTermParam &);
 
   static const FQTermParam& getFQBBSParam();
-  static QString getLanguageName(bool isEnglish);
+  static QString getLanguageName(bool isEnglish, bool translate = true);
   // General
   // Name
   QString name_;
@@ -106,21 +108,23 @@ class FQTermParam {
   QString postLoginCommand_;
 
   // Display
-  // {FQTERM_ENCODING_GBK = 0, FQTERM_ENCODING_BIG5 = 1, FQTERM_ENCODING_UTF8 = 2, FQTERM_ENCODING_HKSCS = 3};
+  // {FQTERM_ENCODING_GBK = 0, FQTERM_ENCODING_BIG5 = 1, FQTERM_ENCODING_UTF8 = 2, FQTERM_ENCODING_HKSCS = 3, FQTERM_ENCODING_UAO = 4};
   int serverEncodingID_;
 
-  // Auto Change Font When Window Resized
-  bool isFontAutoFit_;
+  // 0 - keep column/row, adjust font
+  // 1 - keep font, adjust column/row
+  // 2 - keep column/row/font
+  int isFontAutoFit_;
   // Always Highlight
   bool isAlwaysHighlight_;
   // ANSI Color
   bool isAnsiColor_;
   // Font Name
   QString englishFontName_;
-  QString nonEnglishFontName_;
+  QString otherFontName_;
   // Font Size
   int englishFontSize_;
-  int nonEnglishFontSize_;
+  int otherFontSize_;
 
   int alignMode_; //how to align english char/chinese char in vertical direction 0 -- vcenter, 1 -- bottom 2 -- top
   int charSpacing_; //additional char spacing for English char.

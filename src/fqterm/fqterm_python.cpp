@@ -18,7 +18,9 @@
  *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
-#include <QCustomEvent>
+
+
+#include <QEvent>
 #include <QTextStream>
 #include <QApplication>
 #include <QDir>
@@ -26,8 +28,10 @@
 #include <QByteArray>
 #include <QMutex>
 #include <QThread>
-
-
+#include "fqterm.h"
+#ifdef HAVE_PYTHON
+#include <Python.h>
+#endif
 class SleeperThread : public QThread
 {
 public:
@@ -42,7 +46,6 @@ public:
 #endif
 
 #ifdef HAVE_PYTHON
-#include <Python.h>
 
 #include "fqterm_window.h"
 #include "fqterm_buffer.h"
@@ -731,7 +734,7 @@ PyMethodDef fqterm_methods[] =  {
   ,
 
   {
-    "getProtocol", (PyCFunction)fqterm_getPort, METH_VARARGS,
+    "getProtocol", (PyCFunction)fqterm_getProtocol, METH_VARARGS,
 	"get the bbs protocol, 0/1/2 TELNET/SSH1/SSH2"
   }
 

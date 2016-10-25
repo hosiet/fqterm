@@ -4,7 +4,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 
 ADD_DEFINITIONS(-Wall)
 ADD_DEFINITIONS(-DFQTERM_VERSION_STRING="\\"${FQTERM_VERSION}\\"")
-ADD_DEFINITIONS(-DFQTERM_SVN_REVISION="\\"${MCGSVN_WC_REVISION}\\"")
+
 
 if(FQTERM_USE_STATIC_QT)
   ADD_DEFINITIONS(-DFQTERM_USE_STATIC_QT)
@@ -13,6 +13,8 @@ endif(FQTERM_USE_STATIC_QT)
 add_subdirectory(src)
 
 find_library(APPKIT_LIBRARY AppKit)
+
+FIND_LIBRARY(CARBON_LIBRARY Carbon)
 
 include_directories(
   ${QT_INCLUDE_DIR}
@@ -45,11 +47,13 @@ ADD_EXECUTABLE(fqterm
   src/fqterm/main.cpp
 )
 
+set(FQ_QT_PLUGINS
+    qcncodecs qjpcodecs qkrcodecs qtwcodecs
+    qjpeg qgif qmng)
+
 if(FQTERM_USE_STATIC_QT)
   set(FQ_QT_STATIC_PLUGINS
-  qcncodecs qjpcodecs qkrcodecs qtwcodecs
-  qjpeg qgif qmng
-  )
+  ${FQ_QT_PLUGINS})
 endif(FQTERM_USE_STATIC_QT)
 
 target_link_libraries(fqterm
@@ -59,9 +63,11 @@ target_link_libraries(fqterm
   ${QT_QTNETWORK_LIBRARY}
   ${QT_QTSCRIPT_LIBRARY}
   ${APPKIT_LIBRARY}
+  ${CARBON_LIBRARY}
   ${FQ_QT_STATIC_PLUGINS}
   ${PYTHON_LIB}
   ${ZLIB_LIBRARIES}
+  ${QT_QTXML_LIBRARIES}  
   ssl 
   crypto
   fqterm_common 
@@ -112,9 +118,15 @@ INSTALL(
       WORLD_READ
 )
 
+
 add_custom_target(package
 COMMAND make install
 COMMAND rm -f ${CMAKE_BINARY_DIR}/fqterm.dmg
 COMMAND hdiutil create -verbose -srcfolder ${CMAKE_BINARY_DIR}/fqterm.app ${CMAKE_BINARY_DIR}/fqterm.dmg
 DEPENDS ${CMAKE_BINARY_DIR}/fqterm.app
 )
+
+set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR})
+
+include(DeployQt4)
+INSTALL_QT4_EXECUTABLE(fqterm.app "${FQ_QT_PLUGINS}" "" "")

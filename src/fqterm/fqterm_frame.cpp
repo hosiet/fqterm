@@ -31,6 +31,7 @@
 
 #include <QDesktopServices>
 #include <QDir>
+#include <QFontComboBox>
 #include <QFontDialog>
 #include <QInputDialog>
 #include <QKeySequence>
@@ -43,15 +44,11 @@
 #include <QStatusBar>
 #include <QStyleFactory>
 #include <QTime>
-#include <QDate>
+#include <QSizePolicy>
 #include <QTimer>
 #include <QToolBar>
 #include <QTranslator>
 #include <QWindowStateChangeEvent>
-
-#ifdef HAVE_PYTHON
-#include "fqterm_python.h"
-#endif //HAVE_PYTHON
 
 #include "aboutdialog.h"
 #include "addrdialog.h"
@@ -61,7 +58,6 @@
 #include "fqterm.h"
 
 #include "fqterm_path.h"
-#include "fqterm_autoupdate.h"
 #include "fqterm_config.h"
 #include "fqterm_frame.h"
 #include "fqterm_param.h"
@@ -82,6 +78,7 @@
 #include "fqterm_ip_location.h"
 #include "iplookup.h"
 #include "defineescape.h"
+#include "uaocodec.h"
 
 #ifdef USE_DOTNET_STYLE
 #include "dotnetstyle.h"
@@ -90,6 +87,11 @@
 #ifdef USE_GLOBAL_HOTKEY
 #include "qxtglobalshortcut.h"
 #endif //USE_GLOBAL_HOTKEY
+
+#ifdef HAVE_PYTHON
+#include <Python.h>
+#include "fqterm_python.h"
+#endif //HAVE_PYTHON
 
 namespace FQTerm {
 
@@ -116,6 +118,8 @@ FQTermFrame::FQTermFrame()
 /*#ifndef __APPLE__
   setWindowFlags(Qt::CustomizeWindowHint);
 #endif*/
+  uaoCodec_ = new UAOCodec;
+  
   config_ = new FQTermConfig(getPath(USER_CONFIG) + "fqterm.cfg");
 
   initTranslator();
@@ -176,15 +180,6 @@ FQTermFrame::FQTermFrame()
 
   installEventFilter(this);
 
-  QDate lastCheckDate = QDate::fromString(config_->getItemValue("global", "lastcheckupdate"));
-  QDate currentDate = QDate::currentDate();
-  if (!lastCheckDate.isValid() || lastCheckDate.daysTo(currentDate) >= 31) {
-    FQTermAutoUpdater* autoUpdater =
-      new FQTermAutoUpdater(this, config_);
-    autoUpdater->checkUpdate();  
-    config_->setItemValue("global", "lastcheckupdate", currentDate.toString());
-  }
-
   serverThread_ = new FQTermMiniServerThread();
   if (FQTermPref::getInstance()->runServer_)
     serverThread_->start();
@@ -212,11 +207,15 @@ FQTermFrame::~FQTermFrame() {
   delete imageViewer_;
   delete shortcutHelper_;
   delete config_;
+  // should not delete yourself!!
+  // http://qt-project.org/doc/qt-5/qtextcodec.html#dtor.QTextCodec
+  //  delete uaoCodec_;
   delete windowManager_;
   FQTermIPLocation::Destroy();
   serverThread_->quit();
   serverThread_->wait(1000);
   delete serverThread_;
+  
 }
 
 //initialize setting from fqterm.cfg
@@ -401,9 +400,29 @@ void FQTermFrame::loadPref() {
   strTmp = config_->getItemValue("preference", "editor");
   FQTermPref::getInstance()->externalEditor_ = strTmp;
 
+  //FIXME: duplicated strings.
+  strTmp = config_->getItemValue("preference", "searchengine");
+  if (strTmp == "google") {
+    getAction(FQTermShortcutHelper::SEARCH_GOOGLE)->setChecked(true);
+  } else if (strTmp == "baidu") {
+    getAction(FQTermShortcutHelper::SEARCH_BAIDU)->setChecked(true);
+  } else if (strTmp == "bing") {
+    getAction(FQTermShortcutHelper::SEARCH_BING)->setChecked(true);
+  } else if (strTmp == "yahoo") {
+    getAction(FQTermShortcutHelper::SEARCH_YAHOO)->setChecked(true);
+  } else if (strTmp == "custom") {
+    getAction(FQTermShortcutHelper::SEARCH_CUSTOM)->setChecked(true);
+  } else {
+    getAction(FQTermShortcutHelper::SEARCH_GOOGLE)->setChecked(true);
+    strTmp = "google";
+  }
+  FQTermPref::getInstance()->searchEngine_ = strTmp;
+
   strTmp = config_->getItemValue("preference", "editorarg");
   FQTermPref::getInstance()->externalEditorArg_ = strTmp;
  
+  strTmp = config_->getItemValue("preference", "asciienhance");
+  FQTermPref::getInstance()->isAnsciiEnhance_ = (strTmp == "1");
 }
 
 //save current setting to fqterm.cfg
@@ -486,7 +505,7 @@ void FQTermFrame::initAdditionalActions()
 
 //addressbook
 void FQTermFrame::addressBook() {
-  siteDialog siteManager(this, false);
+  siteDialog siteManager(this, 0);
   if (siteManager.exec() == 1) {
     newWindow(siteManager.currentParameter(), siteManager.currentSiteIndex());
   }
@@ -513,6 +532,10 @@ void FQTermFrame::exitFQTerm() {
 void FQTermFrame::newWindow(const FQTermParam &param, int index) {
   QIcon *icon = new QIcon(QPixmap(getPath(RESOURCE) + "pic/tabpad.png"));
   FQTermWindow* window = windowManager_->newWindow(param, config_, icon, index);
+
+  updateFontCombo();
+  FQ_VERIFY(connect(window->getScreen(), SIGNAL(termFontChange(bool,QFont)), this, SLOT(termFontChange(bool,QFont))));
+
   window->connectHost();
 }
 
@@ -525,7 +548,7 @@ void FQTermFrame::aboutFQTerm() {
 //slot Help->Homepage
 void FQTermFrame::homepage() {
   const QString &httpBrowser = FQTermPref::getInstance()->httpBrowser_;
-  const QString homeUrl = "http://code.google.com/p/fqterm";
+  const QString homeUrl = "https://github.com/mytbk/fqterm/";
 
   if (httpBrowser.isNull() || httpBrowser.isEmpty()) {
 	QDesktopServices::openUrl(homeUrl);
@@ -682,9 +705,14 @@ void FQTermFrame::paste() {
   windowManager_->activeWindow()->paste();
 }
 
-void FQTermFrame::googleIt()
+void FQTermFrame::searchIt()
 {
-  windowManager_->activeWindow()->googleIt();
+  windowManager_->activeWindow()->searchIt();
+}
+
+void FQTermFrame::shareIt()
+{
+  windowManager_->activeWindow()->shareIt();
 }
 
 void FQTermFrame::externalEditor() {
@@ -950,6 +978,7 @@ void FQTermFrame::fullscreen() {
     toolBarMdiTools_->hide();
     toolBarMdiConnectTools_->hide();
     toolBarSetupKeys_->hide();
+    toolBarFonts_->hide();
     hideScroll();
     showSwitchBar();
     showFullScreen();
@@ -958,6 +987,7 @@ void FQTermFrame::fullscreen() {
     toolBarMdiTools_->show();
     toolBarMdiConnectTools_->show();
     toolBarSetupKeys_->show();
+    toolBarFonts_->show();
     emit updateScroll();
     showSwitchBar();
     showNormal();
@@ -1020,22 +1050,42 @@ void FQTermFrame::themesMenuActivated() {
   }
 }
 
+
+
 void FQTermFrame::hideScroll() {
   FQTermPref::getInstance()->termScrollBarPosition_ = 0;
-
   emit updateScroll();
 }
 
 void FQTermFrame::leftScroll() {
   FQTermPref::getInstance()->termScrollBarPosition_ = 1;
-
   emit updateScroll();
 }
 
 void FQTermFrame::rightScroll() {
   FQTermPref::getInstance()->termScrollBarPosition_ = 2;
-
   emit updateScroll();
+}
+
+void FQTermFrame::setSE(const QString& se) {
+  FQTermPref::getInstance()->searchEngine_ = se;
+  config_->setItemValue("preference", "searchengine", se);
+}
+
+void FQTermFrame::setSEGoogle() {
+  setSE("google");
+}
+void FQTermFrame::setSEBaidu(){
+  setSE("baidu");
+}
+void FQTermFrame::setSEYahoo() {
+  setSE("yahoo");
+}
+void FQTermFrame::setSEBing() {
+  setSE("bing");
+}
+void FQTermFrame::setSECustom(){
+  setSE("custom");
 }
 
 void FQTermFrame::showSwitchBar() {
@@ -1052,6 +1102,10 @@ void FQTermFrame::showSwitchBar() {
 void FQTermFrame::setting() {
   windowManager_->activeWindow()->setting();
   updateMenuToolBar();
+}
+
+void FQTermFrame::saveSessionSetting() {
+  windowManager_->activeWindow()->saveSetting(false);
 }
 
 void FQTermFrame::defaultSetting() {
@@ -1252,7 +1306,7 @@ void FQTermFrame::keyClicked(int id) {
       windowManager_->activeWindow()->runPythonScriptFile(scriptFile);
     else
 #endif
-      windowManager_->activeWindow()->runScript(scriptFile.toAscii());
+      windowManager_->activeWindow()->runScript(scriptFile.toLatin1());
   } else if (strTmp[0] == '2') { // program
     runProgram(strTmp.mid(1));
   }
@@ -1262,7 +1316,6 @@ void FQTermFrame::addMainTool() {
   // the main toolbar
   toolBarMdiTools_ = addToolBar("Main ToolBar");
   toolBarMdiTools_->setObjectName("Main ToolBar");
-  //toolBarMdiTools_->setIconSize(QSize(22, 22));
 
   connectButton_ = new QToolButton(toolBarMdiTools_);
   connectButton_->setIcon(QPixmap(getPath(RESOURCE) + "pic/connect.png"));
@@ -1288,11 +1341,17 @@ void FQTermFrame::addMainTool() {
   toolBarSetupKeys_->setObjectName("Custom Key");
 
   // the toolbar
-  toolBarMdiConnectTools_ = addToolBar("bbs operations");
-  toolBarMdiConnectTools_->setObjectName("bbs operations");
+  toolBarMdiConnectTools_ = addToolBar("BBS operations");
+  toolBarMdiConnectTools_->setObjectName("BBS operations");
   FQTERM_ADDACTION(toolBarMdiConnectTools_, DISCONNECT, this, disconnect);
   getAction(FQTermShortcutHelper::DISCONNECT)->setEnabled(false);
   toolBarMdiConnectTools_->addSeparator();
+
+  //Font Tool Bar
+  toolBarFonts_ = addToolBar("Font ToolBar");
+  toolBarFonts_->setObjectName("Font ToolBar");
+
+  
 
   // Edit (5)
   toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::COPY));
@@ -1301,14 +1360,31 @@ void FQTermFrame::addMainTool() {
   toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::RECTANGLESELECTION));
   toolBarMdiConnectTools_->addSeparator();
 
-  //View (3)
-  fontButton_ = new QToolButton(toolBarMdiConnectTools_);
+  //Font
+  fontButton_ = new QToolButton(toolBarFonts_);
   QAction* dummyAction = new QAction(QPixmap(getPath(RESOURCE) + "pic/change_fonts.png"),
     tr("Set Terminal Fonts"), fontButton_);
   fontButton_->setDefaultAction(dummyAction);
-  toolBarMdiConnectTools_->addWidget(fontButton_);
+  toolBarFonts_->addWidget(fontButton_);
   fontButton_->setMenu(menuFont_);
   fontButton_->setPopupMode(QToolButton::InstantPopup);
+
+  toolBarFonts_->addSeparator();
+  englishFontCombo_ = new QFontComboBox(toolBarFonts_);
+  otherFontCombo_ = new QFontComboBox(toolBarFonts_);
+  QLabel *englishFontLabel = new QLabel(toolBarFonts_);
+  englishFontLabel->setPixmap(QPixmap(getPath(RESOURCE) + "pic/english_font.png"));
+  toolBarFonts_->addWidget(englishFontLabel);
+  toolBarFonts_->addWidget(englishFontCombo_);
+  toolBarFonts_->addSeparator();
+  QLabel *otherFontLabel = new QLabel(toolBarFonts_);
+  otherFontLabel->setPixmap(QPixmap(getPath(RESOURCE) + "pic/other_font.png"));
+  toolBarFonts_->addWidget(otherFontLabel);
+  toolBarFonts_->addWidget(otherFontCombo_);
+  FQ_VERIFY(connect(englishFontCombo_, SIGNAL(currentFontChanged(const QFont&)),
+    this, SLOT(comboFontChanged(const QFont&))));
+  FQ_VERIFY(connect(otherFontCombo_, SIGNAL(currentFontChanged(const QFont&)),
+    this, SLOT(comboFontChanged(const QFont&))));
 
   toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::COLORSETTING));
   toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::ANSICOLOR));
@@ -1317,6 +1393,7 @@ void FQTermFrame::addMainTool() {
 
   // Option
   toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::CURRENTSETTING));
+  toolBarMdiConnectTools_->addAction(getAction(FQTermShortcutHelper::SAVESETTING));
   toolBarMdiConnectTools_->addSeparator();
 
   // Spec (5)
@@ -1332,6 +1409,7 @@ void FQTermFrame::addMainTool() {
   //call popupConnectMenu() to enable the shortcuts
   popupConnectMenu(); 
 
+  
 }
 
 
@@ -1369,7 +1447,8 @@ void FQTermFrame::addMainMenu() {
   FQTERM_ADDACTION(edit, AUTOCOPYSELECTION, this, autoCopy);
   FQTERM_ADDACTION(edit, PASTEWORDWRAP, this, wordWrap);
   edit->addSeparator();
-  FQTERM_ADDACTION(edit, GOOGLEIT, this, googleIt);
+  FQTERM_ADDACTION(edit, SEARCHIT, this, searchIt);
+  FQTERM_ADDACTION(edit, WEIBOSHARE, this, shareIt);
   edit->addSeparator();
   FQTERM_ADDACTION(edit, EXTERNALEDITOR, this, externalEditor);
   edit->addSeparator();
@@ -1395,8 +1474,8 @@ void FQTermFrame::addMainMenu() {
   menuFont_ = view->addMenu(tr("&Font"));
   menuFont_->setIcon(QPixmap(getPath(RESOURCE) + "pic/change_fonts.png"));
   view->addMenu(menuFont_);
-  FQTERM_ADDACTION(menuFont_, NONENGLISHFONT, this, setFont);
-  getAction(FQTermShortcutHelper::NONENGLISHFONT)->setData(0);
+  FQTERM_ADDACTION(menuFont_, OTHERFONT, this, setFont);
+  getAction(FQTermShortcutHelper::OTHERFONT)->setData(0);
   FQTERM_ADDACTION(menuFont_, ENGLISHFONT, this, setFont);
   getAction(FQTermShortcutHelper::ENGLISHFONT)->setData(1);
   FQTERM_ADDACTION(view, COLORSETTING, this, setColor);
@@ -1444,11 +1523,11 @@ void FQTermFrame::addMainMenu() {
   scrollGroup->addAction(getAction(FQTermShortcutHelper::SCROLLBAR_LEFT));
 
   FQTERM_ADDACTION(view, SWITCHBAR, this, showSwitchBar);
-
   // Option Menu
   QMenu *option = menuMain_->addMenu(tr("&Option"));
 
   FQTERM_ADDACTION(option, CURRENTSETTING, this, setting);
+  FQTERM_ADDACTION(option, SAVESETTING, this, saveSessionSetting);
   option->addSeparator();
   FQTERM_ADDACTION(option, DEFAULTSETTING, this, defaultSetting);
 #ifdef Q_OS_MAC
@@ -1460,6 +1539,20 @@ void FQTermFrame::addMainMenu() {
   FQTERM_ADDACTION(option, SHORTCUTSETTING, this, shortcutSetting);
   option->addSeparator();
   FQTERM_ADDACTION(option, EDITSCHEMA, this, editSchema);
+  option->addSeparator();
+
+  QMenu *searchEngineMenu = option->addMenu(tr("Searc&h Engine"));
+  searchEngineGroup = new QActionGroup(this);
+  FQTERM_ADDACTION(searchEngineMenu, SEARCH_GOOGLE,this, setSEGoogle);
+  searchEngineGroup->addAction(getAction(FQTermShortcutHelper::SEARCH_GOOGLE));
+  FQTERM_ADDACTION(searchEngineMenu, SEARCH_BAIDU,this, setSEBaidu);
+  searchEngineGroup->addAction(getAction(FQTermShortcutHelper::SEARCH_BAIDU));
+  FQTERM_ADDACTION(searchEngineMenu, SEARCH_BING,this, setSEBing);
+  searchEngineGroup->addAction(getAction(FQTermShortcutHelper::SEARCH_BING));
+  FQTERM_ADDACTION(searchEngineMenu, SEARCH_YAHOO,this, setSEYahoo);
+  searchEngineGroup->addAction(getAction(FQTermShortcutHelper::SEARCH_YAHOO));
+  FQTERM_ADDACTION(searchEngineMenu, SEARCH_CUSTOM,this, setSECustom);
+  searchEngineGroup->addAction(getAction(FQTermShortcutHelper::SEARCH_CUSTOM));
 
   // Special
   QMenu *spec = menuMain_->addMenu(tr("&Special"));
@@ -1514,7 +1607,55 @@ void FQTermFrame::updateMenuToolBar() {
   getAction(FQTermShortcutHelper::MOUSESUPPORT)->setChecked(window->getSession()->param().isSupportMouse_);
   getAction(FQTermShortcutHelper::AUTORECONNECT)->setChecked(window->getSession()->param().isAutoReconnect_);
 
+  updateFontCombo();
+}
+
+void FQTermFrame::updateFontCombo() {
+  FQTermWindow *window = windowManager_->activeWindow();
+
+  if (window == NULL) {
+    return ;
+  }
+  englishFontCombo_->blockSignals(true);
+  otherFontCombo_->blockSignals(true);
+  englishFontCombo_->setCurrentFont(window->getScreen()->termFont(true));
+  otherFontCombo_->setCurrentFont(window->getScreen()->termFont(false));
+  englishFontCombo_->blockSignals(false);
+  otherFontCombo_->blockSignals(false);
+}
+
+void FQTermFrame::termFontChange(bool isEnglish, QFont font) {
+  updateFontCombo();
+}
+
+void FQTermFrame::comboFontChanged(const QFont & font) {
+
+  FQTermWindow *window = windowManager_->activeWindow();
+
+  if (window == NULL) {
+    return ;
+  }
   
+  window->getScreen()->blockSignals(true);
+
+  bool isEnglish = (sender() == (QObject*)englishFontCombo_);
+
+  QString& fontName = isEnglish?
+    window->getSession()->param().englishFontName_:window->getSession()->param().otherFontName_;
+  int& fontSize = isEnglish?
+    window->getSession()->param().englishFontSize_:window->getSession()->param().otherFontSize_;
+  QFontComboBox* combo = isEnglish ? englishFontCombo_ : otherFontCombo_;
+
+  QFont f(combo->currentFont().family(), window->getScreen()->termFont(true).pointSize());
+
+  window->getScreen()->setTermFont(isEnglish, f);
+
+  fontName = f.family();
+  fontSize = f.pointSize();
+
+  window->getScreen()->blockSignals(false);
+
+  window->forcedRepaintScreen();
 }
 
 void FQTermFrame::enableMenuToolBar(bool enable) {
@@ -1528,11 +1669,14 @@ void FQTermFrame::enableMenuToolBar(bool enable) {
   getAction(FQTermShortcutHelper::ANSICOLOR)->setEnabled(enable);
 
   fontButton_->setEnabled(enable);
+  englishFontCombo_->setEnabled(enable);
+  otherFontCombo_->setEnabled(enable);
   menuFont_->setEnabled(enable);
 
   getAction(FQTermShortcutHelper::COLORSETTING)->setEnabled(enable);
   getAction(FQTermShortcutHelper::REFRESHSCREEN)->setEnabled(enable);
   getAction(FQTermShortcutHelper::CURRENTSETTING)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::SAVESETTING)->setEnabled(enable);
   getAction(FQTermShortcutHelper::COPYARTICLE)->setEnabled(enable);
   getAction(FQTermShortcutHelper::ANTIIDLE)->setEnabled(enable);
   getAction(FQTermShortcutHelper::AUTOREPLY)->setEnabled(enable);
@@ -1544,7 +1688,8 @@ void FQTermFrame::enableMenuToolBar(bool enable) {
 #ifdef HAVE_PYTHON
   getAction(FQTermShortcutHelper::RUNPYTHONSCRIPT)->setEnabled(enable);
 #endif 
-  getAction(FQTermShortcutHelper::GOOGLEIT)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::SEARCHIT)->setEnabled(enable);
+  getAction(FQTermShortcutHelper::WEIBOSHARE)->setEnabled(enable);
   getAction(FQTermShortcutHelper::EXTERNALEDITOR)->setEnabled(enable);
   getAction(FQTermShortcutHelper::FASTPOST)->setEnabled(enable);
 }
@@ -1757,6 +1902,7 @@ FQTermFrame::recreateMenu() {
   delete toolBarMdiTools_;
   delete toolBarSetupKeys_;
   delete toolBarMdiConnectTools_;
+  delete toolBarFonts_;
   delete menuConnect_; 
   addMainTool();
   updateKeyToolBar();
@@ -1899,11 +2045,12 @@ void FQTermFrame::loadToolBarPosition()
   QString strTmp = config_->getItemValue("global", "toolbarstate");
   if (!strTmp.isEmpty())
   {
-    restoreState(QByteArray::fromHex(strTmp.toAscii()));
+    restoreState(QByteArray::fromHex(strTmp.toLatin1()));
   } else {
     addToolBar(Qt::TopToolBarArea, toolBarMdiConnectTools_);
     insertToolBar(toolBarMdiConnectTools_,toolBarSetupKeys_);
     insertToolBar(toolBarSetupKeys_, toolBarMdiTools_);
+    insertToolBar(toolBarMdiTools_, toolBarFonts_);
   }
 }
 
@@ -1947,7 +2094,7 @@ void FQTermFrame::schemaUpdated() {
   }
 }
 
-
+#ifdef USE_GLOBAL_HOTKEY
 void FQTermFrame::globalHotkeyTriggered() {
   if (isActiveWindow() && !isMinimized() && isVisible())
   {
@@ -1967,10 +2114,9 @@ void FQTermFrame::globalHotkeyTriggered() {
 
 void FQTermFrame::globalHotkeyChanged()
 {
-#ifdef USE_GLOBAL_HOTKEY
   globalHotkey_->setShortcut(shortcutHelper_->getAction(FQTermShortcutHelper::GLOBAL_SHOW_FQTERM)->shortcut());
-#endif //USE_GLOBAL_HOTKEY
 }
+#endif //USE_GLOBAL_HOTKEY
 
 TranslatorInstaller::TranslatorInstaller(const QString& language,
                                          FQTermFrame* frame)

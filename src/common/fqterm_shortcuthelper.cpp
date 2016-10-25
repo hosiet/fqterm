@@ -70,7 +70,7 @@ void FQTermShortcutHelper::initShortcutDescriptionTable()
   initShortcutDescriptionTableEntry(PASTEWORDWRAP, "pastewordwrap", tr(""), tr("Paste With Word Wrap"));  
   getAction(PASTEWORDWRAP)->setCheckable(true);
   initShortcutDescriptionTableEntry(ENGLISHFONT, "englishfont", tr(""), tr("Set English Font"));
-  initShortcutDescriptionTableEntry(NONENGLISHFONT, "nonenglishfont", tr(""), tr("Set non-English Font"));
+  initShortcutDescriptionTableEntry(OTHERFONT, "nonenglishfont", tr(""), tr("Set Other Font"));
   initShortcutDescriptionTableEntry(COLORSETTING, "colorsetting", tr(""), tr("Color Setting"), "ansi_color");
   initShortcutDescriptionTableEntry(REFRESHSCREEN, "refreshscreen", tr(""), tr("Refresh Screen"), "refresh");
   initShortcutDescriptionTableEntry(ANSICOLOR, "ansicolor", tr(""), tr("Toggle Ansi Color"), "toggle_ansi_color");
@@ -83,7 +83,8 @@ void FQTermShortcutHelper::initShortcutDescriptionTable()
   initShortcutDescriptionTableEntry(SWITCHBAR, "switchbar", tr(""), tr("Toggle Switch Bar"));  
   getAction(SWITCHBAR)->setCheckable(true);
   initShortcutDescriptionTableEntry(CURRENTSETTING, "currentsetting", tr(""), tr("Current Session Setting"), "preferences");  
-  initShortcutDescriptionTableEntry(GOOGLEIT, "googleit", tr("Ctrl+Alt+G"), tr("Google selected words"));
+  initShortcutDescriptionTableEntry(SEARCHIT, "googleit", tr("Ctrl+Alt+G"), tr("Google selected words"));
+  initShortcutDescriptionTableEntry(WEIBOSHARE, "shareit", tr("Alt+`"), tr("Share selected text and highlighted URL to weibo"));
   initShortcutDescriptionTableEntry(EXTERNALEDITOR, "externaleditor", tr("Ctrl+Alt+E"), tr("Invoke external editor")); 
   initShortcutDescriptionTableEntry(FASTPOST, "fastpost", tr("Ctrl+Alt+F"), tr("Fast post from clipboard"));
   initShortcutDescriptionTableEntry(DEFAULTSETTING, "defaultsetting", tr(""), tr("Default Setting"));  
@@ -128,8 +129,19 @@ void FQTermShortcutHelper::initShortcutDescriptionTable()
   getAction(SCROLLBAR_RIGHT)->setCheckable(true);
   initShortcutDescriptionTableEntry(SCROLLBAR_HIDDEN, "scrollbarhidden", tr(""), tr("Set Scrollbar Hidden")); 
   getAction(SCROLLBAR_HIDDEN)->setCheckable(true);
+  initShortcutDescriptionTableEntry(SEARCH_GOOGLE, "searchgoogle", tr(""), tr("Use Google")); 
+  getAction(SEARCH_GOOGLE)->setCheckable(true);
+  initShortcutDescriptionTableEntry(SEARCH_BAIDU, "searchbaidu", tr(""), tr("Use Baidu")); 
+  getAction(SEARCH_BAIDU)->setCheckable(true);
+  initShortcutDescriptionTableEntry(SEARCH_BING, "searchbing", tr(""), tr("Use Bing")); 
+  getAction(SEARCH_BING)->setCheckable(true);
+  initShortcutDescriptionTableEntry(SEARCH_YAHOO, "searchyahoo", tr(""), tr("Use Yahoo!")); 
+  getAction(SEARCH_YAHOO)->setCheckable(true);
+  initShortcutDescriptionTableEntry(SEARCH_CUSTOM, "searchcustom", tr(""), tr("Use Customized SE")); 
+  getAction(SEARCH_CUSTOM)->setCheckable(true);
   initShortcutDescriptionTableEntry(LANGUAGE_ENGLISH, "languageenglish", tr(""), tr("Choose UI Language: English")); 
   getAction(LANGUAGE_ENGLISH)->setCheckable(true);
+  initShortcutDescriptionTableEntry(SAVESETTING, "savesetting", tr(""), tr("Save Current Session Setting"), "save_setting");
 
 #if defined(__APPLE__)
   QString opt(tr("Ctrl"));
@@ -164,7 +176,7 @@ void FQTermShortcutHelper::retranslateActions() {
   retranslateAction(AUTOCOPYSELECTION, tr("Auto copy &select"));
   retranslateAction(PASTEWORDWRAP, tr("P&aste with wordwrap"));
   retranslateAction(ENGLISHFONT, tr("&English Font"));
-  retranslateAction(NONENGLISHFONT, tr("&Non-English Font"));
+  retranslateAction(OTHERFONT, tr("O&ther Font"));
   retranslateAction(COLORSETTING, tr("&Color Setting"));
   retranslateAction(ANSICOLOR, tr("&Use ANSI Color"));
   retranslateAction(REFRESHSCREEN, tr("&Refresh"));
@@ -172,7 +184,8 @@ void FQTermShortcutHelper::retranslateActions() {
   retranslateAction(FULLSCREEN, tr("Fullscree&n"));
   retranslateAction(BOSSCOLOR, tr("B&oss Color"));
   retranslateAction(SWITCHBAR, tr("S&witch Bar"));
-  retranslateAction(GOOGLEIT, tr("&Google It"));
+  retranslateAction(SEARCHIT, tr("&Search It"));
+  retranslateAction(WEIBOSHARE, tr("Sha&re It"));
   retranslateAction(EXTERNALEDITOR, tr("E&xternal Editor"));
   retranslateAction(FASTPOST, tr("&Fast Post"));
   retranslateAction(CURRENTSETTING, tr("&Setting for current session"));
@@ -207,6 +220,12 @@ void FQTermShortcutHelper::retranslateActions() {
   retranslateAction(SCROLLBAR_HIDDEN, tr("&Hide"));
   retranslateAction(SCROLLBAR_RIGHT, tr("&Right"));
   retranslateAction(SCROLLBAR_LEFT, tr("&Left"));
+  retranslateAction(SEARCH_GOOGLE, tr("&Google"));
+  retranslateAction(SEARCH_BAIDU, tr("&Baidu"));
+  retranslateAction(SEARCH_BING, tr("&Bing"));
+  retranslateAction(SEARCH_YAHOO, tr("&Yahoo!"));
+  retranslateAction(SEARCH_CUSTOM, tr("&Custom"));
+  retranslateAction(SAVESETTING, tr("Save Settin&g"));
 }
 
 

@@ -35,7 +35,7 @@ namespace FQTerm {
  *  The dialog will by default be modeless, unless you set 'modal' to
  *  TRUE to construct a modal dialog.
  */
-keyDialog::keyDialog(FQTermConfig * config, QWidget *parent, Qt::WFlags fl)
+keyDialog::keyDialog(FQTermConfig * config, QWidget *parent, Qt::WindowFlags fl)
     : QDialog(parent, fl),
       keyButtonGroup_(this),
       config_(config) {
@@ -101,6 +101,9 @@ void keyDialog::onAdd() {
 
   strTmp = QString("name%1").arg(num);
   config_->setItemValue("key", strTmp, ui_.nameEdit->text());
+
+  strTmp = QString("shortcut%1").arg(num);
+  config_->setItemValue("key", strTmp, ui_.shortcutEdit->text());
 
   ui_.nameListWidget->addItem(ui_.nameEdit->text());
   ui_.nameListWidget->setCurrentRow(ui_.nameListWidget->count() -1);

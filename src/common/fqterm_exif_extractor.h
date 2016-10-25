@@ -21,7 +21,7 @@
 #ifndef FQTERM_EXIF_EXTRACTOR
 #define FQTERM_EXIF_EXTRACTOR
 
-#include <QtGlobal>
+//#include <QtGlobal>
 
 #include "fqterm_trace.h"
 
@@ -33,6 +33,9 @@
 #include <map>
 #include <string>
 //using namespace std;
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#include <cstdint>
+#endif
 
 namespace FQTerm {
 
@@ -40,7 +43,12 @@ class ExifExtractor
 {
 public:
 
-#if defined(QT_VERSION)
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+    typedef std::uint32_t uint32;
+    typedef std::uint16_t uint16;
+    typedef std::int32_t int32;
+    typedef std::int16_t int16;
+#elif defined(QT_VERSION)
   typedef quint32 uint32;
   typedef quint16 uint16;
   typedef qint32 int32;

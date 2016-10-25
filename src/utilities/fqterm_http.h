@@ -22,11 +22,13 @@
 #define FQTERM_HTTP_H
 
 #include <QObject>
-#include <QHttp>
 #include <QMutex>
 #include <QMap>
+#include <QScopedPointer>
+#include <QNetworkReply>
 
 class QNetworkProxy;
+class QNetworkAccessManager;
 
 namespace FQTerm {
 
@@ -40,7 +42,8 @@ class FQTermHttp: public QObject {
   ~FQTermHttp();
 
   void getLink(const QString &, bool);
-  int setProxy (const QNetworkProxy & proxy);
+  void getLink(const QUrl &, bool);
+  void setProxy (const QNetworkProxy & proxy);
  signals:
   void done(QObject*);
   void message(const QString &);
@@ -52,12 +55,14 @@ class FQTermHttp: public QObject {
   void cancel();
 
  protected slots:
-  void httpDone(bool);
-  void httpRead(int, int);
-  void httpResponse(const QHttpResponseHeader &);
+   void httpDone();
+   void httpRead(qint64, qint64);
+   void httpError(QNetworkReply::NetworkError);
+   void httpResponse();
 
  protected:
-  QHttp http_;
+   QScopedPointer<QNetworkAccessManager> nam_;
+   QScopedPointer<QNetworkReply> netreply_;
   QString cacheFileName_;
   bool previewEmitted;
   bool isPreview_;

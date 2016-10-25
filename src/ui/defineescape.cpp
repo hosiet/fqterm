@@ -27,8 +27,8 @@ DefineEscapeDialog::~DefineEscapeDialog()
 {
 }
 
-DefineEscapeDialog::DefineEscapeDialog(QString& strEsc, QWidget *parent_ /*= 0*/, Qt::WFlags fl /*= 0*/)
-: strEsc_(strEsc), QDialog(parent_, fl)
+DefineEscapeDialog::DefineEscapeDialog(QString& strEsc, QWidget *parent_ /*= 0*/, Qt::WindowFlags fl /*= 0*/)
+: QDialog(parent_, fl), strEsc_(strEsc)
 {
   ui_.setupUi(this);
   ui_.edtEscape->setText(strEsc_);
@@ -46,6 +46,18 @@ void DefineEscapeDialog::onCancel()
 {
   done(0);
 }
+
+    void DefineEscapeDialog::setTitleAndText(const QString &title, const QString &text)
+    {
+        ui_.lblEscape->setText(text);
+        this->setWindowTitle(title);
+    }
+
+    void DefineEscapeDialog::setEditText(const QString &text)
+    {
+        ui_.edtEscape->setText(text);
+    }
+        
 } //namespace FQTerm
 
 #include "defineescape.moc"

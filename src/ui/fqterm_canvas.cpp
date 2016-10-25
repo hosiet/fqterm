@@ -35,7 +35,7 @@
 #include <QDir>
 #include <QUrl>
 #include <QImageReader>
-
+#include <QMovie>
 
 #include "fqterm_canvas.h"
 #include "fqterm.h"
@@ -45,7 +45,7 @@
 
 namespace FQTerm {
 
-FQTermCanvas::FQTermCanvas(FQTermConfig * config, QWidget *parent, Qt::WFlags f)
+FQTermCanvas::FQTermCanvas(FQTermConfig * config, QWidget *parent, Qt::WindowFlags f)
     : QScrollArea(parent),
       adjustMode_(Fit),
       aspectRatioMode_(Qt::KeepAspectRatio){
@@ -76,6 +76,9 @@ FQTermCanvas::FQTermCanvas(FQTermConfig * config, QWidget *parent, Qt::WFlags f)
   menu_->addAction(tr("rotate CCW 90"), this, SLOT(ccwRotate()),
                    tr("Ctrl+["));
   menu_->addSeparator();
+  gifPlayAction_ = menu_->addAction(tr("play gif"), this,
+    SLOT(playGIF()), tr("Ctrl+/"));
+  menu_->addSeparator();
   menu_->addAction(tr("save as"), this, SLOT(saveImage()), tr("Ctrl+S"));
   menu_->addAction(tr("copy to"), this, SLOT(copyImage()), tr("Ctrl+C"));
   menu_->addAction(tr("silent copy"), this, SLOT(silentCopy()),
@@ -100,6 +103,11 @@ FQTermCanvas::FQTermCanvas(FQTermConfig * config, QWidget *parent, Qt::WFlags f)
 
   toolBar_->addAction(zoomInAction);
   toolBar_->addAction(zoomOutAction);
+
+  QActionGroup* gifGroup = new QActionGroup(this);
+  gifPlayAction_->setIcon(
+    QIcon(getPath(RESOURCE) + "pic/ViewerButtons/play_gif.png"));
+  toolBar_->addAction(gifPlayAction_);
 
   QActionGroup* showSettingGroup = new QActionGroup(this);
   QMenu* showSettingMenu = new QMenu(this);
@@ -148,11 +156,11 @@ FQTermCanvas::FQTermCanvas(FQTermConfig * config, QWidget *parent, Qt::WFlags f)
 #if QT_VERSION >= 0x040200
   setAlignment(Qt::AlignCenter);
 #endif
-  label = new QLabel(viewport());
-  label->setScaledContents(true);
-  label->setAlignment(Qt::AlignCenter);
-  label->setText(tr("No Preview Available"));
-  setWidget(label);
+  label_ = new QLabel(viewport());
+  label_->setScaledContents(true);
+  label_->setAlignment(Qt::AlignCenter);
+  label_->setText(tr("No Preview Available"));
+  setWidget(label_);
   //  resize(200, 100);
 }
 
@@ -199,6 +207,14 @@ void FQTermCanvas::fullScreen() {
 }
 
 void FQTermCanvas::loadImage(const QString& name, bool performAdjust) {
+  if (label_->movie()) {
+    label_->movie()->stop();
+    label_->setMovie(NULL);
+  }
+
+  gifPlayAction_->setEnabled(name.endsWith("gif"));
+
+
   bool res = image_.load(name);
   if (!res) {
     QList<QByteArray> formats = QImageReader::supportedImageFormats();
@@ -209,7 +225,7 @@ void FQTermCanvas::loadImage(const QString& name, bool performAdjust) {
     }
   }
   if (!image_.isNull()) {
-    fileName_ = QFileInfo(name).absoluteFilePath().toLower();
+    fileName_ = QFileInfo(name).absoluteFilePath();
     setWindowTitle(QFileInfo(name).fileName());
 
     useAdjustMode_ = true;
@@ -220,32 +236,45 @@ void FQTermCanvas::loadImage(const QString& name, bool performAdjust) {
 
       if (szView.width() < image_.width()) {
         imageSize_ = szView;
-        label->resize(imageSize_);
-        label->clear();
-        label->setAlignment(Qt::AlignCenter);
-        label->setPixmap(scaleImage(imageSize_));
+        label_->resize(imageSize_);
+        label_->clear();
+        label_->setAlignment(Qt::AlignCenter);
+        label_->setPixmap(scaleImage(imageSize_));
+        
         if (!isEmbedded) {
           resize(szView *1.1);
         }
       } else {
         imageSize_ = image_.size();
-        label->resize(imageSize_);
-        label->setPixmap(QPixmap::fromImage(image_));
+        label_->resize(imageSize_);
+        label_->setPixmap(QPixmap::fromImage(image_));
         if (!isEmbedded) {
           resize(imageSize_ + QSize(5, 5));
         }
       }
     }
     if (isEmbedded) {
-      label->hide();
+      label_->hide();
       if (performAdjust) autoAdjust();
-      else label->setPixmap(QPixmap::fromImage(image_));
+      else label_->setPixmap(QPixmap::fromImage(image_));
       
-      label->show();
+      label_->show();
     }
 
   } else {
     FQ_TRACE("canvas", 1) << "Can't load the image: " << name;
+  }
+}
+
+void FQTermCanvas::playGIF() {
+  if (fileName_.endsWith("gif")) {
+    gifPlayer_.setFileName(fileName_);
+    if (gifPlayer_.isValid()) {
+      label_->setMovie(&gifPlayer_);
+      gifPlayer_.stop();
+      gifPlayer_.start();
+      return;
+    }
   }
 }
 
@@ -412,8 +441,8 @@ void FQTermCanvas::keyPressEvent(QKeyEvent *ke) {
 
 void FQTermCanvas::adjustSize(QSize szView) {
   szView -= QSize(2 * frameWidth(), 2 * frameWidth());
-  if (label->pixmap() == NULL && image_.isNull()) {
-    label->resize(szView);
+  if (label_->pixmap() == NULL && image_.isNull()) {
+    label_->resize(szView);
     return ;
   }
 
@@ -445,8 +474,8 @@ void FQTermCanvas::adjustSize(QSize szView) {
   }
 
   imageSize_ = szImg;
-  label->resize(imageSize_);
-  label->setPixmap(scaleImage(imageSize_));
+  label_->resize(imageSize_);
+  label_->setPixmap(scaleImage(imageSize_));
 }
 
 void FQTermCanvas::resizeEvent(QResizeEvent * event) {

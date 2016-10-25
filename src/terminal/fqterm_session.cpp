@@ -18,12 +18,19 @@
  *   51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.               *
  ***************************************************************************/
 
-#include <stdio.h>
-#include <ctype.h>
+#include "fqterm.h"
+#include "common.h"
+#include "fqterm_trace.h"
+#include "fqterm_session.h"
+#include "fqterm_buffer.h"
+#include "fqterm_text_line.h"
+#include "fqterm_telnet.h"
+#include "fqterm_decode.h"
+#include "fqterm_zmodem.h"
 
-#include <algorithm>
-#include <vector>
-#include <list>
+#ifdef HAVE_PYTHON
+#include <Python.h>
+#endif //HAVE_PYTHON
 
 #ifndef WIN32
 #include <unistd.h>
@@ -31,9 +38,6 @@
 #include <windows.h>
 #endif
 
-#ifdef HAVE_PYTHON
-#include <Python.h>
-#endif //HAVE_PYTHON
 
 #include <QString>
 #include <QTimer>
@@ -45,16 +49,6 @@
 #include <QReadLocker>
 #include <QWriteLocker>
 #include <QReadWriteLock>
-
-#include "fqterm.h"
-#include "common.h"
-#include "fqterm_trace.h"
-#include "fqterm_session.h"
-#include "fqterm_buffer.h"
-#include "fqterm_text_line.h"
-#include "fqterm_telnet.h"
-#include "fqterm_decode.h"
-#include "fqterm_zmodem.h"
 
 namespace FQTerm {
 
@@ -1139,9 +1133,10 @@ void FQTermSession::finalizeConnection() {
     QString strMsg = "";
     strMsg += "\n\n\n\r\n\r";
     strMsg += "\x1b[17C\x1b[0m===========================================\n\r";
-    strMsg +=
-        "\x1b[17C Connection Closed, Press \x1b[1m\x1b[31;40mEnter\x1b[m\x1b[0m To Connect\n\r";
-    strMsg += "\x1b[17C===========================================\n";
+    strMsg += "\x1b[17C Connection Closed, Press \x1b[1;31;40mEnter\x1b[0m To Connect\n\r";
+    strMsg += "\x1b[17C===========================================\n\r";
+    strMsg += "\x1b[17C            Press \x1b[1;31;40mSpace\x1b[0m To Close\n\r";
+    strMsg += "\x1b[17C===========================================\n\r";
     decoder_->decode(strMsg.toLatin1(), strMsg.length());
   }
   isConnected_ = false;
@@ -1172,7 +1167,7 @@ void FQTermSession::changeTelnetState(int state) {
     case TSHOSTCONNECTED:
       isConnected_ = true;
       reconnectRetry_ = 0;
-      if (param_.isAutoLogin_) {
+      if (param_.isAutoLogin_ &&  param_.protocolType_==0) {
         isTelnetLogining_ = true;
       }
 
@@ -1293,6 +1288,19 @@ QByteArray FQTermSession::unicode2bbs_smart(const QString &text) {
     break;
   case FQTERM_ENCODING_UTF8:
     strTmp = U2U8(text);
+    break;
+  case FQTERM_ENCODING_UAO:
+    if (FQTermPref::getInstance()->imeEncodingID_ == FQTERM_ENCODING_GBK)
+    {
+      strTmp = U2G(text);
+      char* tmp = encodingConverter_.G2B(strTmp, strTmp.length());
+      strTmp = tmp;
+      delete []tmp;
+    }
+    else
+    {
+      strTmp = U2A(text);
+    }
     break;
   }
 

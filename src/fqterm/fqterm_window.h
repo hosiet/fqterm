@@ -29,10 +29,6 @@
 #include <config.h>
 #endif
 
-#ifdef HAVE_PYTHON
-#include <Python.h>
-#endif
-
 #include "fqterm_param.h"
 #include "fqterm_config.h"
 #include "fqterm_convert.h"
@@ -65,16 +61,22 @@ class FQTermScriptEngine;
 class FQTermExternalEditor : public QObject {
   Q_OBJECT;
 public:
-  FQTermExternalEditor(QObject* parent);
+  FQTermExternalEditor(QWidget* parent);
   ~FQTermExternalEditor();
   void start();
 signals:
   void done(const QString&);
 public slots:
   void stateChanged(QProcess::ProcessState state);
+protected slots:
+  void readDialogData();
+  void closeDialog();
 private:
+  void execDialog();
   QString getTempFilename();
   void clearTempFileContent();
+  
+  static const QString textEditName_;
   bool started_;
   QProcess* editorProcess_;
 };
@@ -86,7 +88,7 @@ class FQTermWindow : public QMainWindow,
   Q_OBJECT;
  public:
   FQTermWindow(FQTermConfig *, FQTermFrame *frame, FQTermParam param, int addr = -1, QWidget
-              *parent = 0, const char *name = 0, Qt::WFlags wflags = Qt::Window);
+              *parent = 0, const char *name = 0, Qt::WindowFlags wflags = Qt::Window);
   ~FQTermWindow();
 
   void connectHost();
@@ -104,6 +106,7 @@ class FQTermWindow : public QMainWindow,
   void toggleAntiIdle();
   void toggleAutoReconnect();
   void setFont(bool isEnglish);
+  void saveSetting(bool ask = true);
 
   void runScript(const QString & filename);
   int externInput(const QByteArray &);
@@ -115,6 +118,8 @@ class FQTermWindow : public QMainWindow,
 
   FQTermSession * getSession() const { return session_; }
   FQTermScreen * getScreen() const {return screen_;}
+  FQTermConfig * getConfig() const { return config_; }
+        
   QPoint getUrlStartPoint() const { return urlStartPoint_; }
   QPoint getUrlEndPoint() const { return urlEndPoint_; }
 
@@ -139,7 +144,8 @@ signals:
   void copy();
   void paste();
   void openAsUrl();
-  void googleIt();
+  void searchIt();
+  void shareIt();
   void externalEditor();
   void fastPost();
   void copyArticle();
@@ -147,7 +153,7 @@ signals:
   void setColor();
   void runScript();
   void stopScript();
-  //void reconnect();
+  
   void sendParsedString(const char*);
   void showIP(bool show = true);
 
@@ -171,7 +177,7 @@ signals:
  protected slots:
   void setFont();
   void recreateMenu();
-  //void readReady(int);
+  
   //refresh screen & reset cursor position
   void sessionUpdated();
 
@@ -271,7 +277,6 @@ signals:
   FQTermExternalEditor *externalEditor_;
  private:
   void addMenu();
-  void saveSetting(bool ask = true);
 
   void setCursorPosition(const QPoint& mousePosition);
   //set cursor type according to the content
