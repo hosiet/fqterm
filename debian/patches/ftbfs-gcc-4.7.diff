@@ -1,0 +1,12 @@
+Index: b/src/common/fqterm_trace.h
+===================================================================
+--- a/src/common/fqterm_trace.h
++++ b/src/common/fqterm_trace.h
+@@ -22,6 +22,7 @@
+ #define FQTERM_TRACE_H
+ 
+ #include <cassert>
++#include <unistd.h>
+ #include <QtDebug>
+ #include <QFileInfo>
+ 
