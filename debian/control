@@ -15,7 +15,7 @@ Build-Depends:
 Standards-Version: 3.9.8
 Homepage: https://github.com/mytbk/fqterm
 Vcs-Browser: https://anonscm.debian.org/git/chinese/fqterm.git
-Vcs-Git: https://anonscm.debian.org/git/git/chinese/fqterm.git
+Vcs-Git: https://anonscm.debian.org/git/chinese/fqterm.git
 
 Package: fqterm
 Architecture: any
