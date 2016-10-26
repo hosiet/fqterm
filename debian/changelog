@@ -14,6 +14,7 @@ fqterm (0.9.8.3.r4-1) unstable; urgency=medium
   * debian: Remove legacy menu file.
   * debian: Apply `wrap-and-sort -abst'.
   * d/patches: Drop outdated gcc-4.7 related patch.
+  * d/compat: 5 -> 9
 
  -- Boyuan Yang <073plan@gmail.com>  Wed, 26 Oct 2016 00:49:00 +0800
 
