@@ -7,6 +7,11 @@
 
 #include <openssl/rsa.h>
 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && \
+    !defined(LIBRESSL_VERSION_NUMBER)
+# define HAVE_OPAQUE_STRUCTS 1
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -24,8 +29,16 @@ extern "C" {
 	};
 
 	struct ssh_pubkey_t *ssh_pubkey_new(enum pubkey_type);
-	int ssh_pubkey_free(struct ssh_pubkey_t*);
+	void ssh_pubkey_free(struct ssh_pubkey_t*);
 	int ssh_pubkey_encrypt(struct ssh_pubkey_t *k, BIGNUM *out, BIGNUM *in);
+
+#ifdef HAVE_OPAQUE_STRUCTS
+#define ssh_pubkey_setrsa(k,n,e,d) RSA_set0_key(k->key.ssh_rsa, n, e, d)
+#define ssh_pubkey_getrsa(k,n,e,d) RSA_get0_key(k->key.ssh_rsa, n, e, d)
+#else
+	int ssh_pubkey_setrsa(struct ssh_pubkey_t *k, BIGNUM *n, BIGNUM *e, BIGNUM *d);
+	int ssh_pubkey_getrsa(struct ssh_pubkey_t *k, const BIGNUM **n, const BIGNUM **e, const BIGNUM **d);
+#endif
 
 #ifdef __cplusplus
 }

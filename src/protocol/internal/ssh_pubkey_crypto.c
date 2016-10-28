@@ -14,7 +14,7 @@ ssh_pubkey_new(enum pubkey_type t)
 	return k;
 }
 
-int
+void
 ssh_pubkey_free(struct ssh_pubkey_t *k)
 {
 	switch (k->key_type) {
@@ -44,10 +44,33 @@ ssh_pubkey_encrypt_rsa(RSA *k, BIGNUM *out, BIGNUM *in)
 	return 0;
 }
 
-int ssh_pubkey_encrypt(struct ssh_pubkey_t *k, BIGNUM *out, BIGNUM *in)
+int
+ssh_pubkey_encrypt(struct ssh_pubkey_t *k, BIGNUM *out, BIGNUM *in)
 {
 	switch (k->key_type) {
 	case SSH_RSA:
 		return ssh_pubkey_encrypt_rsa(k->key.ssh_rsa, out, in);
 	}
 }
+
+#ifndef HAVE_OPAQUE_STRUCTS
+int
+ssh_pubkey_setrsa(struct ssh_pubkey_t *k, BIGNUM *n, BIGNUM *e, BIGNUM *d)
+{
+	RSA *r = k->key.ssh_rsa;
+	r->n = n;
+	r->e = e;
+	r->d = d;
+	return 0;
+}
+
+int
+ssh_pubkey_getrsa(struct ssh_pubkey_t *k, const BIGNUM **n, const BIGNUM **e, const BIGNUM **d)
+{
+	RSA *r = k->key.ssh_rsa;
+	*n = r->n;
+	*e = r->e;
+	*d = r->d;
+	return 0;
+}
+#endif
