@@ -11,7 +11,8 @@ Build-Depends:
  libssl-dev,
  libx11-dev,
  qtbase5-dev,
- qtbase5-dev-tools,
+ qttools5-dev,
+ qttools5-dev-tools,
  qtmultimedia5-dev,
  qtscript5-dev,
 Standards-Version: 3.9.8

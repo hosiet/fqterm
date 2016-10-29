@@ -10,7 +10,7 @@ fqterm (0.9.8.3.r4+git20161029-1) unstable; urgency=medium
   * Switch to build against Qt5.
   * Add new upstream docs.
 
- -- Boyuan Yang <073plan@gmail.com>  Sat, 29 Oct 2016 15:58:36 +0800
+ -- Boyuan Yang <073plan@gmail.com>  Sat, 29 Oct 2016 16:13:00 +0800
 
 fqterm (0.9.8.3.r4-1) unstable; urgency=medium
 
