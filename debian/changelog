@@ -1,3 +1,16 @@
+fqterm (0.9.8.3.r4+git20161029-1) unstable; urgency=medium
+
+  * New upstream snapshot.
+    - Various buildsystem cleanup.
+    - Add new function: raw packet capture.
+    - Fix FTBFS with OpenSSL 1.1.0. (Closes: #828302)
+  * Bump debhelper compat to v10.
+  * Fix Vcs-Git typo.
+  * Switch buildsystem: cdbs -> debhelper v10.
+  * Switch to build against Qt5.
+
+ -- Boyuan Yang <073plan@gmail.com>  Sat, 29 Oct 2016 15:58:36 +0800
+
 fqterm (0.9.8.3.r4-1) unstable; urgency=medium
 
   * Team upload.
