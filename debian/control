@@ -10,7 +10,7 @@ Build-Depends:
  debhelper (>= 10),
  libglib2.0-dev,
  libqt4-dev,
- libssl-dev (<< 1.1.0),
+ libssl-dev,
  libx11-dev,
 Standards-Version: 3.9.8
 Homepage: https://github.com/mytbk/fqterm
