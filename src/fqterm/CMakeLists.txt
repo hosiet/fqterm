@@ -1,3 +1,5 @@
+set(CMAKE_AUTOMOC ON)
+
 set(fqterm_SRCS
   fqterm_app.h
   fqterm_frame.h
@@ -15,6 +17,11 @@ set(fqterm_SRCS
   fqterm_scriptengine.cpp
 )
 
+IF(IMAGE_USE_PICFLOW)
+  ADD_DEFINITIONS(-DIMAGE_USE_PICFLOW)
+ELSE(IMAGE_USE_PICFLOW)
+ENDIF(IMAGE_USE_PICFLOW)
+
 IF(GLOBAL_HOTKEY EQUAL 1)
 IF(WIN32)
   set(global_shortcut_impl_SRCS 3rdparty/qxtglobalshortcut_win.cpp)
@@ -23,6 +30,10 @@ ELSE(WIN32)
     set(global_shortcut_impl_SRCS 3rdparty/qxtglobalshortcut_mac.cpp)
   ELSE(APPLE)
     set(global_shortcut_impl_SRCS 3rdparty/qxtglobalshortcut_x11.cpp)
+    IF(USE_QT5)
+      find_package(Qt5X11Extras REQUIRED)
+      set(QXTLIB Qt5::X11Extras)
+    ENDIF(USE_QT5)
   ENDIF(APPLE)
 ENDIF(WIN32)
 set(GLOBAL_SHORTCUT_SRC
@@ -44,14 +55,22 @@ set(3rdparty_SRCS
   ${GLOBAL_SHORTCUT_SRC}
 )
 
-qt4_automoc(${fqterm_SRCS}
-            ${3rdparty_SRCS}
-)
+if(USE_QT5)
+  find_package(Qt5Core REQUIRED)
+  find_package(Qt5Widgets REQUIRED)
+  find_package(Qt5Network REQUIRED)
+  find_package(Qt5Script REQUIRED)
 
-qt4_create_translation(fqterm_qm_file
-  ${fqterm_SRCS}
-  ${CMAKE_SOURCE_DIR}/res/dict/fqterm_zh_CN.ts
-)
+  qt5_create_translation(fqterm_qm_file
+    ${fqterm_SRCS}
+    ${CMAKE_SOURCE_DIR}/res/dict/fqterm_zh_CN.ts
+    )
+else(USE_QT5)
+  qt4_create_translation(fqterm_qm_file
+    ${fqterm_SRCS}
+    ${CMAKE_SOURCE_DIR}/res/dict/fqterm_zh_CN.ts
+    )
+endif(USE_QT5)
 
 include_directories(
   ${QT_INCLUDE_DIR}
@@ -65,6 +84,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/../utilities
   ${CMAKE_CURRENT_SOURCE_DIR}/../unite
   ${CMAKE_CURRENT_SOURCE_DIR}/../ui
+  ${CMAKE_CURRENT_SOURCE_DIR}/../ui/imageviewer
   ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
   ${CMAKE_CURRENT_BINARY_DIR}/../ui
   ${CMAKE_CURRENT_BINARY_DIR}
@@ -83,3 +103,14 @@ add_dependencies(fqterm_main
   fqterm_utilities
   fqterm_unite
 )
+
+if(USE_QT5)
+  target_link_libraries(
+    fqterm_main
+    Qt5::Core
+    Qt5::Widgets
+    Qt5::Network
+    Qt5::Script
+    ${QXTLIB}
+    )
+endif(USE_QT5)

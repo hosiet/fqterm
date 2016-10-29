@@ -1,3 +1,7 @@
+set(CMAKE_AUTOMOC ON)
+
+add_subdirectory(imageviewer)
+
 set(fqterm_ui_SRCS
   aboutdialog.h
   addrdialog.h
@@ -25,8 +29,6 @@ set(fqterm_ui_SRCS
   osdmessage.cpp
   overlayWidget.h
   overlayWidget.cpp
-  pictureflow.h
-  pictureflow.cpp
   popupMessage.h
   popupMessage.cpp
   popwidget.h
@@ -37,14 +39,10 @@ set(fqterm_ui_SRCS
   fqterm_time_label.cpp
   fqterm_tool_button.h
   fqterm_tool_button.cpp
-  imageviewer.h
-  imageviewer.cpp
   shortcutdialog.h
   shortcutdialog.cpp
   statusBar.h
   statusBar.cpp
-  fqterm_canvas.h
-  fqterm_canvas.cpp
   sitemanager.h
   sitemanager.cpp
   iplookup.h
@@ -87,13 +85,23 @@ set(fqterm_ui_UIS
   defineescape.ui
 )
 
-qt4_wrap_ui(fqterm_ui_UIS_H
-  ${fqterm_ui_UIS} 
+if(USE_QT5)
+qt5_wrap_ui(fqterm_ui_UIS_H
+  ${fqterm_ui_UIS}
 )
 
-qt4_automoc(
+find_package(Qt5Core REQUIRED)
+find_package(Qt5Widgets REQUIRED)
+find_package(Qt5Network REQUIRED)
+
+qt5_create_translation(fqterm_ui_qm_file
+  ${fqterm_ui_UIS}
   ${fqterm_ui_SRCS}
-  ${fqterm_ui_gen_HS}
+  ${CMAKE_SOURCE_DIR}/res/dict/ui_zh_CN.ts
+)
+else(USE_QT5)
+qt4_wrap_ui(fqterm_ui_UIS_H
+  ${fqterm_ui_UIS}
 )
 
 qt4_create_translation(fqterm_ui_qm_file
@@ -101,6 +109,7 @@ qt4_create_translation(fqterm_ui_qm_file
   ${fqterm_ui_SRCS}
   ${CMAKE_SOURCE_DIR}/res/dict/ui_zh_CN.ts
 )
+endif(USE_QT5)
 
 include_directories(
   ${QT_INCLUDE_DIR}
@@ -122,3 +131,7 @@ add_dependencies(fqterm_ui
 )
 
 ADD_DEFINITIONS(-D "FQTERM_GIT_REVISION=\\\"${MCGGIT_WC_REVISION}\\\"")
+
+if(USE_QT5)
+  target_link_libraries(fqterm_ui Qt5::Core Qt5::Widgets)
+endif(USE_QT5)

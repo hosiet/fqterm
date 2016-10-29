@@ -1,3 +1,5 @@
+set(CMAKE_AUTOMOC ON)
+
 set(export_SRCS
   fqterm_buffer.h
   fqterm_session.h
@@ -29,11 +31,6 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/../protocol
 )
 
-QT4_AUTOMOC(
-  ${export_SRCS}
-  ${internal_SRCS}
-)
-
 add_library(fqterm_terminal
   ${export_SRCS}
   ${internal_SRCS}
@@ -44,3 +41,11 @@ add_dependencies(fqterm_terminal
   fqterm_protocol
   fqterm_utilities
 )
+
+if(USE_QT5)
+  find_package(Qt5Core REQUIRED)
+  find_package(Qt5Network REQUIRED)
+  find_package(Qt5Widgets REQUIRED)
+  target_link_libraries(fqterm_terminal Qt5::Core Qt5::Widgets Qt5::Network)
+else(USE_QT5)
+endif(USE_QT5)

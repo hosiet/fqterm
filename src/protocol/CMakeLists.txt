@@ -1,3 +1,6 @@
+find_package(OpenSSL REQUIRED)
+set(CMAKE_AUTOMOC ON)
+
 set(export_SRCS
   fqterm_socket.cpp
   fqterm_socket.h
@@ -10,6 +13,8 @@ set(export_SRCS
 )
 
 set(internal_SRCS
+  internal/ssh_pubkey_crypto.h
+  internal/ssh_pubkey_crypto.c
   internal/crc32.h
   internal/fqterm_serialization.h
   internal/fqterm_ssh_auth.h
@@ -25,7 +30,6 @@ set(internal_SRCS
   internal/fqterm_ssh_packet.h
   internal/fqterm_ssh1_packet.h
   internal/fqterm_ssh2_packet.h
-  internal/fqterm_ssh_rsa.h
   internal/fqterm_ssh_channel.h
   internal/fqterm_ssh_types.h
   internal/fqterm_ssh_pubkey.h
@@ -40,14 +44,14 @@ set(internal_SRCS
   internal/fqterm_ssh_packet.cpp
   internal/fqterm_ssh1_packet.cpp
   internal/fqterm_ssh2_packet.cpp
-  internal/fqterm_ssh_rsa.cpp
   internal/fqterm_ssh_channel.cpp
 )
 
-qt4_automoc(
-  ${export_SRCS}
-  ${internal_SRCS}
-)
+if(USE_QT5)
+  find_package(Qt5Core REQUIRED)
+  find_package(Qt5Network REQUIRED)
+else(USE_QT5)
+endif(USE_QT5)
 
 include_directories(
   ${QT_INCLUDE_DIR}
@@ -67,3 +71,7 @@ add_library(fqterm_protocol
 add_dependencies(fqterm_protocol
   fqterm_common
 )
+
+if(USE_QT5)
+  target_link_libraries(fqterm_protocol Qt5::Core Qt5::Network)
+endif(USE_QT5)
